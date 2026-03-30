@@ -1,0 +1,292 @@
+  /* ═══════════════════════════════════════════════
+     PIT BOX PANEL — Driver panel: tyres, fuel, weather, setup, camera
+     Tabbed interface matching the dashboard glass panel aesthetic.
+     ═══════════════════════════════════════════════ */
+  .pitbox-panel {
+    width: 230px;
+    transition: opacity 0.4s ease;
+    flex-shrink: 0;
+  }
+  .pitbox-panel.section-hidden { display: none; }
+  .pitbox-panel.pb-dismissed { opacity: 0; pointer-events: none; }
+
+  .pb-inner {
+    background: hsla(0, 0%, 5%, 0.90);
+    border: 1px solid hsla(0, 0%, 100%, 0.14);
+    border-radius: 8px;
+    padding: 0;
+    font-family: 'Barlow Condensed', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── Tab bar ── */
+  .pb-tabs {
+    display: flex;
+    border-bottom: 1px solid hsla(0, 0%, 100%, 0.08);
+    background: hsla(0, 0%, 100%, 0.02);
+  }
+  .pb-tab {
+    flex: 1;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 7px 2px;
+    color: hsla(0, 0%, 100%, 0.35);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    border-bottom: 2px solid transparent;
+  }
+  .pb-tab:hover {
+    color: hsla(0, 0%, 100%, 0.6);
+    background: hsla(0, 0%, 100%, 0.03);
+  }
+  .pb-tab.active {
+    color: hsla(0, 0%, 100%, 0.9);
+    border-bottom-color: var(--green, #4ade80);
+  }
+
+  /* ── Page container ── */
+  .pb-content { position: relative; }
+  .pb-page {
+    display: none;
+    padding: 8px 10px 10px;
+  }
+  .pb-page.active { display: block; }
+
+  /* ── Section dividers ── */
+  .pb-section-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-dim, hsla(0, 0%, 100%, 0.4));
+    margin-bottom: 4px;
+  }
+  .pb-divider {
+    height: 1px;
+    background: hsla(0, 0%, 100%, 0.06);
+    margin: 6px 0;
+  }
+
+  /* ── Key-value rows ── */
+  .pb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    font-size: 12px;
+    line-height: 1.4;
+    position: relative;
+  }
+  .pb-row.hidden { display: none; }
+  .pb-label {
+    color: hsla(0, 0%, 100%, 0.55);
+    font-weight: 500;
+  }
+  .pb-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: hsla(0, 0%, 100%, 0.9);
+    text-align: right;
+  }
+  .pb-value.active  { color: var(--green, #4ade80); }
+  .pb-value.inactive { color: hsla(0, 0%, 100%, 0.25); }
+  .pb-value.on  { color: var(--orange, #ff8c00); }
+  .pb-value.off { color: hsla(0, 0%, 100%, 0.25); }
+
+  /* ── Tire grid (2×2 layout) ── */
+  .pb-tire-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 10px;
+  }
+  .pb-tire-cell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 2px 0;
+    position: relative;
+  }
+  .pb-tire-pos {
+    font-weight: 600;
+    font-size: 10px;
+    color: hsla(0, 0%, 100%, 0.5);
+    min-width: 18px;
+  }
+  .pb-tire-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .pb-tire-status.changing { color: var(--green, #4ade80); }
+  .pb-tire-status.keeping {
+    color: hsla(0, 0%, 100%, 0.2);
+    font-size: 9px;
+  }
+  .pb-tire-pressure {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: hsla(0, 0%, 100%, 0.7);
+    margin-left: auto;
+  }
+  .pb-tire-temp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: hsla(0, 0%, 100%, 0.8);
+    margin-left: auto;
+  }
+
+  /* ── Tyre wear bars ── */
+  .pb-tire-bar {
+    flex: 1;
+    height: 4px;
+    background: hsla(0, 0%, 100%, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 0 4px;
+  }
+  .pb-tire-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--green, #4ade80);
+    transition: width 0.4s ease, background 0.4s ease;
+    width: 0%;
+  }
+  .pb-tire-bar-fill.warn { background: var(--orange, #ff8c00); }
+  .pb-tire-bar-fill.crit { background: #ef4444; }
+  .pb-tire-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: hsla(0, 0%, 100%, 0.7);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* ── Fuel gauge ── */
+  .pb-fuel-gauge {
+    text-align: center;
+    margin-bottom: 8px;
+    padding: 6px 0;
+  }
+  .pb-fuel-bar-bg {
+    height: 6px;
+    background: hsla(0, 0%, 100%, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .pb-fuel-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--green, #4ade80);
+    transition: width 0.4s ease, background 0.4s ease;
+    width: 0%;
+  }
+  .pb-fuel-bar-fill.warn { background: var(--orange, #ff8c00); }
+  .pb-fuel-bar-fill.crit { background: #ef4444; }
+  .pb-fuel-level {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
+    line-height: 1.1;
+  }
+  .pb-fuel-unit {
+    font-size: 10px;
+    font-weight: 500;
+    color: hsla(0, 0%, 100%, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Weather hero ── */
+  .pb-weather-hero {
+    text-align: center;
+    padding: 10px 0 8px;
+  }
+  .pb-weather-icon {
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .pb-weather-temp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: white;
+    line-height: 1.1;
+  }
+
+  /* ── Car adjustments compact grid ── */
+  .pb-adj-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px 10px;
+  }
+  .pb-adj-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    position: relative;
+  }
+  .pb-adj-item.hidden { display: none; }
+  .pb-adj-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: hsla(0, 0%, 100%, 0.45);
+  }
+  .pb-adj-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: hsla(0, 0%, 100%, 0.8);
+  }
+  .pb-adj-val.zero { color: hsla(0, 0%, 100%, 0.2); }
+
+  /* ── Info text ── */
+  .pb-info {
+    font-size: 10px;
+    color: hsla(0, 0%, 100%, 0.25);
+    font-style: italic;
+    text-align: center;
+    padding: 10px 0 4px;
+    line-height: 1.4;
+  }
+
+  /* ── Change flash animation ── */
+  .pb-flash { position: relative; }
+  .pb-flash::after {
+    content: '';
+    position: absolute;
+    inset: -1px -4px;
+    border-radius: 3px;
+    pointer-events: none;
+    animation: pb-value-flash 1.4s ease-out forwards;
+  }
+  @keyframes pb-value-flash {
+    0%   { background: hsla(45, 100%, 60%, 0.22); }
+    100% { background: transparent; }
+  }
+  .pb-flash .pb-value,
+  .pb-flash .pb-adj-val,
+  .pb-flash .pb-tire-status {
+    filter: brightness(1.5);
+    transition: filter 1.4s ease;
+  }
+
+  /* ── No data state ── */
+  .pb-no-data {
+    text-align: center;
+    font-size: 10px;
+    color: hsla(0, 0%, 100%, 0.3);
+    padding: 8px 10px;
+    font-style: italic;
+  }
+
+  /* ── Green screen mode ── */
+  body.opaque-mode .pitbox-panel { display: none; }

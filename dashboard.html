@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>K10 Motorsports Dashboard</title>
+<!--
+  SimHub HTML Dashboard — K10 Motorsports
+  ════════════════════════════════════════════════════════════════
+
+  JS API (call from SimHub JavascriptExtensions or NCalc bindings):
+
+    updateTacho(pct)              — 0.0-1.0, drives tachometer segments + RPM color
+    updateGLFX(rpm, thr, brk, clt)   — pedal level meter bars + trace rendered via WebGL shader
+    updateIRBar(iRating)          — integer iRating value, bar fills 0-5000 range
+    updateSRPie(srValue)          — 0.0-4.0 safety rating value
+    cycleRatingPos()              — toggle between iRating/SR page and Position page
+    showCommentary(hue, title, text, meta, topicId) — show commentary panel with sentiment color + icon
+    hideCommentary()              — dismiss commentary panel
+    cycleCarLogo()                — cycle through manufacturer logos
+    flashElement(el, className)   — trigger value-change flash animation
+
+  SimHub properties → HTML elements (set via innerText/textContent):
+
+    Gear         → #gearText
+    RPM          → #rpmText
+    Speed        → #speedText
+    Fuel L       → .fuel-remaining (innerHTML with unit span)
+    Fuel bar     → .fuel-bar-inner (style.width as %)
+    Tyre temps   → .tyre-cell elements (FL/FR/RL/RR)
+    BB/TC/ABS    → .ctrl-value + --ctrl-pct CSS variable
+    Position     → .pos-number (both in cycle-sizer and positionPage)
+    Lap          → .pos-meta-row .val
+    Current lap  → .pos-meta-row.current-row .val (live timer + delta)
+    iRating      → .rating-value (first .rating-item)
+    Safety       → .rating-value (second .rating-item)
+    Gap ahead    → .gap-time.ahead + .gap-driver + .gap-ir
+    Gap behind   → .gap-time.behind + .gap-driver + .gap-ir
+
+  ════════════════════════════════════════════════════════════════
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+
+<!-- Stylesheet modules -->
+<link rel="stylesheet" href="modules/styles/base.css">
+<link rel="stylesheet" href="modules/styles/dashboard.css">
+<link rel="stylesheet" href="modules/styles/leaderboard.css">
+<link rel="stylesheet" href="modules/styles/datastream.css">
+<link rel="stylesheet" href="modules/styles/effects.css">
+<link rel="stylesheet" href="modules/styles/settings.css">
+<link rel="stylesheet" href="modules/styles/connections.css">
+<link rel="stylesheet" href="modules/styles/rally.css">
+<link rel="stylesheet" href="modules/styles/ambient.css">
+<link rel="stylesheet" href="modules/styles/pitbox.css">
+<!-- drive-mode.css removed — iPad drive mode no longer active -->
+
+</head>
+<body>
+
+<!-- Ambient light glow — full viewport WebGL canvas behind all panels -->
+<canvas class="ambient-canvas" id="ambientGlCanvas"></canvas>
+<!-- Full-screen glare canvas — renders all panel edge glows in one pass -->
+<canvas id="glareCanvas" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:60;"></canvas>
+
+<!-- Capture area selection overlay — shown when user clicks "Draw Region" -->
+<div id="captureAreaOverlay" class="capture-area-overlay" style="display:none;">
+  <div class="capture-area-instructions">Click and drag to select the screen region for ambient color sampling. Press Escape to cancel.</div>
+  <div id="captureAreaRect" class="capture-area-rect"></div>
+</div>
+
+<!-- COMPONENT: Drive Mode (Ctrl+Shift+F or auto on remote) -->
+<div class="drive-hud" id="driveHud" style="display:none;">
+
+  <!-- Left column: track map (large) + spotter below -->
+  <div class="dh-left">
+    <div class="dh-map">
+      <div class="dh-map-name" id="dhMapName"></div>
+      <svg class="dh-map-svg" id="dhMapSvg" viewBox="35 35 30 30" overflow="visible">
+        <!-- dhMapRotateGroup rotates around the player's SVG coordinate so the
+             driving direction always points up, without rotating the SVG element
+             itself (which caused rectangular clipping + crop artifacts). -->
+        <g id="dhMapRotateGroup">
+          <path class="map-track" id="dhMapTrack" d="" />
+          <path class="map-sector" id="dhSector1" d="" />
+          <path class="map-sector" id="dhSector2" d="" />
+          <path class="map-sector" id="dhSector3" d="" />
+          <g id="dhMapOpponents"></g>
+        </g>
+        <!-- Player dot is outside the rotate group so it stays upright -->
+        <circle class="map-player" id="dhMapPlayer" cx="50" cy="50" r="2" />
+      </svg>
+    </div>
+    <div class="dh-spotter" id="dhSpotter"></div>
+  </div>
+
+  <!-- Center column: timing -->
+  <div class="dh-center">
+    <div class="dh-position"><span class="dh-pos-num" id="dhPosition">P—</span></div>
+    <div class="dh-lap-delta" id="dhLapDelta">+0.000</div>
+    <div class="dh-sectors">
+      <div class="dh-sector" id="dhS1"><div class="dh-sec-label">S1</div><div class="dh-sec-time" id="dhS1Time">—</div><div class="dh-sec-delta" id="dhS1Delta"></div></div>
+      <div class="dh-sector" id="dhS2"><div class="dh-sec-label">S2</div><div class="dh-sec-time" id="dhS2Time">—</div><div class="dh-sec-delta" id="dhS2Delta"></div></div>
+      <div class="dh-sector" id="dhS3"><div class="dh-sec-label">S3</div><div class="dh-sec-time" id="dhS3Time">—</div><div class="dh-sec-delta" id="dhS3Delta"></div></div>
+    </div>
+    <div class="dh-lap-times">
+      <div class="dh-lap-row"><span class="dh-lap-label">Last</span><span class="dh-lap-val" id="dhLastLap">—</span></div>
+      <div class="dh-lap-row dh-lap-num-row"><span class="dh-lap-label">Lap</span><span class="dh-lap-val" id="dhCurrentLap">—</span></div>
+      <div class="dh-live-lap" id="dhLiveLap">
+        <span class="dh-live-time" id="dhLiveTime">—</span>
+        <span class="dh-live-delta" id="dhLiveDelta"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: incidents -->
+  <div class="dh-right">
+    <div class="dh-incidents">
+      <div class="dh-inc-label">Incidents</div>
+      <div class="dh-inc-count" id="dhIncCount">0<span class="dh-inc-x">x</span></div>
+      <div class="dh-inc-thresholds">
+        <span id="dhIncToPen">—</span> to pen
+        <span id="dhIncToDQ">—</span> to DQ
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- COMPONENT: Main Dashboard -->
+<div class="dashboard layout-tr" id="dashboard">
+
+  <div class="main-row">
+  <div class="main-area">
+
+    <!-- COL: Fuel (top) + Tyres (bottom) — separate panels -->
+    <div class="fuel-tyres-col">
+      <div class="panel fuel-block">
+        <div class="panel-label">Fuel</div>
+        <div class="fuel-remaining">— <span class="unit">L</span></div>
+        <div class="fuel-bar-outer">
+          <div class="fuel-bar-inner healthy" style="width: 0%;"></div>
+        </div>
+        <div class="fuel-stats">
+          <span>Avg <span class="val">—</span> L/lap</span>
+          <span>Est <span class="val">—</span> laps</span>
+        </div>
+        <div class="fuel-pit-suggest"></div>
+      </div>
+      <div class="panel tyres-block">
+        <div class="panel-label">Tyres °F</div>
+        <div class="tyre-grid">
+          <div><div class="tyre-label">FL</div><div class="tyre-cell">—</div><div class="tyre-wear-bar"><div class="tyre-wear-fill" style="width:0%;"></div></div></div>
+          <div><div class="tyre-label">FR</div><div class="tyre-cell">—</div><div class="tyre-wear-bar"><div class="tyre-wear-fill" style="width:0%;"></div></div></div>
+          <div><div class="tyre-label">RL</div><div class="tyre-cell">—</div><div class="tyre-wear-bar"><div class="tyre-wear-fill" style="width:0%;"></div></div></div>
+          <div><div class="tyre-label">RR</div><div class="tyre-cell">—</div><div class="tyre-wear-bar"><div class="tyre-wear-fill" style="width:0%;"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL: Controls + Layered Pedals -->
+    <div class="controls-pedals-block">
+      <div class="panel car-controls">
+        <div class="ctrl-item" id="ctrlBB" style="--ctrl-pct:0%;"><div class="ctrl-label">BB</div><div class="ctrl-value">—</div></div>
+        <div class="ctrl-item" id="ctrlTC" style="--ctrl-pct:0%;"><div class="ctrl-label">TC</div><div class="ctrl-value">—</div></div>
+        <div class="ctrl-item" id="ctrlABS" style="--ctrl-pct:0%;"><div class="ctrl-label">ABS</div><div class="ctrl-value">—</div></div>
+        <div class="ctrl-no-adj" id="ctrlNoAdj">NO ADJUSTMENTS</div>
+      </div>
+      <div class="panel pedals-area" id="pedalsArea">
+        <div class="pedal-labels-row">
+          <div class="pedal-label-group">
+            <div class="pedal-channel-label throttle">THROTTLE</div>
+            <div class="pedal-pct" style="color:var(--green);">0%</div>
+          </div>
+          <div class="pedal-label-group">
+            <div class="pedal-channel-label brake">BRAKE</div>
+            <div class="pedal-pct" style="color:var(--red);">0%</div>
+          </div>
+          <div class="pedal-label-group" id="clutchLabelGroup">
+            <div class="pedal-channel-label clutch">CLUTCH</div>
+            <div class="pedal-pct" style="color:var(--blue);">0%</div>
+          </div>
+        </div>
+        <div class="pedal-viz-stack">
+          <div class="pedal-viz-layer throttle-layer" id="throttleHist"></div>
+          <div class="pedal-viz-layer brake-layer" id="brakeHist"></div>
+          <div class="pedal-viz-layer clutch-layer" id="clutchHist"></div>
+          <canvas class="pedal-trace-canvas" id="pedalTraceCanvas" width="240" height="80"></canvas>
+          <!-- Pedal curve overlay: response curves fill the histogram space -->
+          <canvas class="pedal-curve-canvas" id="pedalCurveCanvas" width="240" height="80"></canvas>
+        </div>
+        <div class="pedal-profile-label" id="pedalProfileLabel"></div>
+      </div>
+    </div>
+
+    <!-- COL: Maps stacked — rendered dynamically from TrackMapProvider -->
+    <div class="maps-col">
+      <div class="panel map-panel">
+        <svg class="map-svg" id="fullMapSvg" viewBox="0 0 100 100">
+          <path class="map-track-outer" id="fullMapTrackOuter" d="" />
+          <path class="map-track" id="fullMapTrack" d="" />
+          <path class="map-track-inner on-track" id="fullMapTrackInner" d="" />
+          <path class="map-sector" id="mapSector1" d="" />
+          <path class="map-sector" id="mapSector2" d="" />
+          <path class="map-sector" id="mapSector3" d="" />
+          <g id="fullMapSF" class="map-sf" style="display:none;">
+            <line x1="0" y1="-3.5" x2="0" y2="3.5" stroke="hsla(0,0%,100%,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+          <g id="fullMapOpponents"></g>
+          <circle class="map-player" id="fullMapPlayer" cx="50" cy="50" r="4" />
+        </svg>
+        <div class="map-zoom-label" id="fullMapLabel">Full</div>
+      </div>
+      <div class="panel map-zoom-panel">
+        <svg class="map-zoom-svg" id="zoomMapSvg" viewBox="0 0 100 100" overflow="visible">
+          <!-- Rotate group: track + opponents rotate around the player so
+               driving direction always points up. Player dot is OUTSIDE
+               this group so it stays upright and visually centered. -->
+          <g id="zoomMapRotateGroup">
+            <path class="map-track-outer" id="zoomMapTrackOuter" d="" />
+            <path class="map-track" id="zoomMapTrack" d="" />
+            <path class="map-track-inner on-track" id="zoomMapTrackInner" d="" />
+            <g id="zoomMapSF" class="map-sf" style="display:none;">
+              <line x1="0" y1="-2" x2="0" y2="2" stroke="hsla(0,0%,100%,0.6)" stroke-width="0.8" stroke-linecap="round"/>
+            </g>
+            <g id="zoomMapOpponents"></g>
+          </g>
+          <!-- Player dot outside rotate group — always upright at center -->
+          <circle class="map-player" id="zoomMapPlayer" cx="50" cy="50" r="2" />
+        </svg>
+        <div class="map-zoom-label" id="zoomMapLabel">Local</div>
+      </div>
+    </div>
+
+    <!-- COL: Position/Rating + Gaps -->
+    <div class="pos-gaps-col">
+      <div class="panel cycle-container rating-pos-block" id="cycleRatingPos">
+        <div class="cycle-sizer">
+          <div class="pos-layout">
+            <div class="pos-number"><span class="skew-accent">P—</span><div class="pos-delta"></div></div>
+            <div class="pos-meta">
+              <div class="pos-meta-row">Lap <span class="val">—</span></div>
+              <div class="pos-meta-row current-row"><span class="val">—:——.———</span></div>
+              <div class="pos-meta-row delta-row"><span class="val"></span></div>
+            </div>
+          </div>
+        </div>
+        <!-- Page A: iRating + SR with charts -->
+        <div class="cycle-page active" id="ratingPage">
+          <div class="rating-row">
+            <div class="rating-item">
+              <div class="panel-label">iRating</div>
+              <div class="rating-value">—</div>
+              <div class="rating-delta">—</div>
+              <div class="ir-bar-container">
+                <div class="ir-bar-track">
+                  <div class="ir-bar-fill" id="irBarFill" style="width: 0%;"></div>
+                  <div class="ir-bar-ticks">
+                    <div class="ir-bar-tick" style="left: 20%;"></div>
+                    <div class="ir-bar-tick-label" style="left: 20%;">1k</div>
+                    <div class="ir-bar-tick" style="left: 40%;"></div>
+                    <div class="ir-bar-tick-label" style="left: 40%;">2k</div>
+                    <div class="ir-bar-tick" style="left: 60%;"></div>
+                    <div class="ir-bar-tick-label" style="left: 60%;">3k</div>
+                    <div class="ir-bar-tick" style="left: 80%;"></div>
+                    <div class="ir-bar-tick-label" style="left: 80%;">4k</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="rating-item">
+              <div class="panel-label">SR</div>
+              <div class="rating-value" style="font-size:14px;">—</div>
+              <div class="rating-delta">—</div>
+              <div class="sr-pie-container">
+                <svg class="sr-pie-svg" viewBox="0 0 40 40">
+                  <circle class="sr-pie-bg" cx="20" cy="20" r="15"/>
+                  <circle class="sr-pie-fill" id="srPieFill" cx="20" cy="20" r="15"
+                    stroke="var(--green)"
+                    stroke-dasharray="94.25"
+                    stroke-dashoffset="18.85"/>
+                  <!-- no text overlay -->
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Page B: Position + Best (purple) -->
+        <div class="cycle-page inactive" id="positionPage">
+          <div class="pos-layout">
+            <div class="pos-number"><span class="skew-accent">P—</span><div class="pos-delta"></div></div>
+            <div class="pos-meta">
+              <div class="pos-meta-row">Lap <span class="val">—</span></div>
+              <div class="pos-meta-row current-row"><span class="val">—:——.———</span></div>
+              <div class="pos-meta-row delta-row"><span class="val"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cycle-dots"><div class="cycle-dot active" id="dotRating"></div><div class="cycle-dot" id="dotPos"></div></div>
+      </div>
+
+      <div class="panel gaps-block" id="gapsBlock">
+        <!-- Race mode: ahead/behind -->
+        <div class="gap-item" id="gapAheadItem">
+          <div class="gap-normal">
+            <div class="panel-label">Ahead</div>
+            <div class="gap-time ahead">—</div>
+            <div class="gap-driver">—</div>
+            <div class="gap-ir"></div>
+          </div>
+        </div>
+        <div class="gap-item" id="gapBehindItem">
+          <div class="gap-normal">
+            <div class="panel-label">Behind</div>
+            <div class="gap-time behind">—</div>
+            <div class="gap-driver">—</div>
+            <div class="gap-ir"></div>
+          </div>
+        </div>
+        <!-- Non-race mode: F1-style sector indicator -->
+        <div class="sector-indicator" id="sectorIndicator" style="display:none;">
+          <div class="sector-cell" id="sector1"><div class="sector-label">S1</div><div class="sector-time" id="sector1Time">—</div><div class="sector-delta" id="sector1Delta"></div></div>
+          <div class="sector-cell" id="sector2"><div class="sector-label">S2</div><div class="sector-time" id="sector2Time">—</div><div class="sector-delta" id="sector2Delta"></div></div>
+          <div class="sector-cell" id="sector3"><div class="sector-label">S3</div><div class="sector-time" id="sector3Time">—</div><div class="sector-delta" id="sector3Delta"></div></div>
+        </div>
+        <canvas class="flag-gl gl-overlay" id="flagGlCanvas"></canvas>
+        <div class="flag-overlay" id="flagOverlay">
+          <div class="flag-label" id="flagLabel1"></div>
+          <div class="flag-context" id="flagCtx1"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COL: Tachometer -->
+    <div class="panel tacho-block">
+      <canvas class="gl-overlay" id="tachoGlCanvas"></canvas>
+      <div class="tacho-top-row">
+        <div class="tacho-gear" id="gearText">N</div>
+        <div class="tacho-speed-cluster">
+          <div class="speed-value" id="speedText">0</div>
+          <div class="speed-unit">MPH</div>
+        </div>
+      </div>
+      <span class="tacho-rpm" id="rpmText" style="color: var(--text-dim);">0</span>
+      <div class="tacho-bar-track" id="tachoBar"></div>
+    </div>
+
+    <!-- COL: Logo (two stacked squares) -->
+    <div class="logo-col">
+      <div class="logo-square" id="k10LogoSquare">
+        <canvas class="gl-overlay" id="k10LogoGlCanvas" style="z-index:1;"></canvas>
+        <img src="images/branding/logomark.png" alt="K10 Motorsports" style="width:75%;height:auto;opacity:1;position:relative;z-index:2;">
+      </div>
+      <div class="logo-square" id="carLogoSquare">
+        <canvas class="mfr-flag-canvas" id="mfrFlagCanvas"></canvas>
+        <!-- Generic logo (replaced by JS when CarModel data arrives) -->
+        <div class="car-logo-icon" id="carLogoIcon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="30" fill="none" stroke="hsla(0,0%,100%,0.3)" stroke-width="4"/>
+            <circle cx="40" cy="40" r="22" fill="none" stroke="hsla(0,0%,100%,0.15)" stroke-width="2"/>
+            <circle cx="40" cy="40" r="5" fill="hsla(0,0%,100%,0.3)"/>
+            <line x1="40" y1="10" x2="40" y2="18" stroke="hsla(0,0%,100%,0.3)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="40" y1="62" x2="40" y2="70" stroke="hsla(0,0%,100%,0.3)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="10" y1="40" x2="18" y2="40" stroke="hsla(0,0%,100%,0.3)" stroke-width="3" stroke-linecap="round"/>
+            <line x1="62" y1="40" x2="70" y2="40" stroke="hsla(0,0%,100%,0.3)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="car-model-label" id="carModelLabel"></span>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+  </div><!-- /main-row -->
+
+  <!-- ROW: Race Timer — aligned with position box -->
+  <div class="timer-row">
+    <div class="panel race-timer-block" id="raceTimerBlock">
+      <div class="race-timer-value" id="raceTimerValue">0:00:00</div>
+      <div class="race-timer-lap"><span class="timer-label">Last</span> <span id="lastLapTimeValue">—:——.———</span></div>
+    </div>
+  </div>
+
+  <div class="conn-status connecting" id="connStatus" title="Connecting to plugin server..."></div>
+
+</div><!-- /dashboard -->
+
+<!-- COMMENTARY — independent fixed overlay, positioned in the open corner opposite the HUD -->
+<div class="commentary-col" id="commentaryCol" style="--commentary-h: 0;">
+  <canvas class="commentary-gl-canvas" id="commentaryGlCanvas"></canvas>
+  <div class="commentary-inner" id="commentaryInner">
+    <div class="commentary-track-img" id="commentaryTrackImg"></div>
+    <div class="commentary-icon" id="commentaryIcon"></div>
+    <div class="commentary-title" id="commentaryTitle"></div>
+    <div class="commentary-text-scroll" id="commentaryScroll">
+      <div class="commentary-text" id="commentaryText"></div>
+    </div>
+    <div class="commentary-viz" id="commentaryViz">
+      <canvas id="commentaryVizCanvas"></canvas>
+      <div class="commentary-viz-value" id="commentaryVizValue"></div>
+      <div class="commentary-viz-label" id="commentaryVizLabel"></div>
+    </div>
+    <div class="commentary-meta" id="commentaryMeta"></div>
+  </div>
+</div>
+
+<!-- COMPONENT: Connection Setup Banner (shown when plugin server unreachable) -->
+<div class="conn-banner" id="connBanner">
+  <h3><span class="conn-dot"></span>Can't reach SimHub</h3>
+  <p>Enter the IP of your SimHub machine.<br>Leave as localhost if SimHub runs on this computer.</p>
+  <input type="text" id="connBannerUrl" value="localhost" placeholder="e.g. 192.168.1.100 or localhost" spellcheck="false"
+    onkeydown="if(event.key==='Enter')applyConnBanner()"/>
+  <div>
+    <button onclick="applyConnBanner()">Connect</button>
+    <button class="conn-skip" onclick="dismissConnBanner()">Dismiss</button>
+  </div>
+</div>
+
+<!-- SECONDARY PANELS CONTAINER — flex row, positioned by applyLayout() -->
+<div class="sec-container" id="secContainer">
+
+<!-- COMPONENT: Leaderboard Panel -->
+<div class="leaderboard-panel lb-bottom lb-right" id="leaderboardPanel">
+  <div class="lb-inner">
+    <canvas class="lb-gl gl-overlay" id="lbPlayerGlCanvas"></canvas>
+    <canvas class="lb-gl gl-overlay" id="lbEventGlCanvas"></canvas>
+    <div class="lb-header">Relative</div>
+    <div id="lbRows"></div>
+  </div>
+  <!-- Race Timeline — color-coded position state history strip -->
+  <div class="race-timeline" id="raceTimeline">
+    <canvas class="rt-canvas" id="rtCanvas" width="310" height="9"></canvas>
+  </div>
+</div>
+
+<!-- COMPONENT: Datastream Panel (advanced telemetry) -->
+<div class="datastream-panel ds-bottom ds-right" id="datastreamPanel">
+  <div class="ds-inner">
+    <div class="ds-header">Datastream</div>
+
+    <!-- G-force diamond + values -->
+    <div class="ds-gforce" data-ds-field="dsShowGforce">
+      <div class="ds-gforce-diamond">
+        <canvas id="dsGforceCanvas" width="128" height="128"></canvas>
+      </div>
+      <div class="ds-gforce-vals">
+        <div class="ds-row" style="border:none;padding:0;">
+          <span class="ds-label">Lat</span>
+          <span class="ds-value" id="dsLatG">0.00g</span>
+        </div>
+        <div class="ds-row" style="border:none;padding:0;">
+          <span class="ds-label">Long</span>
+          <span class="ds-value" id="dsLongG">0.00g</span>
+        </div>
+        <div class="ds-row" style="border:none;padding:0;">
+          <span class="ds-label">Peak</span>
+          <span class="ds-value" id="dsPeakG" style="color:var(--text-dim);">0.00g</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Yaw rate with bar + trail -->
+    <div data-ds-field="dsShowYaw">
+      <div class="ds-row">
+        <span class="ds-label">Yaw</span>
+        <span class="ds-value" id="dsYawRate">0.00 r/s</span>
+      </div>
+      <div class="ds-yaw-bar"><div class="ds-yaw-fill" id="dsYawFill"></div></div>
+      <canvas class="ds-yaw-trail" id="dsYawTrail" width="200" height="28"></canvas>
+    </div>
+
+    <!-- Steering torque -->
+    <div class="ds-row" data-ds-field="dsShowFfb">
+      <span class="ds-label">FFB</span>
+      <span class="ds-value" id="dsSteerTorque">0.0 Nm</span>
+    </div>
+
+    <!-- Lap delta -->
+    <div class="ds-row" data-ds-field="dsShowDelta">
+      <span class="ds-label">Delta</span>
+      <span class="ds-value ds-neutral" id="dsDelta">+0.000</span>
+    </div>
+
+    <!-- Track temp -->
+    <div class="ds-row" data-ds-field="dsShowTrackTemp">
+      <span class="ds-label">Track</span>
+      <span class="ds-value" id="dsTrackTemp">—°C</span>
+    </div>
+
+    <!-- FPS -->
+    <div class="ds-row" data-ds-field="dsShowFps">
+      <span class="ds-label">FPS</span>
+      <span class="ds-value" id="dsFps" style="color:var(--text-dim);">—</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- COMPONENT: Pit Box Panel (driver panel — tyres, fuel, weather, adjustments) -->
+<div class="pitbox-panel pb-bottom pb-left" id="pitBoxPanel">
+  <div class="pb-inner">
+
+    <div class="pb-no-data" id="pbNoData" style="display:none;">No data</div>
+
+    <div id="pbContent" class="pb-content">
+      <!-- ── TAB BAR ── -->
+      <div class="pb-tabs" id="pbTabs">
+        <div class="pb-tab active" data-pb-tab="tyres" onclick="switchPbTab(this)">Tyres</div>
+        <div class="pb-tab" data-pb-tab="fuel" onclick="switchPbTab(this)">Fuel</div>
+        <div class="pb-tab" data-pb-tab="weather" onclick="switchPbTab(this)">Weather</div>
+        <div class="pb-tab" data-pb-tab="adj" onclick="switchPbTab(this)">Setup</div>
+        <div class="pb-tab" data-pb-tab="camera" onclick="switchPbTab(this)">Camera</div>
+      </div>
+
+      <!-- ═══ TYRES TAB ═══ -->
+      <div class="pb-page active" id="pbPageTyres" data-pb-page="tyres">
+        <!-- Pit tyre selections (2×2 grid) -->
+        <div class="pb-section-label">Pit Selections</div>
+        <div class="pb-tire-grid">
+          <div class="pb-tire-cell"><span class="pb-tire-pos">LF</span><span class="pb-tire-status keeping" id="pbTireLF">KEEP</span><span class="pb-tire-pressure" id="pbPressLF">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">RF</span><span class="pb-tire-status keeping" id="pbTireRF">KEEP</span><span class="pb-tire-pressure" id="pbPressRF">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">LR</span><span class="pb-tire-status keeping" id="pbTireLR">KEEP</span><span class="pb-tire-pressure" id="pbPressLR">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">RR</span><span class="pb-tire-status keeping" id="pbTireRR">KEEP</span><span class="pb-tire-pressure" id="pbPressRR">—</span></div>
+        </div>
+        <!-- Live tyre data -->
+        <div class="pb-section-label" style="margin-top:8px">Wear</div>
+        <div class="pb-tire-grid">
+          <div class="pb-tire-cell"><span class="pb-tire-pos">LF</span><span class="pb-tire-bar"><span class="pb-tire-bar-fill" id="pbWearLF"></span></span><span class="pb-tire-pct" id="pbWearLFVal">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">RF</span><span class="pb-tire-bar"><span class="pb-tire-bar-fill" id="pbWearRF"></span></span><span class="pb-tire-pct" id="pbWearRFVal">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">LR</span><span class="pb-tire-bar"><span class="pb-tire-bar-fill" id="pbWearLR"></span></span><span class="pb-tire-pct" id="pbWearLRVal">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">RR</span><span class="pb-tire-bar"><span class="pb-tire-bar-fill" id="pbWearRR"></span></span><span class="pb-tire-pct" id="pbWearRRVal">—</span></div>
+        </div>
+        <div class="pb-section-label" style="margin-top:8px">Temp</div>
+        <div class="pb-tire-grid">
+          <div class="pb-tire-cell"><span class="pb-tire-pos">LF</span><span class="pb-tire-temp" id="pbTempLF">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">RF</span><span class="pb-tire-temp" id="pbTempRF">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">LR</span><span class="pb-tire-temp" id="pbTempLR">—</span></div>
+          <div class="pb-tire-cell"><span class="pb-tire-pos">RR</span><span class="pb-tire-temp" id="pbTempRR">—</span></div>
+        </div>
+      </div>
+
+      <!-- ═══ FUEL TAB ═══ -->
+      <div class="pb-page" id="pbPageFuel" data-pb-page="fuel">
+        <div class="pb-fuel-gauge">
+          <div class="pb-fuel-bar-bg"><div class="pb-fuel-bar-fill" id="pbFuelBar"></div></div>
+          <div class="pb-fuel-level" id="pbFuelLevel">—</div>
+          <div class="pb-fuel-unit" id="pbFuelUnit"></div>
+        </div>
+        <div class="pb-row"><span class="pb-label">Per lap</span><span class="pb-value" id="pbFuelPerLap">—</span></div>
+        <div class="pb-row"><span class="pb-label">Laps left</span><span class="pb-value" id="pbFuelLaps">—</span></div>
+        <div class="pb-row"><span class="pb-label">Pit add</span><span class="pb-value" id="pbFuelVal">—</span></div>
+        <div class="pb-divider"></div>
+        <div class="pb-row"><span class="pb-label">Fast repair</span><span class="pb-value off" id="pbFastRepair">NO</span></div>
+        <div class="pb-row"><span class="pb-label">Tearoff</span><span class="pb-value off" id="pbWindshield">NO</span></div>
+      </div>
+
+      <!-- ═══ WEATHER TAB ═══ -->
+      <div class="pb-page" id="pbPageWeather" data-pb-page="weather">
+        <div class="pb-weather-hero">
+          <div class="pb-weather-icon" id="pbWeatherIcon">☀</div>
+          <div class="pb-weather-temp" id="pbAirTemp">—</div>
+        </div>
+        <div class="pb-row"><span class="pb-label">Track</span><span class="pb-value" id="pbTrackTemp">—</span></div>
+        <div class="pb-row"><span class="pb-label">Conditions</span><span class="pb-value" id="pbConditions">Dry</span></div>
+      </div>
+
+      <!-- ═══ SETUP / ADJUSTMENTS TAB ═══ -->
+      <div class="pb-page" id="pbPageAdj" data-pb-page="adj">
+        <div class="pb-adj-grid" id="pbAdjGrid">
+          <div class="pb-adj-item" id="pbRowBB"><span class="pb-adj-label">BB</span><span class="pb-adj-val zero" id="pbAdjBB">—</span></div>
+          <div class="pb-adj-item" id="pbRowTC"><span class="pb-adj-label">TC</span><span class="pb-adj-val zero" id="pbAdjTC">—</span></div>
+          <div class="pb-adj-item" id="pbRowABS"><span class="pb-adj-label">ABS</span><span class="pb-adj-val zero" id="pbAdjABS">—</span></div>
+          <div class="pb-adj-item" id="pbRowARBF"><span class="pb-adj-label">ARB F</span><span class="pb-adj-val zero" id="pbAdjARBF">—</span></div>
+          <div class="pb-adj-item" id="pbRowARBR"><span class="pb-adj-label">ARB R</span><span class="pb-adj-val zero" id="pbAdjARBR">—</span></div>
+          <div class="pb-adj-item" id="pbRowEng"><span class="pb-adj-label">ENG</span><span class="pb-adj-val zero" id="pbAdjEng">—</span></div>
+          <div class="pb-adj-item" id="pbRowFuel"><span class="pb-adj-label">FUEL MIX</span><span class="pb-adj-val zero" id="pbAdjFuel">—</span></div>
+          <div class="pb-adj-item" id="pbRowWJL"><span class="pb-adj-label">WJ L</span><span class="pb-adj-val zero" id="pbAdjWJL">—</span></div>
+          <div class="pb-adj-item" id="pbRowWJR"><span class="pb-adj-label">WJ R</span><span class="pb-adj-val zero" id="pbAdjWJR">—</span></div>
+          <div class="pb-adj-item" id="pbRowWingF"><span class="pb-adj-label">WING F</span><span class="pb-adj-val zero" id="pbAdjWingF">—</span></div>
+          <div class="pb-adj-item" id="pbRowWingR"><span class="pb-adj-label">WING R</span><span class="pb-adj-val zero" id="pbAdjWingR">—</span></div>
+        </div>
+      </div>
+
+      <!-- ═══ CAMERA / FFB TAB ═══ -->
+      <div class="pb-page" id="pbPageCamera" data-pb-page="camera">
+        <div class="pb-section-label">Force Feedback</div>
+        <div class="pb-row"><span class="pb-label">Max force</span><span class="pb-value" id="pbFFBMax">—</span></div>
+        <div class="pb-divider"></div>
+        <div class="pb-section-label">Mirrors</div>
+        <div class="pb-row"><span class="pb-label">Rearview</span><span class="pb-value" id="pbMirror">—</span></div>
+        <div class="pb-info">Camera and mirror settings are controlled in-sim</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div><!-- /sec-container -->
+
+<!-- COMPONENT: Incidents Panel (incident counter) -->
+<div class="incidents-panel inc-bottom inc-right" id="incidentsPanel">
+  <canvas class="inc-gl-canvas" id="incGlCanvas"></canvas>
+  <div class="inc-inner">
+    <div class="inc-label">Incidents</div>
+    <div class="inc-value-row">
+      <span class="inc-count" id="incCount">0</span><span class="inc-x">x</span>
+    </div>
+    <div class="inc-progress" id="incProgress">
+      <div class="inc-bar-track">
+        <div class="inc-bar-fill" id="incBarFill"></div>
+        <div class="inc-bar-marker inc-marker-pen" id="incMarkerPen"></div>
+        <div class="inc-bar-marker inc-marker-dq" id="incMarkerDQ"></div>
+      </div>
+    </div>
+    <div class="inc-thresholds">
+      <div class="inc-thresh-row"><span>Penalty in</span><span class="inc-thresh-val" id="incToPen">—</span></div>
+      <div class="inc-thresh-row"><span>DQ in</span><span class="inc-thresh-val" id="incToDQ">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPONENT: Race Control Banner (flag/message display) -->
+<div class="rc-banner" id="rcBanner">
+  <div class="rc-inner">
+    <!-- Race control tower icon — yellow/white on black -->
+    <svg class="rc-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Tower base -->
+      <rect x="11" y="14" width="6" height="12" rx="1" fill="hsl(48, 85%, 55%)"/>
+      <!-- Tower top / control room -->
+      <rect x="8" y="8" width="12" height="7" rx="1.5" fill="#fff"/>
+      <!-- Window panes -->
+      <rect x="9.5" y="9.5" width="3" height="4" rx="0.5" fill="hsl(48, 85%, 55%)" opacity="0.9"/>
+      <rect x="15.5" y="9.5" width="3" height="4" rx="0.5" fill="hsl(48, 85%, 55%)" opacity="0.9"/>
+      <!-- Antenna -->
+      <line x1="14" y1="3" x2="14" y2="8" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- Antenna tip -->
+      <circle cx="14" cy="2.5" r="1.5" fill="hsl(48, 90%, 55%)"/>
+      <!-- Signal arcs -->
+      <path d="M10 5.5 A5 5 0 0 1 14 3" stroke="hsla(48, 85%, 55%, 0.5)" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <path d="M18 5.5 A5 5 0 0 0 14 3" stroke="hsla(48, 85%, 55%, 0.5)" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <!-- Foundation -->
+      <rect x="9" y="25" width="10" height="2" rx="1" fill="hsla(0, 0%, 100%, 0.3)"/>
+    </svg>
+    <div class="rc-content">
+      <div class="rc-title" id="rcTitle">RACE CONTROL</div>
+      <div class="rc-detail" id="rcDetail">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPONENT: Idle State Logo (visible when driver is not in-car) -->
+<div class="idle-logo" id="idleLogo">
+  <img src="images/branding/logomark.png" alt="K10">
+</div>
+
+<!-- COMPONENT: Pit Limiter Banner -->
+<div class="pit-banner" id="pitBanner">
+  <canvas class="pit-gl-canvas" id="pitGlCanvas"></canvas>
+  <div class="pit-inner">
+    <div class="pit-icon">P</div>
+    <div class="pit-label">Pit Limiter</div>
+    <div class="pit-speed" id="pitSpeed"></div>
+    <div class="pit-limit" id="pitLimit" style="font-size:11px;font-weight:600;color:hsla(0,0%,100%,0.45);margin-left:4px;"></div>
+  </div>
+</div>
+
+<!-- COMPONENT: Race End Screen (within HUD bounds) -->
+<div class="race-end-screen" id="raceEndScreen">
+  <div class="race-end-bg"></div>
+  <div class="re-confetti" id="reConfetti"></div>
+  <div class="race-end-content" id="raceEndContent">
+    <div class="re-position" id="rePosition">P1</div>
+    <div class="re-title-block">
+      <h1 class="re-title" id="reTitle">VICTORY!</h1>
+      <p class="re-subtitle" id="reSubtitle" style="display:none;"></p>
+    </div>
+    <div class="re-clean-badge" id="reCleanBadge" style="display:none;"><span>✓</span> CLEAN RACE</div>
+    <div class="re-stats">
+      <div class="re-stat"><div class="re-stat-label">POSITION</div><div class="re-stat-val" id="reStatPos">P1</div></div>
+      <div class="re-stat"><div class="re-stat-label">INCIDENTS</div><div class="re-stat-val" id="reStatInc">0</div></div>
+      <div class="re-stat"><div class="re-stat-label">BEST LAP</div><div class="re-stat-val" id="reStatLap">—</div></div>
+      <div class="re-stat"><div class="re-stat-label">iRATING</div><div class="re-stat-val" id="reStatIR">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPONENT: Spotter Panel (stacking voice messages, co-located with race control) -->
+<div class="spotter-panel" id="spotterPanel">
+  <canvas class="sp-gl-canvas" id="spotterGlCanvas"></canvas>
+  <div class="sp-stack" id="spotterStack"></div>
+</div>
+
+<!-- COMPONENT: Grid Module (formation lap / pre-race info) -->
+<div class="grid-module" id="gridModule">
+  <canvas class="grid-flag-gl" id="gridFlagGlCanvas"></canvas>
+  <!-- Countdown badge sits above the info card -->
+  <div class="grid-countdown" id="gridCountdown">—</div>
+  <!-- Pre-race info (visible during formation) -->
+  <div class="grid-info" id="gridInfo">
+    <!-- Country flag as card background -->
+    <div class="grid-flag" id="gridFlag">
+      <div class="grid-flag-stripe" id="flagStripe1"></div>
+      <div class="grid-flag-stripe" id="flagStripe2"></div>
+      <div class="grid-flag-stripe" id="flagStripe3"></div>
+    </div>
+    <div class="grid-bg" id="gridBg"></div>
+    <div class="grid-title">Formation Lap</div>
+    <div class="grid-cars"><span id="gridCarsGridded">0</span> <span class="grid-cars-total">/ <span id="gridCarsTotal">0</span> gridded</span></div>
+    <div class="grid-strip" id="gridStrip"></div>
+    <div class="grid-start-type" id="gridStartType">Rolling Start</div>
+  </div>
+  <!-- F1-style start lights (replaces info when lights active) -->
+  <div class="start-lights" id="startLights">
+    <div class="lights-housing">
+      <div class="light-col"><div class="light-bulb" id="light1t"></div><div class="light-bulb" id="light1b"></div></div>
+      <div class="light-col"><div class="light-bulb" id="light2t"></div><div class="light-bulb" id="light2b"></div></div>
+      <div class="light-col"><div class="light-bulb" id="light3t"></div><div class="light-bulb" id="light3b"></div></div>
+      <div class="light-col"><div class="light-bulb" id="light4t"></div><div class="light-bulb" id="light4b"></div></div>
+      <div class="light-col"><div class="light-bulb" id="light5t"></div><div class="light-bulb" id="light5b"></div></div>
+    </div>
+    <div class="lights-go" id="lightsGo">GO!</div>
+  </div>
+</div>
+
+<!-- COMPONENT: Driver Profile (Ctrl+Shift+V) -->
+<div class="dp-overlay" id="driverProfileOverlay">
+  <div class="dp-panel">
+    <div class="dp-header">
+      <div class="dp-title">Driver Profile</div>
+      <button class="dp-close" onclick="toggleDriverProfile()">&times;</button>
+    </div>
+
+    <!-- 3-column assessment row -->
+    <div class="dp-assess-row" id="dpAssessRow">
+      <div class="dp-assess-col" id="dpAssessIR"></div>
+      <div class="dp-assess-col" id="dpAssessSR"></div>
+      <div class="dp-assess-col" id="dpAssessLic"></div>
+    </div>
+
+    <!-- Big ratings + estimates + inline charts -->
+    <div class="dp-ratings-card">
+      <div class="dp-rating-big">
+        <div class="dp-rating-label">iRating</div>
+        <div class="dp-rating-value" id="dpIRating">—</div>
+        <div class="dp-rating-delta" id="dpIRDelta"></div>
+        <div class="dp-ir-bar-inline">
+          <div class="ir-bar-track"><div class="ir-bar-fill" id="dpIRBarFill" style="width:0%;"></div></div>
+        </div>
+      </div>
+      <div class="dp-rating-big">
+        <div class="dp-rating-label">Safety Rating</div>
+        <div class="dp-rating-value" id="dpSR">—</div>
+        <div class="dp-rating-delta" id="dpSRDelta"></div>
+        <svg class="dp-sr-pie" viewBox="0 0 40 40">
+          <circle class="sr-pie-bg" cx="20" cy="20" r="15"/>
+          <circle class="sr-pie-fill" id="dpSRPieFill" cx="20" cy="20" r="15"
+            stroke="var(--green)" stroke-dasharray="94.25" stroke-dashoffset="94.25"/>
+        </svg>
+      </div>
+      <div class="dp-rating-big">
+        <div class="dp-rating-label">License</div>
+        <div class="dp-rating-value" id="dpLicense">—</div>
+      </div>
+    </div>
+
+    <!-- Charts side by side -->
+    <div class="dp-grid">
+      <div class="dp-section">
+        <canvas class="dp-chart" id="dpIRChart" width="500" height="140"></canvas>
+      </div>
+      <div class="dp-section">
+        <canvas class="dp-chart" id="dpSRChart" width="500" height="140"></canvas>
+      </div>
+    </div>
+
+    <!-- Cars heatmap -->
+    <div class="dp-section" style="margin-top:14px;">
+      <div class="dp-section-title">Cars Driven</div>
+      <div class="dp-heatmap" id="dpCarHeatmap"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- COMPONENT: Settings Overlay (configuration panel) -->
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-titlebar" id="settingsTitlebar">
+      <div class="settings-titlebar-logo" id="settingsTitlebarLogo"></div>
+      <div style="flex:1">
+        <div class="settings-title">K10 Motorsports</div>
+        <div class="settings-subtitle">Configure the overlay</div>
+      </div>
+      <button class="settings-popout-btn" id="settingsPopoutBtn" onclick="popoutSettings()" title="Open on secondary display">⧉</button>
+    </div>
+
+    <div class="settings-conn-warn" id="settingsConnWarn">
+      <div><span class="warn-icon"></span><span class="warn-title">Can't reach SimHub</span></div>
+      <div class="warn-detail">Make sure SimHub is running and the K10 Motorsports plugin is installed. Check the connection URL in the Connections section.</div>
+      <div class="warn-url" id="settingsConnWarnUrl"></div>
+    </div>
+
+    <div class="settings-body">
+      <div class="settings-sidebar">
+        <div class="settings-sidebar-item active" data-tab="sections" onclick="switchSettingsTab(this)">Dashboard</div>
+        <div class="settings-sidebar-item" data-tab="branding" onclick="switchSettingsTab(this)">Branding</div>
+        <div class="settings-sidebar-item" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
+        <div class="settings-sidebar-item" data-tab="commentary" data-pro-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
+        <div class="settings-sidebar-item" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
+        <div class="settings-sidebar-item disabled" data-tab="iracing" id="iracingTab" data-pro-tab="modules" onclick="switchSettingsTab(this)">iRacing</div>
+        <div class="settings-sidebar-item" data-tab="pedals" onclick="switchSettingsTab(this)">Pedals</div>
+        <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
+        <div class="settings-sidebar-item" data-tab="system" onclick="switchSettingsTab(this)">System</div>
+      </div>
+      <div class="settings-content">
+
+    <!-- Old tab bar (hidden — replaced by sidebar) -->
+    <div class="settings-tabs">
+      <div class="settings-tab active" data-tab="sections" onclick="switchSettingsTab(this)">Dashboard</div>
+      <div class="settings-tab" data-tab="branding" onclick="switchSettingsTab(this)">Branding</div>
+      <div class="settings-tab" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
+      <div class="settings-tab" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
+      <div class="settings-tab disabled" data-tab="iracing" id="iracingTab" onclick="switchSettingsTab(this)">iRacing</div>
+      <div class="settings-tab" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
+      <div class="settings-tab" data-tab="system" onclick="switchSettingsTab(this)">System</div>
+    </div>
+
+    <!-- ── Tab: Dashboard — module toggles with subtabs per group ── -->
+    <div class="settings-tab-content active" id="settingsTabSections">
+      <div class="settings-subtabs" id="sectionSubtabs">
+        <div class="settings-subtab active" data-subtab="hud" onclick="switchSectionSubtab(this)">Main HUD</div>
+        <div class="settings-subtab" data-subtab="leaderboard" onclick="switchSectionSubtab(this)">Leaderboard</div>
+        <div class="settings-subtab" data-subtab="pitbox" onclick="switchSectionSubtab(this)">Pit Box</div>
+        <div class="settings-subtab" data-subtab="datastream" onclick="switchSectionSubtab(this)">Datastream</div>
+        <div class="settings-subtab" data-subtab="overlays" onclick="switchSectionSubtab(this)">Overlays</div>
+      </div>
+
+      <!-- Subtab: Main HUD -->
+      <div class="settings-subtab-page active" data-subtab-page="hud">
+        <div class="settings-two-col">
+        <div class="settings-row"><span class="settings-label">Tachometer</span><div class="settings-toggle on" data-section="tacho-block" data-key="showTacho" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Position &amp; Gaps</span><div class="settings-toggle on" data-section="pos-gaps-col" data-key="showPosition" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Track Maps</span><div class="settings-toggle on" data-section="maps-col" data-key="showMaps" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Fuel</span><div class="settings-toggle on" data-section="fuel-block" data-key="showFuel" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Tyres</span><div class="settings-toggle on" data-section="tyres-block" data-key="showTyres" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Controls (BB/TC/ABS)</span><div class="settings-toggle on" data-section="car-controls" data-key="showControls" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Pedals</span><div class="settings-toggle on" data-section="pedals-area" data-key="showPedals" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Commentary</span><div class="settings-toggle on" data-section="commentary-col" data-key="showCommentary" data-pro-feature="commentary" onclick="toggleSetting(this)"></div></div>
+        </div>
+      </div>
+
+      <!-- Subtab: Leaderboard -->
+      <div class="settings-subtab-page" data-subtab-page="leaderboard">
+        <div class="settings-two-col">
+        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="leaderboardPanel" data-key="showLeaderboard" data-pro-feature="leaderboard" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">Focus</span>
+          <select class="settings-select" id="settingsLbFocus" onchange="updateLbFocus(this.value)">
+            <option value="me">Focus on Me</option>
+            <option value="lead">Focus on Lead</option>
+          </select>
+        </div>
+        <div class="settings-row settings-sub"><span class="settings-label">Opponents</span>
+          <select class="settings-select" id="settingsLbMaxRows" onchange="updateLbMaxRows(this.value)">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="7">7</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+        <div class="settings-row settings-sub"><span class="settings-label">Expand to Fill</span><div class="settings-toggle" id="lbExpandToggle" onclick="toggleLbExpand(this)"></div></div>
+        </div>
+      </div>
+
+      <!-- Subtab: Pit Box -->
+      <div class="settings-subtab-page" data-subtab-page="pitbox">
+        <div class="settings-two-col">
+        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="pitBoxPanel" data-key="showPitBox" onclick="toggleSetting(this)"></div></div>
+        </div>
+      </div>
+
+      <!-- Subtab: Datastream -->
+      <div class="settings-subtab-page" data-subtab-page="datastream">
+        <div class="settings-two-col">
+        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="datastreamPanel" data-key="showDatastream" data-pro-feature="datastream" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">G-Force</span><div class="settings-toggle on" data-key="dsShowGforce" onclick="toggleDsSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">Yaw Rate</span><div class="settings-toggle on" data-key="dsShowYaw" onclick="toggleDsSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">FFB / Steer</span><div class="settings-toggle on" data-key="dsShowFfb" onclick="toggleDsSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">Lap Delta</span><div class="settings-toggle on" data-key="dsShowDelta" onclick="toggleDsSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">Track Temp</span><div class="settings-toggle on" data-key="dsShowTrackTemp" onclick="toggleDsSetting(this)"></div></div>
+        <div class="settings-row settings-sub"><span class="settings-label">FPS</span><div class="settings-toggle on" data-key="dsShowFps" onclick="toggleDsSetting(this)"></div></div>
+        </div>
+      </div>
+
+      <!-- Subtab: Overlays -->
+      <div class="settings-subtab-page" data-subtab-page="overlays">
+        <div class="settings-two-col">
+        <div class="settings-row"><span class="settings-label">Incidents</span><div class="settings-toggle on" data-section="incidentsPanel" data-key="showIncidents" data-pro-feature="incidents" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Spotter</span><div class="settings-toggle on" data-section="spotterPanel" data-key="showSpotter" data-pro-feature="spotter" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Pit Limiter Animation</span><div class="settings-toggle on" data-key="showBonkers" id="bonkersToggle" onclick="toggleBonkers(this)"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Tab: Branding — logos, effects, ambient light ── -->
+    <div class="settings-tab-content" id="settingsTabBranding">
+      <div class="settings-two-col">
+      <div class="settings-row"><span class="settings-label">K10 Logo</span><div class="settings-toggle on" data-section="k10LogoSquare" data-key="showK10Logo" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Car Manufacturer</span><div class="settings-toggle on" data-section="carLogoSquare" data-key="showCarLogo" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Game Logo</span><div class="settings-toggle on" data-key="showGameLogo" onclick="toggleGameLogo(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">WebGL Effects</span><div class="settings-toggle on" data-key="showWebGL" data-pro-feature="webgl" onclick="toggleWebGL(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Ambient Light</span>
+        <select class="settings-select" id="settingsAmbientMode" data-pro-feature="reflections" onchange="updateAmbientMode(this.value)">
+          <option value="reflective">Reflective</option>
+          <option value="matte">Matte</option>
+          <option value="plastic">Plastic</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+      <div class="settings-hint">Reflective/Matte = WebGL glare, Plastic = CSS-only (lightweight), Off = none</div>
+      <div class="settings-row"><span class="settings-label">Capture Area</span><button class="settings-btn" id="btnSetCaptureArea" onclick="startCaptureAreaSelection()">Draw Region</button></div>
+      <div class="settings-hint">Draw a screen region to sample ambient color from</div>
+      <div class="ambient-preview-container" id="ambientPreviewContainer">
+        <div class="ambient-preview-label">Ambient Color</div>
+        <div id="ambientPreviewSwatch" style="width:100%;height:40px;border-radius:4px;background:#111;border:1px solid hsla(0,0%,100%,0.1);"></div>
+        <div class="ambient-preview-info" id="ambientPreviewInfo">No capture active</div>
+      </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Layout — positioning and spacing for all module groups ── -->
+    <div class="settings-tab-content" id="settingsTabLayout">
+      <div class="settings-two-col">
+
+      <div class="settings-group-label">Layout</div>
+      <div class="settings-row">
+        <span class="settings-label">Position</span>
+        <select class="settings-select" id="settingsPosition" onchange="updateLayoutPosition(this.value)">
+          <option value="top-right">Top Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="bottom-right">Bottom Right</option>
+          <option value="bottom-left">Bottom Left</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Zoom</span>
+        <div class="settings-range-row">
+          <input class="settings-range" id="settingsZoom" type="range" min="100" max="200" step="5" value="165" oninput="previewZoom(this.value)" onchange="updateZoom(this.value)"/>
+          <span class="settings-range-val" id="zoomVal">165%</span>
+        </div>
+      </div>
+
+      <div class="settings-group-label">Mode</div>
+      <div class="settings-row">
+        <span class="settings-label">Drive Mode</span>
+        <div class="settings-toggle" id="driveModeToggle" onclick="toggleDriveMode()"></div>
+      </div>
+      <div class="settings-hint">Full-screen driver HUD — Ctrl+Shift+F. Auto-activates on remote.</div>
+      <div class="settings-row" id="layoutRallySection">
+        <span class="settings-label">Rally Mode</span>
+        <div class="settings-toggle disabled" id="layoutRallyToggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
+      </div>
+      <div class="settings-hint" id="layoutRallyHint">Connect K10 Pro to enable</div>
+
+      </div><!-- /settings-two-col -->
+    </div>
+
+    <!-- ── Tab: Connections ── -->
+    <div class="settings-tab-content" id="settingsTabConnections">
+
+      <!-- ═══ K10 Pro Drive Connection Card (primary) ═══ -->
+      <div class="conn-card conn-card-primary" id="k10ProCard">
+        <div class="conn-card-header">
+          <div class="conn-card-icon k10pro">
+            <img src="images/branding/logomark.png" alt="K10" style="width:20px;height:20px;object-fit:contain;" />
+          </div>
+          <div>
+            <div class="conn-card-title">K10 Pro Drive</div>
+            <div class="conn-card-subtitle">Connect to unlock all Pro features</div>
+          </div>
+        </div>
+
+        <!-- Not connected state -->
+        <div id="k10NotConnected">
+          <div class="conn-card-status">
+            <div class="conn-dot red" id="connK10Dot"></div>
+            <div class="conn-status-text" id="connK10Text">Not connected</div>
+          </div>
+          <div class="conn-card-detail">
+            Sign in with your K10 Pro Drive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
+          </div>
+          <div class="conn-card-actions">
+            <button class="conn-btn k10-btn" id="k10ConnectBtn" onclick="connectK10Pro()">
+              <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
+              Connect to K10 Pro Drive
+            </button>
+          </div>
+        </div>
+
+        <!-- Connected state -->
+        <div id="k10Connected" style="display:none;">
+          <div class="conn-card-status">
+            <div class="conn-dot green"></div>
+            <div class="conn-status-text"><strong>Connected</strong> — all Pro features enabled</div>
+          </div>
+          <div class="conn-user-info">
+            <div class="conn-user-avatar" id="k10AvatarWrap">
+              <img id="k10Avatar" src="" alt="" />
+            </div>
+            <div>
+              <div class="conn-user-name" id="k10DisplayName"></div>
+              <div class="conn-user-id" id="k10UserId"></div>
+            </div>
+          </div>
+          <div class="conn-pro-features" id="k10FeatureList"></div>
+          <div class="conn-card-actions">
+            <button class="conn-btn disconnect-btn" onclick="disconnectK10Pro()">Disconnect</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pro features info (shown when not connected) -->
+      <div class="conn-pro-info" id="k10ProInfo">
+        <div class="conn-pro-info-title">Pro Features</div>
+        <div class="conn-pro-info-text">Connect your K10 Pro Drive account to enable all premium features. Visit <strong>drive.k10motorsports.racing</strong> to create your account.</div>
+        <div class="conn-pro-feature-grid">
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🎙️</span> Commentary</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚠️</span> Incidents</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">👁️</span> Spotter</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🏆</span> Leaderboard</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">📊</span> Datastream</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">✨</span> WebGL Effects</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🔮</span> Reflections</div>
+          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚙️</span> Module Config</div>
+        </div>
+      </div>
+
+      <!-- Remote Dashboard (stream to iPad / any browser on LAN) -->
+      <div id="remoteDashSection" style="display:none;">
+        <div class="settings-group-label" style="margin-top:12px;">Remote Dashboard</div>
+        <div class="settings-row">
+          <span class="settings-label">Stream to Safari</span>
+          <div class="settings-toggle" id="remoteDashToggle" onclick="toggleRemoteDash(this)"></div>
+        </div>
+        <div id="remoteDashDocs" style="display:none;">
+          <div class="conn-card" style="margin-top:8px;">
+            <div class="conn-card-status">
+              <div class="conn-dot green"></div>
+              <div class="conn-status-text"><strong>Running</strong></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;margin:10px 0 6px;">
+              <canvas id="remoteServerQR" width="120" height="120" style="width:120px;height:120px;border-radius:8px;background:#fff;flex-shrink:0;"></canvas>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:'JetBrains Mono',monospace;color:#6c5ce7;font-size:14px;font-weight:600;word-break:break-all;" id="remoteServerUrl"></div>
+                <div style="font-size:10px;color:#555;margin-top:4px;">Scan the QR code or type the URL into any browser on the same network.</div>
+              </div>
+            </div>
+            <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:11px;color:#999;line-height:1.7;">
+              <div style="color:#bbb;font-weight:600;margin-bottom:4px;">Setup</div>
+              <div><span style="color:#6c5ce7;font-weight:700;">1.</span> Make sure your device is on the same Wi-Fi network as this PC.</div>
+              <div><span style="color:#6c5ce7;font-weight:700;">2.</span> Scan the QR code or type the URL into Safari / Chrome.</div>
+              <div><span style="color:#6c5ce7;font-weight:700;">3.</span> Tap <strong>Share → Add to Home Screen</strong> for a full-screen app icon.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rally Mode (synced with Layout tab toggle) -->
+      <div class="settings-row" style="margin-top:12px;">
+        <span class="settings-label">Rally Mode</span>
+        <div class="settings-toggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
+      </div>
+
+      <!-- ═══ SimHub Connection (secondary, less prominent) ═══ -->
+      <div class="settings-group-label" style="margin-top:16px;font-size:10px;color:hsla(0,0%,100%,0.3);">Telemetry Source</div>
+      <div class="conn-card conn-card-secondary">
+        <div class="conn-card-header" style="margin-bottom:6px;">
+          <div class="conn-card-icon simhub" style="width:24px;height:24px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(210,60%,55%);width:14px;height:14px;"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8h2"/><path d="M15 8h2"/><path d="M7 12h10"/></svg>
+          </div>
+          <div>
+            <div class="conn-card-title" style="font-size:11px;">SimHub Plugin</div>
+            <div class="conn-card-subtitle" style="font-size:9px;">Telemetry server</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <div class="conn-dot orange" id="connSimhubDot" style="width:6px;height:6px;"></div>
+            <div class="conn-status-text" id="connSimhubText" style="font-size:10px;">Connecting...</div>
+          </div>
+        </div>
+        <div class="conn-card-actions" style="margin-top:4px;">
+          <input class="settings-input" id="settingsSimhubUrl" type="text" value="http://localhost:8889/k10mediabroadcaster/" onchange="updateSimhubUrl(this.value)" style="flex:1;font-size:10px;padding:4px 8px;"/>
+        </div>
+      </div>
+
+      <!-- Discord (secondary, community only) -->
+      <div class="conn-card conn-card-secondary" style="margin-top:6px;">
+        <div class="conn-card-header" style="margin-bottom:6px;">
+          <div class="conn-card-icon discord" style="width:24px;height:24px;">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="color:#5865F2;width:14px;height:14px;"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.947 2.418-2.157 2.418z"/></svg>
+          </div>
+          <div>
+            <div class="conn-card-title" style="font-size:11px;">Discord</div>
+            <div class="conn-card-subtitle" style="font-size:9px;">Community server</div>
+          </div>
+          <div style="margin-left:auto;" id="discordStatusInline">
+            <!-- Not connected state (inline) -->
+            <div id="discordNotConnected">
+              <button class="conn-btn discord-btn" id="discordConnectBtn" onclick="connectDiscord()" style="font-size:10px;padding:4px 10px;">
+                Connect
+              </button>
+            </div>
+            <!-- Connected state (inline) -->
+            <div id="discordConnected" style="display:none;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <div class="conn-dot green" style="width:6px;height:6px;"></div>
+                <span class="conn-user-name" id="discordDisplayName" style="font-size:10px;"></span>
+                <button class="conn-btn disconnect-btn" onclick="disconnectDiscord()" style="font-size:9px;padding:2px 8px;">×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Tab: iRacing (requires Discord) ── -->
+    <div class="settings-tab-content" id="settingsTabIracing">
+
+      <div class="settings-group-label">iRating</div>
+      <div class="re-field">
+        <div class="re-field-row">
+          <input class="re-input" id="reIRatingInput" type="number" step="0.01" min="0" max="15000" value="0" />
+          <input class="re-slider" id="reIRatingSlider" type="range" min="0" max="10000" step="1" value="0" />
+        </div>
+        <div class="re-field-hint">Typical range: 500 – 8000</div>
+      </div>
+
+      <div class="settings-group-label">License &amp; Safety Rating</div>
+      <div class="re-field">
+        <div class="re-field-row">
+          <select class="settings-select" id="reLicenseSelect" style="width:90px;">
+            <option value="R">Rookie</option>
+            <option value="D">D</option>
+            <option value="C">C</option>
+            <option value="B">B</option>
+            <option value="A">A</option>
+            <option value="P">Pro</option>
+          </select>
+          <input class="re-input" id="reSRInput" type="number" step="0.01" min="0" max="4.99" value="0" style="width:70px;" />
+          <input class="re-slider" id="reSRSlider" type="range" min="0" max="4.99" step="0.01" value="0" />
+        </div>
+        <div class="re-field-hint">e.g. B 2.84 — license sets the letter, SR is the number within that license</div>
+      </div>
+
+      <div class="re-actions">
+        <button class="re-btn re-btn-save" onclick="saveRatingValues()">Save</button>
+        <button class="re-btn re-btn-reset" onclick="resetRatingEditor()">Reset</button>
+      </div>
+
+      <div class="settings-group-label" style="margin-top:16px;">History</div>
+      <div class="re-history" id="reHistory"></div>
+
+    </div>
+
+    <!-- ── Tab: Pedals & Wheel ── -->
+    <div class="settings-tab-content" id="settingsTabPedals">
+      <div class="settings-group-label">Active Profile</div>
+      <div class="settings-row">
+        <span class="settings-label">Profile</span>
+        <select class="settings-select" id="settingsPedalProfile" onchange="switchPedalProfile(this.value)">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Bind to this car</span>
+        <button class="settings-btn" id="pedalBindCarBtn" onclick="bindPedalProfileToCar()">Bind</button>
+      </div>
+
+      <div class="settings-group-label">Response Curves</div>
+      <div class="pedal-settings-curve-preview">
+        <canvas id="pedalSettingsCurveCanvas" width="200" height="200"></canvas>
+        <div class="pedal-curve-legend">
+          <span class="curve-legend-item" style="color: #4CAF50">■ Throttle</span>
+          <span class="curve-legend-item" style="color: #F44336">■ Brake</span>
+          <span class="curve-legend-item" style="color: #42A5F5">■ Clutch</span>
+        </div>
+      </div>
+
+      <div class="settings-group-label">Moza Pithouse</div>
+      <div class="settings-row">
+        <span class="settings-label" id="mozaStatusLabel">Detecting...</span>
+        <button class="settings-btn" id="mozaImportBtn" onclick="importMozaPedals()" disabled>Import from Moza</button>
+      </div>
+      <div class="settings-info-text" id="mozaInfoText">
+        Moza Pithouse integration lets you save pedal curves per car and auto-load them when you switch cars.
+      </div>
+
+      <div class="settings-group-label">Debug</div>
+      <div class="moza-debug-panel" id="mozaDebugPanel">
+        <div class="moza-debug-row"><span class="moza-debug-key">Moza Detected</span><span class="moza-debug-val" id="dbgMozaDetected">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Profile Source</span><span class="moza-debug-val" id="dbgProfileSource">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Profile Name</span><span class="moza-debug-val" id="dbgProfileName">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Car</span><span class="moza-debug-val" id="dbgCarName">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Throttle Curve Pts</span><span class="moza-debug-val" id="dbgThrottlePts">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Brake Curve Pts</span><span class="moza-debug-val" id="dbgBrakePts">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Clutch Curve Pts</span><span class="moza-debug-val" id="dbgClutchPts">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Throttle Deadzone</span><span class="moza-debug-val" id="dbgThrottleDz">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Brake Deadzone</span><span class="moza-debug-val" id="dbgBrakeDz">—</span></div>
+        <div class="moza-debug-row"><span class="moza-debug-key">Raw JSON</span><span class="moza-debug-val moza-debug-json" id="dbgRawJson">—</span></div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Key Commands ── -->
+    <div class="settings-tab-content" id="settingsTabKeys">
+      <div class="settings-group-label">Window</div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd><span>Open / Close Settings</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd><span>Show / Hide Overlay</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd><span>Reset Window Position</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd><span>Toggle Green Screen</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd><span>Quit Application</span></div>
+
+      <div class="settings-group-label">Dashboard</div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd><span>Reset Track Map</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd><span>Restart Demo</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd><span>Toggle Drive Mode</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd><span>iRating / Safety Rating</span></div>
+      <div class="settings-key-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd><span>Driver Profile</span></div>
+    </div>
+
+    <!-- ── Tab: System ── -->
+    <div class="settings-tab-content" id="settingsTabSystem">
+      <div class="settings-group-label">Debug</div>
+      <div class="settings-row">
+        <span class="settings-label">Force Flag (Demo)</span>
+        <select class="settings-select" id="settingsForceFlag" onchange="updateForceFlag(this.value)">
+          <option value="">Auto</option>
+          <option value="green">Green</option>
+          <option value="yellow">Yellow</option>
+          <option value="red">Red</option>
+          <option value="blue">Blue</option>
+          <option value="white">White</option>
+          <option value="debris">Debris</option>
+          <option value="checkered">Checkered</option>
+          <option value="black">Black</option>
+        </select>
+      </div>
+
+      <div class="settings-group-label">Window</div>
+      <div class="settings-row">
+        <span class="settings-label">Green Screen Mode</span>
+        <div class="settings-toggle" id="greenScreenToggle" onclick="toggleGreenScreen(this)"></div>
+      </div>
+      <div class="settings-hint" id="greenScreenHint" style="display:none;">Restart required. Window becomes resizable with chroma-key green background.</div>
+
+    </div>
+
+    <!-- ── Tab: Commentary — settings migrated from SimHub plugin ── -->
+    <div class="settings-tab-content" id="settingsTabCommentary">
+      <div class="settings-group-label">Display</div>
+      <div class="settings-row">
+        <span class="settings-label">Prompt Duration</span>
+        <div class="settings-range-row">
+          <input type="range" class="settings-range" id="settingsPromptDuration" min="5" max="120" step="1" value="15"
+            oninput="updateCommentarySetting('promptDuration', +this.value); document.getElementById('promptDurationVal').textContent = this.value + 's'">
+          <span class="settings-range-val" id="promptDurationVal">15s</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Show Topic Title</span>
+        <div class="settings-toggle on" data-key="commentaryShowTitle" onclick="toggleCommentarySetting(this, 'showTopicTitle')"></div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Event Only Mode</span>
+        <div class="settings-toggle" data-key="commentaryEventOnly" onclick="toggleCommentarySetting(this, 'eventOnlyMode')"></div>
+      </div>
+
+      <div class="settings-group-label">Categories</div>
+      <div class="settings-row">
+        <span class="settings-label">Hardware</span>
+        <div class="settings-toggle on" data-key="catHardware" onclick="toggleCommentaryCategory(this, 'hardware')"></div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Game Feel</span>
+        <div class="settings-toggle on" data-key="catGameFeel" onclick="toggleCommentaryCategory(this, 'game_feel')"></div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Car Response</span>
+        <div class="settings-toggle on" data-key="catCarResponse" onclick="toggleCommentaryCategory(this, 'car_response')"></div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Racing Experience</span>
+        <div class="settings-toggle on" data-key="catRacingExperience" onclick="toggleCommentaryCategory(this, 'racing_experience')"></div>
+      </div>
+
+      <div class="settings-group-label">Driver Name</div>
+      <div class="settings-hint">Used for 3rd-person commentary. Auto-populated from iRacing.</div>
+      <div class="settings-row">
+        <span class="settings-label">First</span>
+        <input type="text" class="settings-input" id="settingsDriverFirst" placeholder="First name"
+          oninput="updateCommentarySetting('driverFirstName', this.value)">
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Last</span>
+        <input type="text" class="settings-input" id="settingsDriverLast" placeholder="Last name"
+          oninput="updateCommentarySetting('driverLastName', this.value)">
+      </div>
+
+      <div class="settings-group-label">Demo</div>
+      <div class="settings-row">
+        <span class="settings-label">Demo Mode</span>
+        <div class="settings-toggle" data-key="commentaryDemoMode" onclick="toggleCommentarySetting(this, 'demoMode')"></div>
+      </div>
+    </div>
+
+    <button class="settings-close" onclick="toggleSettings()">Close</button>
+
+    </div><!-- /settings-content -->
+    </div><!-- /settings-body -->
+
+    <div class="settings-version" id="settingsVersionLabel">K10 Motorsports — Media Overlay</div>
+
+  </div>
+</div>
+
+<!-- JavaScript modules in load order -->
+<script src="modules/js/config.js"></script>
+<script src="modules/js/keyboard.js"></script>
+<script src="modules/js/car-logos.js"></script>
+<script src="modules/js/game-detect.js"></script>
+<script src="modules/js/webgl-helpers.js"></script>
+<script src="modules/js/pedal-curves.js"></script>
+<script src="modules/js/settings.js"></script>
+<script src="modules/js/qr-code.js"></script>
+<script src="modules/js/connections.js"></script>
+<script src="modules/js/leaderboard.js"></script>
+<script src="modules/js/datastream.js"></script>
+<script src="modules/js/pitbox.js"></script>
+<script src="modules/js/race-control.js"></script>
+<script src="modules/js/race-timeline.js"></script>
+<script src="modules/js/incidents.js"></script>
+<script src="modules/js/pit-limiter.js"></script>
+<script src="modules/js/race-end.js"></script>
+<script src="modules/js/formation.js"></script>
+<script src="modules/js/spotter.js"></script>
+<script src="modules/js/fps.js"></script>
+<script src="modules/js/webgl.js"></script>
+<script src="modules/js/ambient-light.js"></script>
+<script src="modules/js/ambient-capture.js"></script>
+<script src="modules/js/commentary-viz.js"></script>
+<script src="modules/js/game-logo.js"></script>
+<!-- drive-mode.js removed — iPad drive mode no longer active -->
+<script src="modules/js/rating-editor.js"></script>
+<script src="modules/js/driver-profile.js"></script>
+<script src="modules/js/drive-hud.js"></script>
+<script src="modules/js/poll-engine.js"></script>
+
+</body>
+</html>

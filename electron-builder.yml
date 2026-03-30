@@ -1,0 +1,65 @@
+appId: org.racecor.broadcaster
+productName: RaceCor.io
+copyright: Copyright (c) 2026 Kevin Conboy
+
+files:
+  - main.js
+  - preload.js
+  - remote-server.js
+  - dashboard.html
+  - modules/**/*
+  - images/**/*
+  - data/**/*
+  - streamdeck/**/*
+  - "!**/node_modules/**/*"
+  - "!**/tests/**/*"
+  - "!**/test-results/**/*"
+  - "!playwright.config.*"
+
+icon: images/branding/icon.png
+
+win:
+  icon: images/branding/icon.ico
+  target:
+    - target: dir
+      arch:
+        - x64
+        - arm64
+
+mac:
+  category: public.app-category.games
+  icon: images/branding/icon.png
+  darkModeSupport: true
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - arm64
+
+dmg:
+  title: RaceCor
+  artifactName: RaceCor-${version}-${arch}.${ext}
+  # Explicit window config avoids electron-builder trying to apply a
+  # background image, which triggers the hdiutil APFS race condition
+  # on arm64 macOS runners ("Above command failed, retrying N times").
+  window:
+    x: 200
+    "y": 120
+    width: 540
+    height: 380
+  contents:
+    - x: 130
+      "y": 220
+    - x: 410
+      "y": 220
+      type: link
+      path: /Applications
+
+publish:
+  provider: github
+  owner: alternatekev
+  repo: racecor
+  releaseType: release
