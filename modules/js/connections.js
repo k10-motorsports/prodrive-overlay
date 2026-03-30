@@ -87,7 +87,7 @@
     if (!window.k10 || !window.k10.k10Connect) {
       // Fallback: open website in browser
       if (window.k10 && window.k10.openExternal) {
-        window.k10.openExternal('https://drive.k10motorsports.racing');
+        window.k10.openExternal('https://drive.racecor.io');
       }
       return;
     }
