@@ -443,7 +443,7 @@ Applied to `<body>` by `applyGameMode()`:
 ### Key Files
 
 ```
-racecor-plugin/plugin/K10Motorsports.Plugin/
+racecor-plugin/simhub-plugin/plugin/K10Motorsports.Plugin/
 +-- Plugin.cs                    <- Main plugin, HTTP server, JSON output
 +-- Engine/
 |   +-- TelemetrySnapshot.cs     <- Data model for all telemetry values
