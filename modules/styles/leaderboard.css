@@ -128,7 +128,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: var(--fw-bold);
     letter-spacing: 0.08em;
     color: hsla(0, 0%, 100%, 0.25);
@@ -228,7 +228,7 @@
     position: absolute;
     bottom: 1px;
     right: 4px;
-    font-size: 8px;
+    font-size: 12px;
     font-weight: 600;
     color: hsla(0, 0%, 100%, 0.3);
     letter-spacing: 0.04em;
@@ -327,7 +327,7 @@
   .tyre-cell.hot { color: var(--amber); border-color: hsla(45,100%,50%,0.12); }
   .tyre-cell.danger { color: var(--red); border-color: hsla(0,70%,50%,0.15); }
   .tyre-label {
-    font-size: 6px;
+    font-size: 12px;
     color: var(--text-dim);
     text-align: center;
   }
@@ -362,8 +362,9 @@
     overflow: hidden;
   }
   .lb-header {
-    font-size: 9px;
-    font-weight: var(--fw-bold);
+    font-family: var(--ff-display);
+    font-size: 12px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: hsla(0, 0%, 100%, 0.35);
@@ -376,7 +377,7 @@
     align-items: center;
     gap: 4px;
     padding: 3px 10px;
-    font-size: 11px;
+    font-size: 12px;
     font-variant-numeric: tabular-nums; /* TODO: extract to shared numeric-display class (used 17 times total) */
     border-bottom: 1px solid hsla(0, 0%, 100%, 0.06);
     transition: background 0.3s ease;
@@ -433,13 +434,13 @@
   }
   .lb-row.lb-player .lb-name { color: var(--text-primary); font-weight: var(--fw-bold); }
   .lb-ir {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-dim);
     text-align: right;
   }
   .lb-gap {
     font-family: var(--ff-mono);
-    font-size: 9px;
+    font-size: 12px;
     text-align: right;
     font-weight: 500;
     letter-spacing: -0.03em;
@@ -449,7 +450,7 @@
   .lb-gap.gap-player { color: var(--cyan); }
   .lb-lap {
     font-family: var(--ff-mono);
-    font-size: 9px;
+    font-size: 12px;
     text-align: right;
     font-weight: 500;
     color: var(--text-dim);
