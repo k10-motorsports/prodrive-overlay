@@ -201,7 +201,7 @@
     position: absolute;
     bottom: 4px;
     right: 6px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-medium);
     color: rgba(255,255,255,0.45);
     z-index: 1;
@@ -315,7 +315,7 @@
     bottom: 4px;
     right: 0;
     font-family: var(--ff-mono);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-bold);
     color: var(--text-primary);
     opacity: 0.85;
@@ -338,7 +338,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-semi);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -472,7 +472,7 @@
     opacity: 0.96;
   }
   .car-model-label {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-secondary);
     text-align: center;
@@ -767,7 +767,7 @@
   .ir-bar-tick-label {
     position: absolute;
     top: 10px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-medium);
     color: var(--text-dim);
     transform: translateX(-50%);
@@ -816,7 +816,7 @@
   }
   .skew-accent { transform: skewX(-6deg); display: inline-block; }
   .pos-delta {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-bold);
     letter-spacing: 0.02em;
     text-align: left;
@@ -880,7 +880,7 @@
   }
   .pos-meta-row.delta-row .val {
     font-family: var(--ff-mono);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: -0.02em;
     display: block;
@@ -919,7 +919,7 @@
     transition: background 0.3s, color 0.3s;
   }
   .sector-label {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -928,13 +928,13 @@
   }
   .sector-time {
     font-family: var(--ff-mono);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
   }
   .sector-delta {
     font-family: var(--ff-mono);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: hsla(0,0%,100%,0.35);
     margin-top: 1px;
@@ -1243,7 +1243,7 @@
   }
   .race-timer-lap {
     font-family: var(--ff-mono);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;
