@@ -74,6 +74,10 @@ contextBridge.exposeInMainWorld('k10', {
   },
   // Ambient light — screen capture moved to C# plugin (ScreenColorSampler).
   // Color data now arrives via poll JSON (DS.AmbientR/G/B), no IPC needed.
+  // Track map cloud sync
+  pushTrackMap: (mapData) => ipcRenderer.invoke('push-track-map', mapData),
+  uploadTrackMapCsv: (data) => ipcRenderer.invoke('upload-track-map-csv', data),
+  resetCloudMap: (trackId) => ipcRenderer.invoke('reset-cloud-map', trackId),
   // Folder dialog for file browser
   openFolderDialog: (title) => ipcRenderer.invoke('open-folder-dialog', title),
   // Quit application

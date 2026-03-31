@@ -738,9 +738,16 @@
     return best;
   }
 
-  // Reset track map — clears recorded data and restarts capture
+  // Reset track map — clears local recorded data and restarts capture.
+  // Also attempts to clear the global pool entry (server gates to admin-only).
   function resetTrackMap() {
+    // Reset local plugin cache
     fetch((window._simhubUrlOverride || SIMHUB_URL) + '?action=resetmap').catch(() => {});
+    // Attempt cloud DB reset — server returns 403 for non-admins, which is fine
+    if (window.k10 && window.k10.resetCloudMap) {
+      var trackId = document.getElementById('fullMapLabel')?.textContent || '';
+      if (trackId) window.k10.resetCloudMap(trackId);
+    }
     _mapLastPath = '';
     _mapHasInit = false;
     _trackPathCoords = [];

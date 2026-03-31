@@ -21,6 +21,13 @@
   // Normalised to 0-100 viewBox with 5% padding (same algorithm as C# NormaliseAndBuild)
   const _DEMO_FALLBACK_MAP = 'M 58.9,71.8 C 64.2,72.1 62.3,72.0 64.0,72.1 C 65.7,72.1 67.3,72.3 69.0,72.2 C 70.6,72.0 72.5,72.0 73.7,71.2 C 75.0,70.3 75.8,68.6 76.3,67.1 C 76.9,65.6 76.9,63.8 77.0,62.1 C 77.0,60.4 76.7,58.7 76.5,56.9 C 76.2,55.2 75.8,53.6 75.5,51.8 C 75.2,50.1 74.9,48.3 74.8,46.5 C 74.7,44.8 75.0,43.0 74.9,41.3 C 74.7,39.7 74.8,37.6 74.0,36.4 C 73.1,35.3 71.2,35.2 69.7,34.5 C 68.2,33.9 66.6,32.9 65.0,32.4 C 63.5,32.0 61.6,31.2 60.3,31.8 C 59.0,32.3 58.2,34.2 57.3,35.6 C 56.5,37.0 56.0,38.7 55.0,40.1 C 54.0,41.5 52.6,42.9 51.3,44.0 C 50.0,45.1 48.7,45.9 47.3,46.8 C 45.8,47.6 44.1,48.4 42.4,49.0 C 40.6,49.5 38.7,49.9 36.8,50.2 C 34.9,50.4 32.9,50.4 30.9,50.4 C 28.9,50.4 26.8,50.3 24.8,50.3 C 22.7,50.3 20.5,50.4 18.5,50.4 C 16.6,50.4 14.7,50.4 12.9,50.4 C 11.2,50.4 9.3,50.9 8.0,50.4 C 6.7,49.8 5.2,48.6 5.1,47.3 C 5.0,46.1 6.6,44.5 7.4,43.0 C 8.2,41.6 8.8,40.0 9.9,38.7 C 11.0,37.4 12.4,36.0 13.9,35.1 C 15.4,34.1 17.1,33.5 18.8,32.8 C 20.4,32.1 22.3,31.5 23.9,30.9 C 25.6,30.2 27.3,29.7 28.7,28.9 C 30.2,28.1 31.3,27.2 32.5,26.2 C 33.8,25.2 34.9,24.0 36.0,22.9 C 37.2,21.8 38.2,20.7 39.4,19.5 C 40.6,18.3 41.9,16.8 43.1,15.7 C 44.4,14.5 45.7,12.9 47.0,12.7 C 48.3,12.6 49.7,13.9 50.9,14.8 C 52.2,15.7 53.2,17.3 54.6,18.0 C 56.0,18.8 57.7,19.2 59.3,19.2 C 61.0,19.1 62.9,18.4 64.5,17.8 C 66.1,17.3 67.4,16.4 69.0,16.0 C 70.5,15.6 72.2,15.6 73.9,15.5 C 75.6,15.4 77.7,15.0 79.1,15.5 C 80.4,16.1 81.7,17.6 82.2,19.0 C 82.7,20.4 82.1,22.2 82.1,24.0 C 82.0,25.8 82.0,27.8 81.9,29.6 C 81.9,31.3 81.8,32.8 81.8,34.5 C 81.7,36.1 81.7,37.9 81.6,39.5 C 81.6,41.1 81.3,42.6 81.3,44.2 C 81.3,45.8 81.3,47.4 81.6,49.0 C 82.0,50.5 82.7,52.1 83.4,53.7 C 84.2,55.2 85.1,56.9 86.2,58.4 C 87.3,59.8 89.0,61.1 90.2,62.4 C 91.5,63.8 93.0,65.0 93.8,66.5 C 94.6,67.9 95.1,69.6 94.9,71.1 C 94.6,72.6 93.0,73.9 92.4,75.4 C 91.8,77.0 91.7,78.7 91.2,80.4 C 90.8,82.0 90.6,84.3 89.6,85.4 C 88.7,86.6 86.8,87.1 85.3,87.4 C 83.7,87.6 82.1,87.1 80.4,87.0 C 78.7,86.9 76.8,86.8 75.1,86.7 C 73.4,86.7 71.9,86.9 70.2,86.9 C 68.5,86.9 66.7,86.9 64.8,86.9 C 63.0,86.9 61.0,86.9 59.1,86.8 C 57.1,86.8 55.1,86.8 53.1,86.8 C 51.1,86.7 48.9,86.7 46.9,86.7 C 44.8,86.7 42.7,86.8 40.8,86.8 C 38.9,86.8 37.3,86.8 35.6,86.8 C 33.8,86.8 32.1,86.8 30.4,86.7 C 28.7,86.7 27.3,86.8 25.6,86.7 C 23.9,86.7 21.8,86.8 20.1,86.5 C 18.3,86.2 16.8,85.7 15.3,84.8 C 13.9,84.0 12.3,82.9 11.4,81.5 C 10.5,80.2 10.0,78.2 10.1,76.7 C 10.3,75.2 11.1,73.5 12.3,72.5 C 13.4,71.5 15.3,71.2 17.0,70.8 C 18.6,70.4 20.4,70.2 22.1,70.1 C 23.8,70.0 25.3,70.0 27.0,70.0 C 28.7,70.0 27.0,69.9 32.3,70.2 C 37.7,70.5 53.7,71.5 58.9,71.8 Z';
 
+  // Track ID of last map auto-pushed to cloud (prevents duplicate pushes per track)
+  let _lastPushedTrackId = '';
+  // Cloud map fallback state — fetches track SVG from global pool when plugin is recording
+  let _cloudMapTrackId = '';
+  let _cloudMapFetchedId = '';
+  let _cloudMapSvg = '';
+
   // ─── Time value parser — handles both numeric seconds and TimeSpan strings ───
   function _parseTimeValue(val) {
     if (val == null || val === '') return 0;
@@ -1047,12 +1054,40 @@
 
     // ─── Track map ───
     const mapReady = +v('K10Motorsports.Plugin.TrackMap.Ready') || 0;
-    const mapPath = mapReady ? (vs('K10Motorsports.Plugin.TrackMap.SvgPath') || '') : '';
+    let mapPath = mapReady ? (vs('K10Motorsports.Plugin.TrackMap.SvgPath') || '') : '';
     const mapPX   = +v('K10Motorsports.Plugin.TrackMap.PlayerX') || 50;
     const mapPY   = +v('K10Motorsports.Plugin.TrackMap.PlayerY') || 50;
     const mapOpp  = vs('K10Motorsports.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('K10Motorsports.Plugin.TrackMap.PlayerHeading') || 0;
-    // Use plugin path if available; show no track when map isn't ready
+
+    // Cloud map fallback: if plugin is recording (no local map), try fetching from cloud pool
+    if (!mapReady && !_demo) {
+      const trackId = vs('K10Motorsports.Plugin.TrackMap.TrackName') || '';
+      if (trackId && trackId !== _cloudMapTrackId && trackId !== _cloudMapFetchedId) {
+        _cloudMapTrackId = trackId;
+        _cloudMapSvg = '';
+        // Async fetch — result used on next poll cycle
+        fetch(`https://drive.racecor.io/api/maps?trackId=${encodeURIComponent(trackId)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && data.svgPath) {
+              _cloudMapSvg = data.svgPath;
+              _cloudMapFetchedId = trackId;
+            }
+          })
+          .catch(() => {});
+      }
+      // Use cloud map if available
+      if (_cloudMapSvg && _cloudMapTrackId === (vs('K10Motorsports.Plugin.TrackMap.TrackName') || '')) {
+        mapPath = _cloudMapSvg;
+      }
+    } else if (mapReady) {
+      // Plugin has a local map — clear cloud fallback
+      _cloudMapSvg = '';
+      _cloudMapTrackId = '';
+    }
+
+    // Use plugin path if available; cloud fallback if not; blank when recording
     updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading);
     // Full map label: show track name instead of "Full"
     const fullMapLbl = document.getElementById('fullMapLabel');
@@ -1061,6 +1096,29 @@
                      || vs('DataCorePlugin.GameData.TrackName')
                      || '';
       if (trackName && trackName !== fullMapLbl.textContent) fullMapLbl.textContent = trackName;
+    }
+
+    // Auto-push new track maps to global pool (once per track, when authenticated)
+    if (mapReady && mapPath && !_demo) {
+      const trackId = vs('K10Motorsports.Plugin.TrackMap.TrackName') || '';
+      if (trackId && trackId !== _lastPushedTrackId && window.k10 && window.k10.pushTrackMap) {
+        _lastPushedTrackId = trackId;
+        // Check data transparency opt-out before pushing
+        if (!window._mapSyncOptOut) {
+          const trackName = vs('DataCorePlugin.GameData.TrackName') || trackId;
+          window.k10.pushTrackMap({
+            trackId: trackId,
+            trackName: trackName,
+            svgPath: mapPath,
+            pointCount: mapPath.split('C').length,
+            gameName: vs('DataCorePlugin.GameData.GameName') || 'iracing',
+          }).then(r => {
+            if (r && r.status === 'created') {
+              console.warn('[K10] Track map contributed to global pool:', trackId);
+            }
+          }).catch(() => {});
+        }
+      }
     }
 
     // ─── Datastream ───

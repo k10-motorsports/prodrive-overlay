@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>RaceCor Dashboard</title>
+<link rel="icon" href="images/branding/icon.png" type="image/png">
 <!--
   SimHub HTML Dashboard — K10 Motorsports
   ════════════════════════════════════════════════════════════════
@@ -1264,6 +1265,16 @@
         <div class="settings-toggle" id="greenScreenToggle" onclick="toggleGreenScreen(this)"></div>
       </div>
       <div class="settings-hint" id="greenScreenHint" style="display:none;">Restart required. Window becomes resizable with chroma-key green background.</div>
+
+      <div class="settings-group-label">Data &amp; Privacy</div>
+      <div class="settings-hint" style="display:block; margin-bottom:8px;">
+        RaceCor shares anonymised track map outlines with other drivers to improve the experience for everyone. No personal telemetry, lap times, or identifying data is ever sent — only the shape of the track.
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Share Track Maps</span>
+        <div class="settings-toggle on" id="mapSyncToggle" onclick="toggleMapSync(this)"></div>
+      </div>
+      <div class="settings-hint">When enabled, newly recorded track outlines are contributed to the global map pool. Turning this off also disables fetching community maps.</div>
 
     </div>
 

@@ -1067,6 +1067,103 @@ async function httpsGetWithAuth(url, token) {
   });
 }
 
+async function httpsPostWithAuth(url, token, body) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const postData = JSON.stringify(body);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'Authorization': `Bearer ${token}`,
+      },
+    };
+    const lib = urlObj.protocol === 'http:' ? http : https;
+    const req = lib.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(data) }); }
+        catch (e) { reject(new Error('Invalid JSON: ' + data.slice(0, 200))); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// ── IPC: Push track map to global pool ──
+ipcMain.handle('push-track-map', async (event, mapData) => {
+  const user = loadK10User();
+  if (!user || !user.accessToken) return { success: false, reason: 'not_authenticated' };
+
+  try {
+    const result = await httpsPostWithAuth(
+      `${K10_API_BASE}/api/maps`,
+      user.accessToken,
+      mapData
+    );
+    return { success: true, status: result.data.status || 'unknown' };
+  } catch (err) {
+    console.warn('[K10] Map push failed:', err.message);
+    return { success: false, reason: err.message };
+  }
+});
+
+// ── IPC: Upload user-recorded map (CSV) to global pool ──
+ipcMain.handle('upload-track-map-csv', async (event, { trackId, trackName, rawCsv, gameName, trackLengthKm }) => {
+  const user = loadK10User();
+  if (!user || !user.accessToken) return { success: false, reason: 'not_authenticated' };
+
+  try {
+    const result = await httpsPostWithAuth(
+      `${K10_API_BASE}/api/maps/upload`,
+      user.accessToken,
+      { trackId, trackName, rawCsv, gameName, trackLengthKm }
+    );
+    return { success: true, status: result.data.status || 'unknown', mapId: result.data.mapId };
+  } catch (err) {
+    console.warn('[K10] Map upload failed:', err.message);
+    return { success: false, reason: err.message };
+  }
+});
+
+// ── IPC: Reset cloud map (admin only — DELETE /api/maps/reset) ──
+ipcMain.handle('reset-cloud-map', async (event, trackId) => {
+  const user = loadK10User();
+  if (!user || !user.accessToken || !trackId) return { success: false, reason: 'not_authenticated' };
+
+  try {
+    const url = `${K10_API_BASE}/api/maps/reset?trackId=${encodeURIComponent(trackId)}`;
+    const urlObj = new URL(url);
+    const lib = urlObj.protocol === 'http:' ? http : https;
+    return new Promise((resolve) => {
+      const req = lib.request(url, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try { resolve({ success: res.statusCode < 400, data: JSON.parse(data) }); }
+          catch (e) { resolve({ success: false, reason: 'invalid response' }); }
+        });
+      });
+      req.on('error', () => resolve({ success: false, reason: 'network error' }));
+      req.setTimeout(15000, () => { req.destroy(); resolve({ success: false, reason: 'timeout' }); });
+      req.end();
+    });
+  } catch (err) {
+    return { success: false, reason: err.message };
+  }
+});
+
 ipcMain.handle('k10-connect', async () => {
   try {
     // Generate PKCE verifier + challenge

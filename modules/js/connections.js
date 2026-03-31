@@ -564,6 +564,26 @@
     }
   }
 
+  // ─── Data transparency: track map sharing opt-out ───
+  async function toggleMapSync(el) {
+    const isOn = el.classList.contains('on');
+    const newValue = !isOn;
+    el.classList.toggle('on', newValue);
+    _settings.mapSync = newValue;
+    // Expose to poll-engine for checking before push
+    window._mapSyncOptOut = !newValue;
+    await saveSettings();
+  }
+
+  // Restore map sync toggle state on load
+  function _restoreMapSyncToggle() {
+    const toggle = document.getElementById('mapSyncToggle');
+    if (toggle && _settings.mapSync === false) {
+      toggle.classList.remove('on');
+      window._mapSyncOptOut = true;
+    }
+  }
+
   // ─── Layout management ───
 
   /* ── Layout Position Map ──
@@ -799,7 +819,7 @@
   }
 
   // Load settings on startup
-  loadSettings();
+  loadSettings().then(() => _restoreMapSyncToggle());
   initDiscordState();
   initK10State();
   initRemoteDashState();
