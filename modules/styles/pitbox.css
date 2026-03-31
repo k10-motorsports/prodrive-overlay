@@ -238,15 +238,15 @@
   .pb-adj-label {
     font-size: 14px;
     font-weight: 500;
-    color: hsla(0, 0%, 100%, 0.45);
+    color: hsla(0, 0%, 100%, 0.85);
   }
   .pb-adj-val {
     font-family: 'JetBrains Mono', monospace;
     font-size: 14px;
     font-weight: 600;
-    color: hsla(0, 0%, 100%, 0.8);
+    color: hsla(0, 0%, 100%, 1);
   }
-  .pb-adj-val.zero { color: hsla(0, 0%, 100%, 0.2); }
+  .pb-adj-val.zero { color: hsla(0, 0%, 100%, 0.3); }
 
   /* ── Info text ── */
   .pb-info {

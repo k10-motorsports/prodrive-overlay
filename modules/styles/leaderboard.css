@@ -143,16 +143,24 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     position: relative;
   }
   .pedal-labels-row {
     display: flex;
     gap: 6px;
     justify-content: space-around;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    pointer-events: none;
+    padding: 3px 0;
   }
   .pedal-label-group {
     text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
   .pedal-channel-label {
     font-size: var(--fs-xs);

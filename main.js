@@ -231,6 +231,26 @@ async function createOverlay() {
 
   overlayWindow.on('closed', () => { overlayWindow = null; });
 
+  // ── Windows: reflow overlay when taskbar appears / disappears ──
+  // The taskbar auto-hide changes workArea but not bounds.  Listen for
+  // display-metrics-changed so we always fill the entire screen.
+  if (process.platform === 'win32' && !greenScreenMode) {
+    screen.on('display-metrics-changed', (_event, display, changedMetrics) => {
+      if (!overlayWindow || overlayWindow.isDestroyed()) return;
+      if (!changedMetrics.includes('workArea') && !changedMetrics.includes('bounds')) return;
+
+      const primary = screen.getPrimaryDisplay();
+      if (display.id !== primary.id) return;
+
+      const { x, y, width, height } = primary.bounds;
+      const cur = overlayWindow.getBounds();
+      if (cur.x === x && cur.y === y && cur.width === width && cur.height === height) return;
+
+      logToFile(`[K10] Display metrics changed (${changedMetrics.join(', ')}), reflowing overlay to ${width}x${height}`);
+      overlayWindow.setBounds({ x, y, width, height });
+    });
+  }
+
   // ── Windows: periodically re-assert always-on-top ──────────
   // DirectX fullscreen exclusive mode can steal z-order even from
   // screen-saver level windows. Re-assert every 5 seconds.
