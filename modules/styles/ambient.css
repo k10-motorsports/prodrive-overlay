@@ -321,6 +321,55 @@ body.opaque-mode .spotter-panel::before {
 }
 
 /* ═══════════════════════════════════════════════
+   PRESET BUTTONS (Minimal, Minimal+, Standard)
+   ═══════════════════════════════════════════════ */
+.settings-preset-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.settings-preset-btn {
+  flex: 1;
+  background: hsla(0, 0%, 100%, 0.08);
+  color: hsla(0, 0%, 100%, 0.7);
+  border: 1px solid hsla(0, 0%, 100%, 0.15);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease, color 200ms ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+}
+.settings-preset-btn:hover {
+  background: hsla(0, 0%, 100%, 0.12);
+  border-color: hsla(0, 0%, 100%, 0.3);
+  color: hsla(0, 0%, 100%, 0.9);
+}
+.settings-preset-btn.active {
+  background: hsla(280, 80%, 70%, 0.25);
+  border-color: hsl(280, 80%, 70%);
+  color: hsl(280, 80%, 80%);
+}
+.settings-preset-btn.pro-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.settings-preset-btn.pro-locked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: no-repeat center;
+  background-size: 10px;
+  opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════
    AMBIENT CAPTURE PREVIEW (in settings panel)
    ═══════════════════════════════════════════════ */
 .ambient-preview-container {

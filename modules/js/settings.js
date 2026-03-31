@@ -103,6 +103,20 @@
     if (_settings.logoOnlyStart !== false) {
       document.body.classList.add('logo-only');
     }
+
+    // Visual mode classes
+    const preset = _settings.visualPreset || 'standard';
+    document.body.classList.remove('mode-minimal', 'mode-minimal-plus');
+    if (preset === 'minimal') {
+      document.body.classList.add('mode-minimal');
+    } else if (preset === 'minimal-plus') {
+      document.body.classList.add('mode-minimal-plus');
+    }
+
+    // Sync preset button active states
+    document.querySelectorAll('.settings-preset-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === preset);
+    });
   }
 
   // Called by poll-engine when session goes active (game running + session state > 0).
@@ -197,6 +211,75 @@
       const key = el.dataset.dsField;
       const show = _settings[key] !== false;
       el.style.display = show ? '' : 'none';
+    });
+  }
+
+  // ── Visual mode presets (Minimal, Minimal+, Standard) ──
+  function applyVisualPreset(preset) {
+    // Feature gate: minimal/minimal+ require K10 Pro connection
+    if (preset !== 'standard' && !_k10User) {
+      navigateToConnections();
+      return;
+    }
+
+    _settings.visualPreset = preset;
+
+    // Remove all mode classes
+    document.body.classList.remove('mode-minimal', 'mode-minimal-plus');
+
+    if (preset === 'minimal') {
+      document.body.classList.add('mode-minimal');
+      // Set all effect toggles to off for Minimal mode
+      _settings.showWebGL = false;
+      _settings.ambientMode = 'off';
+      _settings.showBorders = false;
+      _settings.showSentimentHalo = false;
+      _settings.showCommentaryGlow = false;
+      _settings.showRcAnimation = false;
+      _settings.showMapGlow = false;
+      _settings.showRedlineFlash = false;
+      _settings.showBonkers = false;
+      _settings.showK10Logo = false;
+      _settings.showCarLogo = false;
+      _settings.showGameLogo = false;
+    } else if (preset === 'minimal-plus') {
+      document.body.classList.add('mode-minimal-plus');
+      // Racing-educated Tufte: data-reactive effects on, static decoration off
+      _settings.showWebGL = true;  // but CSS reduces intensity to 60%
+      _settings.ambientMode = 'off';
+      _settings.showBorders = false;
+      _settings.showSentimentHalo = true;  // but CSS reduces to 40% alpha
+      _settings.showCommentaryGlow = false;
+      _settings.showRcAnimation = true;    // flag animation settles after 4s
+      _settings.showMapGlow = true;
+      _settings.showRedlineFlash = true;
+      _settings.showBonkers = false;
+      _settings.showK10Logo = false;
+      _settings.showCarLogo = true;  // contextual data for broadcast
+      _settings.showGameLogo = false;
+    } else {
+      // Standard — restore defaults
+      _settings.showWebGL = true;
+      _settings.ambientMode = 'reflective';
+      _settings.showBorders = true;
+      _settings.showSentimentHalo = true;
+      _settings.showCommentaryGlow = true;
+      _settings.showRcAnimation = true;
+      _settings.showMapGlow = true;
+      _settings.showRedlineFlash = true;
+      _settings.showBonkers = true;
+      _settings.showK10Logo = true;
+      _settings.showCarLogo = true;
+      _settings.showGameLogo = true;
+    }
+
+    // Sync UI toggles and save
+    applySettings();
+    saveSettings();
+
+    // Update preset button active states
+    document.querySelectorAll('.settings-preset-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === preset);
     });
   }
 
