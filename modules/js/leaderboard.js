@@ -151,8 +151,9 @@
           _posHistory.push(_startPosition);
           _posHistorySeeded = true;
         }
-        // Record current position (dedupe consecutive same-position entries)
-        if (pos > 0 && (_posHistory.length === 0 || _posHistory[_posHistory.length - 1] !== pos)) {
+        // Only record real positions after green flag (not during rolling/formation).
+        // This preserves the grid → green flag position jump as the first movement.
+        if (!window._isRollingStart && pos > 0 && (_posHistory.length === 0 || _posHistory[_posHistory.length - 1] !== pos)) {
           _posHistory.push(pos);
           if (_posHistory.length > SPARK_MAX) _posHistory.shift();
         }
@@ -197,12 +198,13 @@
         else if (_startPosition > 0 && pos > _startPosition) col = 'hsla(0,75%,50%,1)';
         else col = 'hsla(210,75%,55%,1)';
         sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + (w).toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.5" fill="' + col + '"/></svg>';
-      } else if (isPlayer && _posHistory.length < 2) {
-        // Player waiting for data: flat baseline
+      } else if (isPlayer) {
+        // Player: flat baseline during rolling start / waiting for green flag
         const w = 44, h2 = 14;
         const midY = (h2 / 2).toFixed(1);
+        const dashCol = window._isRollingStart ? 'hsla(42,70%,55%,0.4)' : 'hsla(210,75%,55%,0.5)';
         sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none">'
-          + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="hsla(210,75%,55%,0.5)" stroke-width="1" stroke-dasharray="3,2"/>'
+          + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="' + dashCol + '" stroke-width="1" stroke-dasharray="3,2"/>'
           + '</svg>';
       } else {
         // Non-player: lap-time sparkline
