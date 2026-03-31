@@ -8,6 +8,37 @@
  * @property {number} fuelLevel - Current fuel (0-100%)
  * @property {number} fuelPerLap - Fuel consumption per lap
  * @property {number} fuelLapsRemaining - Estimated laps with current fuel
+ * @description Fuel level display with remaining liters, consumption rate, and pit window estimate.
+ *
+ * Accepts telemetry data via `updateData(snapshot)` method, called from poll-engine
+ * or subscribed to `telemetry-update` custom events. Renders using Shadow DOM for
+ * scoped styles while inheriting theme variables from :root.
+ *
+ * @attribute none (uses properties instead)
+ *
+ * @property {number} fuelLevel - Current fuel in liters (default: 0)
+ * @property {number} maxFuel - Max tank capacity in liters (default: 0)
+ * @property {number} fuelPerLap - Consumption rate in L/lap (default: 0)
+ * @property {number} lapsRemaining - Estimated laps until empty (default: 0)
+ *
+ * @fires none (no custom events)
+ *
+ * @slot default (not used, Shadow DOM only)
+ *
+ * @example
+ * <racecor-fuel-gauge></racecor-fuel-gauge>
+ *
+ * <script>
+ *   const gauge = document.querySelector('racecor-fuel-gauge');
+ *
+ *   // Option 1: Subscribe to telemetry events
+ *   window.addEventListener('telemetry-update', (e) => {
+ *     gauge.updateData(e.detail);  // detail is the snapshot object
+ *   });
+ *
+ *   // Option 2: Direct data update (used by poll-engine)
+ *   gauge.updateData(latestSnapshot);
+ * </script>
  */
 
 (function() {
