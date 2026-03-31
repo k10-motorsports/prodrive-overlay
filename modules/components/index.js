@@ -13,7 +13,6 @@
  * // Now use components
  * <racecor-fuel-gauge></racecor-fuel-gauge>
  * <racecor-leaderboard></racecor-leaderboard>
- * <racecor-tire-grid></racecor-tire-grid>
  */
 
 // ══════════════════════════════════════════════════════════════
@@ -71,50 +70,25 @@ import './commentary.js';
 
 // iRating/SR editing interface
 import './rating-editor.js';
-import './tire-grid.js';
-
-// Gap ahead/behind with driver names and iRatings
-import './gap-display.js';
-
-// Position card with cycling rating page
-import './position-card.js';
-
-// Race control message banner with animated stripes
-import './race-control.js';
-
-// Race end results screen
-import './race-end.js';
-
-// Incident counter with penalty/DQ thresholds
-import './incidents.js';
-
-// Position history heat-map strip
-import './race-timeline.js';
-
-// ══════════════════════════════════════════════════════════════
-// PHASE 2: CANVAS & MODERATE COMPONENTS
-// ══════════════════════════════════════════════════════════════
-
-// Future phase 2 components:
-// import './leaderboard.js';
-// import './datastream.js';
-// import './pedal-curves.js';
-// import './pitbox.js';
-// import './spotter.js';
-// import './commentary.js';
-// import './dashboard.js';
-// import './panel-container.js';
 
 // ══════════════════════════════════════════════════════════════
 // PHASE 3: COMPLEX & WEBGL COMPONENTS
 // ══════════════════════════════════════════════════════════════
 
-// Future phase 3 components:
-// import './tachometer.js';
-// import './webgl-fx.js';
-// import './drive-hud.js';
-// import './driver-profile.js';
-// import './commentary-viz.js';
+// RPM gauge with segmented color bar, gear, and speed display
+import './tachometer.js';
+
+// WebGL2 post-processing effects engine for tachometer bloom and heat distortion
+import './webgl-fx.js';
+
+// Full-screen driving HUD with track map, position, lap times, incidents
+import './drive-hud.js';
+
+// Driver profile analytics with iRating/SR charts and car heatmap
+import './driver-profile.js';
+
+// Advanced commentary visualization with Canvas charts and track image
+import './commentary-viz.js';
 
 // ══════════════════════════════════════════════════════════════
 // COMPONENT REGISTRY
@@ -182,56 +156,39 @@ window._componentRegistry = window._componentRegistry || {
     type: 'dom',
     phase: 2,
     description: 'iRating/Safety Rating editing interface'
-  }
-  'racecor-tire-grid': {
-    componentClass: customElements.get('racecor-tire-grid'),
-    type: 'dom',
-    phase: 1,
-    description: 'Tire temperature and wear 2x2 grid'
   },
-  'racecor-gap-display': {
-    componentClass: customElements.get('racecor-gap-display'),
+
+  // Phase 3: Complex & WebGL Components
+  'racecor-tachometer': {
+    componentClass: customElements.get('racecor-tachometer'),
     type: 'dom',
-    phase: 1,
-    description: 'Gap ahead/behind with driver info'
+    phase: 3,
+    description: 'RPM gauge with segmented color bar, gear display, speed readout'
   },
-  'racecor-position-card': {
-    componentClass: customElements.get('racecor-position-card'),
-    type: 'dom',
-    phase: 1,
-    description: 'Position and rating display with cycling pages'
+  'racecor-webgl-fx': {
+    componentClass: customElements.get('racecor-webgl-fx'),
+    type: 'webgl2',
+    phase: 3,
+    description: 'WebGL2 post-processing effects (tachometer bloom, heat distortion)'
   },
-  'racecor-race-control': {
-    componentClass: customElements.get('racecor-race-control'),
-    type: 'dom',
-    phase: 1,
-    description: 'Race control flag banner with animated stripes'
+  'racecor-drive-hud': {
+    componentClass: customElements.get('racecor-drive-hud'),
+    type: 'svg',
+    phase: 3,
+    description: 'Full-screen driving HUD with track map, position, sectors, incidents'
   },
-  'racecor-race-end': {
-    componentClass: customElements.get('racecor-race-end'),
-    type: 'dom',
-    phase: 1,
-    description: 'Race end results screen'
-  },
-  'racecor-incidents': {
-    componentClass: customElements.get('racecor-incidents'),
-    type: 'dom',
-    phase: 1,
-    description: 'Incident counter with penalty/DQ thresholds'
-  },
-  'racecor-race-timeline': {
-    componentClass: customElements.get('racecor-race-timeline'),
+  'racecor-commentary-viz': {
+    componentClass: customElements.get('racecor-commentary-viz'),
     type: 'canvas',
-    phase: 1,
-    description: 'Position history heat-map strip'
+    phase: 3,
+    description: 'Commentary panel with Canvas visualizations and track image'
   },
-
-  // Phase 2 entries will be added here as components are imported
-  // 'racecor-leaderboard': { ... },
-  // 'racecor-datastream': { ... },
-
-  // Phase 3 entries
-  // 'racecor-tachometer': { ... },
+  'racecor-driver-profile': {
+    componentClass: customElements.get('racecor-driver-profile'),
+    type: 'canvas',
+    phase: 3,
+    description: 'Driver analytics with iRating/SR charts and session stats'
+  }
 };
 
 /**
@@ -246,4 +203,4 @@ window._logComponents = function() {
   console.groupEnd();
 };
 
-console.log('[K10 Web Components] Loaded. Call window._logComponents() to see registered components.');
+console.log('[K10 Web Components] Loaded (21 components: Phase 1 + 2 + 3). Call window._logComponents() to see all.');
