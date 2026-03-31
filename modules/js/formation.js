@@ -34,13 +34,14 @@
     if (!mod || !info || !lights) return;
 
     // Detect transition from ParadeLaps (3) to Racing (4): this is when lights should show.
-    // If plugin doesn't send LightsPhase, we generate a synthetic green sequence
-    // and hold it for 3 seconds so it's actually visible.
+    // If plugin doesn't send LightsPhase, we generate a synthetic green sequence.
+    // Rolling starts: instant green flash with 5s hold (no reds).
+    // Standing starts: synthetic green with 5s hold (reds come from plugin).
     const transitioningToRace = _gridPrevSessionState >= 1 && _gridPrevSessionState <= 3 && sessionState === 4;
     if (transitioningToRace && lightsPhase === 0 && _simLightsPhase === 0) {
       _simLightsPhase = 7;
       clearTimeout(_simLightsTimer);
-      _simLightsTimer = setTimeout(() => { _simLightsPhase = 0; }, 3000);
+      _simLightsTimer = setTimeout(() => { _simLightsPhase = 0; }, 5000);
     }
     // Use synthetic phase when plugin isn't sending one
     if (lightsPhase === 0 && _simLightsPhase > 0) lightsPhase = _simLightsPhase;
@@ -60,8 +61,8 @@
       _gridActive = false;
       if (window.setGridFlagGL) window.setGridFlagGL(false);
       clearTimeout(_gridFadeTimer);
-      // Extend fade timer from 4s to 6s to allow lights to fully display during race start transition
-      const fadeDelay = transitioningToRace ? 6000 : 4000;
+      // Extend fade timer to allow lights (especially green flash) to fully display during race start
+      const fadeDelay = transitioningToRace ? 8000 : 4000;
       _gridFadeTimer = setTimeout(() => {
         mod.classList.remove('grid-fadeout');
         // Reset lights
@@ -73,6 +74,16 @@
     }
 
     if (!shouldShow) return;
+
+    // Cancel any pending fadeout if lights just became active (e.g. green flash arrived late)
+    if (isLightsActive && mod.classList.contains('grid-fadeout')) {
+      clearTimeout(_gridFadeTimer);
+      mod.classList.remove('grid-fadeout');
+      mod.classList.add('grid-visible');
+      _gridActive = true;
+      document.body.classList.add('grid-active');
+      if (window.setGridFlagGL) window.setGridFlagGL(true);
+    }
 
     // Show the module
     if (!_gridActive) {
