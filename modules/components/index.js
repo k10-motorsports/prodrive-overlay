@@ -22,18 +22,26 @@
 // Fuel gauge with consumption stats and pit window estimate
 import './fuel-gauge.js';
 
-// Future phase 1 components:
-// import './tire-grid.js';
-// import './position-card.js';
-// import './gap-display.js';
-// import './sector-indicator.js';
-// import './incidents-panel.js';
-// import './race-control-banner.js';
-// import './grid-module.js';
-// import './race-end-screen.js';
-// import './pit-limiter.js';
-// import './ambient-light.js';
-// import './race-timeline.js';
+// Tire temperature and wear grid (2x2 layout)
+import './tire-grid.js';
+
+// Gap ahead/behind with driver names and iRatings
+import './gap-display.js';
+
+// Position card with cycling rating page
+import './position-card.js';
+
+// Race control message banner with animated stripes
+import './race-control.js';
+
+// Race end results screen
+import './race-end.js';
+
+// Incident counter with penalty/DQ thresholds
+import './incidents.js';
+
+// Position history heat-map strip
+import './race-timeline.js';
 
 // ══════════════════════════════════════════════════════════════
 // PHASE 2: CANVAS & MODERATE COMPONENTS
@@ -77,10 +85,50 @@ window._componentRegistry = window._componentRegistry || {
     phase: 1,
     description: 'Fuel level display with consumption and pit window'
   },
+  'racecor-tire-grid': {
+    componentClass: customElements.get('racecor-tire-grid'),
+    type: 'dom',
+    phase: 1,
+    description: 'Tire temperature and wear 2x2 grid'
+  },
+  'racecor-gap-display': {
+    componentClass: customElements.get('racecor-gap-display'),
+    type: 'dom',
+    phase: 1,
+    description: 'Gap ahead/behind with driver info'
+  },
+  'racecor-position-card': {
+    componentClass: customElements.get('racecor-position-card'),
+    type: 'dom',
+    phase: 1,
+    description: 'Position and rating display with cycling pages'
+  },
+  'racecor-race-control': {
+    componentClass: customElements.get('racecor-race-control'),
+    type: 'dom',
+    phase: 1,
+    description: 'Race control flag banner with animated stripes'
+  },
+  'racecor-race-end': {
+    componentClass: customElements.get('racecor-race-end'),
+    type: 'dom',
+    phase: 1,
+    description: 'Race end results screen'
+  },
+  'racecor-incidents': {
+    componentClass: customElements.get('racecor-incidents'),
+    type: 'dom',
+    phase: 1,
+    description: 'Incident counter with penalty/DQ thresholds'
+  },
+  'racecor-race-timeline': {
+    componentClass: customElements.get('racecor-race-timeline'),
+    type: 'canvas',
+    phase: 1,
+    description: 'Position history heat-map strip'
+  },
 
-  // Phase 1 entries will be added here as components are imported
-
-  // Phase 2 entries
+  // Phase 2 entries will be added here as components are imported
   // 'racecor-leaderboard': { ... },
   // 'racecor-datastream': { ... },
 
