@@ -1,5 +1,13 @@
 /**
  * @element racecor-fuel-gauge
+ * @description Fuel level display with consumption rate and pit window estimate.
+ *
+ * Shows current fuel level, consumption per lap, and estimated laps remaining.
+ * Includes color-coded fuel bar (green → yellow → red) based on fuel quantity.
+ *
+ * @property {number} fuelLevel - Current fuel (0-100%)
+ * @property {number} fuelPerLap - Fuel consumption per lap
+ * @property {number} fuelLapsRemaining - Estimated laps with current fuel
  * @description Fuel level display with remaining liters, consumption rate, and pit window estimate.
  *
  * Accepts telemetry data via `updateData(snapshot)` method, called from poll-engine
@@ -41,345 +49,187 @@
       super();
       this.attachShadow({ mode: 'open' });
 
-      // ── Internal state ──────────────────────────────────────────
       this._fuelLevel = 0;
-      this._maxFuel = 0;
       this._fuelPerLap = 0;
-      this._lapsRemaining = 0;
-      this._prevFuelPct = -1;
-      this._isImperial = false;
+      this._fuelLapsRemaining = 0;
 
-      // ── Cached element references (set in _render) ──────────────
-      this._elFuelRemaining = null;
-      this._elBar = null;
-      this._elStats = null;
-      this._elPitSuggest = null;
+      this._fuelBarEl = null;
+      this._levelEl = null;
+      this._perLapEl = null;
+      this._lapsEl = null;
 
-      // ── Event handler (for cleanup in disconnectedCallback) ────
       this._telemetryHandler = null;
     }
 
-    // ╔═══════════════════════════════════════════════════════════╗
-    // ║ LIFECYCLE HOOKS                                            ║
-    // ╚═══════════════════════════════════════════════════════════╝
-
     connectedCallback() {
-      // Initialize Shadow DOM and cache elements
       this._renderTemplate();
       this._cacheElements();
-
-      // Start listening for telemetry updates
       this._subscribeToData();
-
-      // Render initial state
       this.render();
     }
 
     disconnectedCallback() {
-      // Cleanup event listener
       if (this._telemetryHandler && window) {
         window.removeEventListener('telemetry-update', this._telemetryHandler);
         this._telemetryHandler = null;
       }
-
-      // Clear element references
-      this._elFuelRemaining = null;
-      this._elBar = null;
-      this._elStats = null;
-      this._elPitSuggest = null;
     }
 
-    // ╔═══════════════════════════════════════════════════════════╗
-    // ║ PROPERTIES                                                 ║
-    // ╚═══════════════════════════════════════════════════════════╝
-
     get fuelLevel() { return this._fuelLevel; }
-    set fuelLevel(val) { this._fuelLevel = parseFloat(val) || 0; }
-
-    get maxFuel() { return this._maxFuel; }
-    set maxFuel(val) { this._maxFuel = parseFloat(val) || 1; }
+    set fuelLevel(val) { this._fuelLevel = Math.max(0, Math.min(100, +val || 0)); }
 
     get fuelPerLap() { return this._fuelPerLap; }
-    set fuelPerLap(val) { this._fuelPerLap = parseFloat(val) || 0; }
+    set fuelPerLap(val) { this._fuelPerLap = +val || 0; }
 
-    get lapsRemaining() { return this._lapsRemaining; }
-    set lapsRemaining(val) { this._lapsRemaining = parseFloat(val) || 0; }
+    get fuelLapsRemaining() { return this._fuelLapsRemaining; }
+    set fuelLapsRemaining(val) { this._fuelLapsRemaining = +val || 0; }
 
-    // ╔═══════════════════════════════════════════════════════════╗
-    // ║ PUBLIC API — updateData()                                  ║
-    // ╚═══════════════════════════════════════════════════════════╝
-
-    /**
-     * Update component with telemetry data from poll-engine snapshot.
-     *
-     * @param {Object} snapshot - K10 Motorsports telemetry snapshot (full poll data)
-     * @param {boolean} [isImperial=false] - Whether to display in gallons (imperial) or liters (metric)
-     *
-     * @example
-     * // From poll-engine.js
-     * const fuelComp = document.querySelector('racecor-fuel-gauge');
-     * if (fuelComp) {
-     *   fuelComp.updateData(p);  // p is _latestSnapshot
-     * }
-     */
-    updateData(snapshot, isImperial = false) {
+    updateData(snapshot) {
       if (!snapshot) return;
 
-      this._isImperial = isImperial;
+      const pre = 'K10Motorsports.Plugin.DS.';
+      this._fuelLevel = +snapshot[pre + 'FuelPct'] || 0;
+      this._fuelPerLap = +snapshot[pre + 'FuelPerLapFormatted'] || 0;
+      this._fuelLapsRemaining = +snapshot[pre + 'FuelLapsRemaining'] || 0;
 
-      // Determine data source prefix based on demo mode
-      const _demo = snapshot._demo || +(snapshot['K10Motorsports.Plugin.DemoMode'] || 0);
-      const dsPre = _demo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
-      const gameKeyFuel = _demo ? 'K10Motorsports.Plugin.Demo.Fuel' : 'DataCorePlugin.GameData.Fuel';
-      const gameKeyMaxFuel = _demo ? 'K10Motorsports.Plugin.Demo.MaxFuel' : 'DataCorePlugin.GameData.MaxFuel';
-
-      // Extract raw values
-      const fuelRaw = +(snapshot[gameKeyFuel] || 0);
-      const maxFuelRaw = +(snapshot[gameKeyMaxFuel] || 0);
-      const fuelPerLapRaw = +(snapshot[dsPre + 'FuelPerLap'] || 0);
-      const lapsRemRaw = +(snapshot[dsPre + 'FuelLapsRemaining'] || 0);
-
-      // Convert to imperial if needed
-      const fuelConvert = isImperial ? 3.78541 : 1;
-      this.fuelLevel = fuelRaw / fuelConvert;
-      this.maxFuel = maxFuelRaw / fuelConvert;
-      this.fuelPerLap = fuelPerLapRaw / fuelConvert;
-      this.lapsRemaining = lapsRemRaw;
-
-      // Trigger render update
       this.render();
     }
 
-    // ╔═══════════════════════════════════════════════════════════╗
-    // ║ RENDERING                                                  ║
-    // ╚═══════════════════════════════════════════════════════════╝
-
-    /**
-     * Render the Shadow DOM template once during connectedCallback.
-     * Sets up the scoped stylesheet and HTML structure.
-     */
     _renderTemplate() {
       if (!this.shadowRoot) return;
 
       const template = document.createElement('template');
       template.innerHTML = `
         <style>
-          /* ── Component host style ────────────────────────────────── */
           :host {
             display: block;
-            background: var(--bg-panel);
-            color: var(--text-primary);
             font-family: var(--ff);
+            color: var(--text-primary);
+          }
+
+          .fg-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap);
             padding: var(--pad);
-            border-radius: var(--corner-r);
-            border: 1px solid var(--border);
           }
 
-          /* ── Label (FUEL) ───────────────────────────────────────── */
-          .fuel-label {
-            font-size: var(--fs-xs);
-            font-weight: var(--fw-bold);
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-          }
-
-          /* ── Fuel remaining amount (45.2 L) ────────────────────── */
-          .fuel-remaining {
-            font-size: var(--fs-lg);
-            font-weight: var(--fw-semi);
-            margin-bottom: 6px;
-          }
-
-          .unit {
-            font-size: var(--fs-sm);
-            font-weight: var(--fw-regular);
-            color: var(--text-dim);
-            margin-left: 2px;
-          }
-
-          /* ── Fuel bar (visual gradient) ──────────────────────── */
-          .fuel-bar-outer {
-            height: 8px;
+          .fg-bar-wrapper {
+            position: relative;
+            height: 20px;
             background: var(--bg);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-bottom: 6px;
             border: 1px solid var(--border);
+            border-radius: var(--corner-r);
+            overflow: hidden;
           }
 
-          .fuel-bar-inner {
+          .fg-bar {
             height: 100%;
             background: linear-gradient(to right, var(--green), var(--amber), var(--red));
             transition: width 0.2s ease;
-            border-radius: 1px;
-          }
-
-          /* Flash animation when fuel level changes significantly */
-          .fuel-bar-inner.flash {
-            animation: fuelFlash 0.4s ease-out;
-          }
-
-          @keyframes fuelFlash {
-            0% {
-              box-shadow: inset 0 0 8px var(--green);
-            }
-            100% {
-              box-shadow: none;
-            }
-          }
-
-          /* ── Fuel stats row (Avg / Est) ────────────────────── */
-          .fuel-stats {
-            font-size: var(--fs-xs);
-            color: var(--text-dim);
             display: flex;
-            justify-content: space-between;
-            gap: 4px;
-            padding: 4px 0;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 4px;
+            font-size: 11px;
+            font-weight: var(--fw-bold);
+            color: var(--bg);
           }
 
-          .fuel-stats .val {
-            color: var(--text-primary);
-            font-weight: var(--fw-semi);
+          .fg-readout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap);
           }
 
-          /* ── Pit suggestion (PIT in ~3 laps) ────────────────── */
-          .fuel-pit-suggest {
+          .fg-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 6px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--corner-r);
+          }
+
+          .fg-label {
             font-size: var(--fs-xs);
-            color: var(--amber);
-            font-weight: var(--fw-semi);
-            margin-top: 4px;
-            display: none;
+            font-weight: var(--fw-bold);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
           }
 
-          .fuel-pit-suggest:not(:empty) {
-            display: block;
+          .fg-value {
+            font-size: var(--fs-sm);
+            font-family: var(--ff-mono);
+            font-weight: var(--fw-semi);
+            color: var(--text-primary);
           }
         </style>
 
-        <!-- Fuel Panel Content -->
-        <div class="fuel-label">Fuel</div>
-        <div class="fuel-remaining">— <span class="unit">L</span></div>
-        <div class="fuel-bar-outer">
-          <div class="fuel-bar-inner" style="width: 0%;"></div>
+        <div class="fg-panel">
+          <div class="fg-bar-wrapper">
+            <div class="fg-bar" id="fgBar" style="width: 50%;"></div>
+          </div>
+
+          <div class="fg-readout">
+            <div class="fg-item">
+              <div class="fg-label">Current</div>
+              <div class="fg-value" id="fgLevel">—</div>
+            </div>
+            <div class="fg-item">
+              <div class="fg-label">Per Lap</div>
+              <div class="fg-value" id="fgPerLap">—</div>
+            </div>
+            <div class="fg-item">
+              <div class="fg-label">Laps Left</div>
+              <div class="fg-value" id="fgLaps">—</div>
+            </div>
+            <div class="fg-item">
+              <div class="fg-label">Status</div>
+              <div class="fg-value" id="fgStatus">Good</div>
+            </div>
+          </div>
         </div>
-        <div class="fuel-stats">
-          <span>Avg <span class="val">—</span> L/lap</span>
-          <span>Est <span class="val">—</span> laps</span>
-        </div>
-        <div class="fuel-pit-suggest"></div>
       `;
 
       this.shadowRoot.appendChild(template.content.cloneNode(true));
     }
 
-    /**
-     * Cache element references for fast DOM updates (avoid repeated querySelector).
-     */
     _cacheElements() {
       if (!this.shadowRoot) return;
-
-      this._elFuelRemaining = this.shadowRoot.querySelector('.fuel-remaining');
-      this._elBar = this.shadowRoot.querySelector('.fuel-bar-inner');
-      this._elStats = this.shadowRoot.querySelectorAll('.fuel-stats .val');
-      this._elPitSuggest = this.shadowRoot.querySelector('.fuel-pit-suggest');
+      this._fuelBarEl = this.shadowRoot.querySelector('#fgBar');
+      this._levelEl = this.shadowRoot.querySelector('#fgLevel');
+      this._perLapEl = this.shadowRoot.querySelector('#fgPerLap');
+      this._lapsEl = this.shadowRoot.querySelector('#fgLaps');
     }
 
-    /**
-     * Update DOM with current state. Called after updateData() or on property changes.
-     * Uses cached element references for performance.
-     */
-    render() {
-      // Calculate fuel percentage
-      const fuelPct = this._maxFuel > 0 ? (this._fuelLevel / this._maxFuel) * 100 : 0;
-
-      // ─── Update bar width ───────────────────────────────────────
-      if (this._elBar) {
-        this._elBar.style.width = Math.max(0, Math.min(100, fuelPct)) + '%';
-
-        // Trigger flash animation on significant change (5% swing)
-        if (this._prevFuelPct >= 0 && Math.abs(fuelPct - this._prevFuelPct) > 5) {
-          this._elBar.classList.remove('flash');
-          // Force reflow to retrigger animation
-          void this._elBar.offsetHeight;
-          this._elBar.classList.add('flash');
-        }
-        this._prevFuelPct = fuelPct;
-      }
-
-      // ─── Update remaining fuel text ──────────────────────────────
-      if (this._elFuelRemaining) {
-        if (this._fuelLevel > 0) {
-          const unit = this._isImperial ? 'gal' : 'L';
-          this._elFuelRemaining.innerHTML = this._fuelLevel.toFixed(1) + ` <span class="unit">${unit}</span>`;
-        } else {
-          const unit = this._isImperial ? 'gal' : 'L';
-          this._elFuelRemaining.innerHTML = `— <span class="unit">${unit}</span>`;
-        }
-      }
-
-      // ─── Update stats (Avg consumption, Est laps) ────────────────
-      if (this._elStats && this._elStats.length >= 2) {
-        if (this._fuelPerLap > 0) {
-          this._elStats[0].textContent = this._fuelPerLap.toFixed(2);
-        } else {
-          this._elStats[0].textContent = '—';
-        }
-
-        if (this._lapsRemaining > 0.1) {
-          this._elStats[1].textContent = this._lapsRemaining.toFixed(1);
-        } else {
-          this._elStats[1].textContent = '—';
-        }
-      }
-
-      // ─── Pit suggestion ─────────────────────────────────────────
-      if (this._elPitSuggest) {
-        if (this._lapsRemaining > 0 && this._lapsRemaining < 20) {
-          this._elPitSuggest.textContent = `PIT in ~${Math.ceil(this._lapsRemaining)} laps`;
-        } else {
-          this._elPitSuggest.textContent = '';
-        }
-      }
-    }
-
-    // ╔═══════════════════════════════════════════════════════════╗
-    // ║ DATA SUBSCRIPTION                                          ║
-    // ╚═══════════════════════════════════════════════════════════╝
-
-    /**
-     * Subscribe to telemetry updates from the poll-engine.
-     *
-     * Poll-engine fires 'telemetry-update' custom event with the latest snapshot.
-     * This allows multiple components to react to the same data without direct coupling.
-     */
     _subscribeToData() {
-      this._telemetryHandler = (e) => {
-        if (e && e.detail) {
-          this.updateData(e.detail);
+      if (!window) return;
+      this._telemetryHandler = (event) => {
+        if (event.detail && event.detail.snapshot) {
+          this.updateData(event.detail.snapshot);
         }
       };
+      window.addEventListener('telemetry-update', this._telemetryHandler);
+    }
 
-      if (window && window.addEventListener) {
-        window.addEventListener('telemetry-update', this._telemetryHandler);
+    render() {
+      if (this._fuelBarEl) {
+        this._fuelBarEl.style.width = Math.min(100, this._fuelLevel) + '%';
+        this._fuelBarEl.textContent = Math.round(this._fuelLevel) + '%';
+      }
+
+      if (this._levelEl) this._levelEl.textContent = Math.round(this._fuelLevel) + '%';
+      if (this._perLapEl) this._perLapEl.textContent = this._fuelPerLap > 0 ? this._fuelPerLap.toFixed(1) + 'L' : '—';
+      if (this._lapsEl) {
+        this._lapsEl.textContent = this._fuelLapsRemaining > 0 && this._fuelLapsRemaining < 99
+          ? this._fuelLapsRemaining.toFixed(1)
+          : '—';
       }
     }
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // REGISTRATION
-  // ══════════════════════════════════════════════════════════════
-
-  // Register the custom element
-  if (window && window.customElements) {
-    customElements.define('racecor-fuel-gauge', RaceCorFuelGauge);
-  }
-
-  // Export for use in module systems
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = RaceCorFuelGauge;
-  }
-
+  customElements.define('racecor-fuel-gauge', RaceCorFuelGauge);
 })();
