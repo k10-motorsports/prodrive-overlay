@@ -118,13 +118,6 @@
   }
 
   function _collapseParentColumns() {
-    // Fuel + Tyres share fuel-tyres-col
-    const ftCol = document.querySelector('.fuel-tyres-col');
-    if (ftCol) {
-      const fuelHidden = _settings.showFuel === false;
-      const tyresHidden = _settings.showTyres === false;
-      ftCol.classList.toggle('section-hidden', fuelHidden && tyresHidden);
-    }
     // Controls + Pedals share controls-pedals-block
     const cpBlock = document.querySelector('.controls-pedals-block');
     if (cpBlock) {
@@ -169,13 +162,13 @@
 
   function updateLbFocus(value) {
     _settings.lbFocus = value;
-    _lbLastJson = ''; // force re-render
+    window._lbLastJson = ''; // force re-render
     saveSettings();
   }
 
   function updateLbMaxRows(value) {
     _settings.lbMaxRows = Math.max(1, Math.min(40, +value || 5));
-    _lbLastJson = '';
+    window._lbLastJson = '';
     saveSettings();
   }
 
@@ -183,7 +176,7 @@
     const isOn = el.classList.contains('on');
     el.classList.toggle('on', !isOn);
     _settings.lbExpandToFill = !isOn;
-    _lbLastJson = '';
+    window._lbLastJson = '';
     saveSettings();
   }
 

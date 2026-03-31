@@ -318,10 +318,12 @@
       _lastIncrement = pbInc; _lastDecrement = pbDec;
       _lastToggle = pbTog;
     } else {
-      // Tab cycling
+      // Tab cycling — respond to TabCycle, TabCycleBack, Next, and Prev
       var tabDir = 0;
       if (tabCycle !== _lastTabCycle)         { _lastTabCycle = tabCycle; tabDir = 1; }
       if (tabCycleBack !== _lastTabCycleBack) { _lastTabCycleBack = tabCycleBack; tabDir = -1; }
+      if (pbNext !== _lastNext)               { _lastNext = pbNext; tabDir = 1; }
+      if (pbPrev !== _lastPrev)               { _lastPrev = pbPrev; tabDir = -1; }
       if (tabDir !== 0) {
         var panel = document.getElementById('pitBoxPanel');
         if (_pbHidden) {
@@ -341,6 +343,11 @@
           if (atEnd || atStart) {
             _pbHidden = true;
             if (panel) panel.classList.add('pb-dismissed');
+            // Deselect all tabs and pages so state is clean on re-show
+            var allTabs = document.querySelectorAll('.pb-tab');
+            var allPages = document.querySelectorAll('.pb-page');
+            for (var t = 0; t < allTabs.length; t++) allTabs[t].classList.remove('active');
+            for (var p = 0; p < allPages.length; p++) allPages[p].classList.remove('active');
           } else {
             var nextIdx = idx + tabDir;
             var nextTab = document.querySelector('.pb-tab[data-pb-tab="' + _tabOrder[nextIdx] + '"]');
@@ -348,10 +355,6 @@
           }
         }
       }
-
-      // Element navigation / value adjustment — actions stubbed for future mapping
-      if (pbNext !== _lastNext)  { _lastNext = pbNext;  /* TODO: move focus to next element */ }
-      if (pbPrev !== _lastPrev)  { _lastPrev = pbPrev;  /* TODO: move focus to prev element */ }
       if (pbInc !== _lastIncrement)  { _lastIncrement = pbInc;  /* TODO: increment focused value */ }
       if (pbDec !== _lastDecrement)  { _lastDecrement = pbDec;  /* TODO: decrement focused value */ }
       if (pbTog !== _lastToggle) { _lastToggle = pbTog; /* TODO: toggle focused element on/off */ }

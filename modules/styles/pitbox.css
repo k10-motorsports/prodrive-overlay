@@ -8,7 +8,7 @@
     flex-shrink: 0;
   }
   .pitbox-panel.section-hidden { display: none; }
-  .pitbox-panel.pb-dismissed { opacity: 0; pointer-events: none; }
+  .pitbox-panel.pb-dismissed { opacity: 0 !important; pointer-events: none; }
 
   .pb-inner {
     background: hsla(0, 0%, 5%, 0.90);
