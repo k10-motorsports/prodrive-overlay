@@ -168,9 +168,9 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
-  .pedal-channel-label.throttle { color: var(--green); }
-  .pedal-channel-label.brake { color: var(--red); }
-  .pedal-channel-label.clutch { color: var(--blue); }
+  .pedal-channel-label.throttle { color: hsla(0, 0%, 100%, 0.9); }
+  .pedal-channel-label.brake { color: hsla(0, 0%, 100%, 0.9); }
+  .pedal-channel-label.clutch { color: hsla(0, 0%, 100%, 0.9); }
   .pedal-pct {
     font-size: var(--fs-xs);
     font-weight: var(--fw-bold);
@@ -370,7 +370,7 @@
     overflow: hidden;
   }
   .lb-header {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;

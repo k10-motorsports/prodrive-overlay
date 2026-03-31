@@ -679,6 +679,11 @@ ipcMain.handle('restart-app', async () => {
   app.exit(0);
 });
 
+// ── IPC: Quit app ──
+ipcMain.handle('quit-app', () => {
+  app.quit();
+});
+
 // ── IPC: Open external URL in user's default browser ──
 ipcMain.handle('open-external', async (event, urlStr) => {
   try {

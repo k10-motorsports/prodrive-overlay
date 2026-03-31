@@ -27,7 +27,7 @@
   .conn-card-icon.discord { background: hsla(235, 86%, 65%, 0.2); }
   .conn-card-icon svg { width: 18px; height: 18px; }
   .conn-card-title {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 14px;
     font-weight: 700;
     color: hsla(0,0%,100%,0.9);

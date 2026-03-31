@@ -415,27 +415,27 @@ const _demoModels = {
 const _defaultLogoBg = 'hsla(0, 0%, 12%, 1.0)';
 
 const _mfrBrandColors = {
-  bmw:         'hsla(204, 100%, 45%, 0.65)',
-  mclaren:     'hsla(24, 100%, 52%, 0.65)',
-  mazda:       'hsla(0, 90%, 44%, 0.65)',
-  nissan:      'hsla(0, 85%, 50%, 0.65)',
-  dallara:     'hsla(210, 85%, 48%, 0.65)',
-  ferrari:     'hsla(0, 90%, 48%, 0.65)',
-  porsche:     'hsla(0, 0%, 50%, 0.60)',
-  audi:        'hsla(0, 0%, 50%, 0.60)',
-  mercedes:    'hsla(175, 65%, 42%, 0.62)',
-  lamborghini: 'hsla(48, 90%, 48%, 0.62)',
-  chevrolet:   'hsla(40, 62%, 38%, 0.65)',
-  ford:        'hsla(237, 100%, 28%, 0.65)',
-  toyota:      'hsla(0, 85%, 48%, 0.65)',
-  hyundai:     'hsla(216, 85%, 45%, 0.65)',
-  cadillac:    'hsla(0, 0%, 50%, 0.60)',
-  astonmartin: 'hsla(155, 70%, 38%, 0.65)',
-  lotus:       'hsla(57, 100%, 50%, 0.65)',
-  ligier:      'hsla(204, 78%, 40%, 0.65)',
-  fia:         'hsla(228, 73%, 21%, 0.65)',
-  radical:     'hsla(43, 82%, 57%, 0.65)',
-  honda:       'hsla(0, 90%, 42%, 0.65)'
+  bmw:         'hsla(204, 100%, 45%, 0.55)',
+  mclaren:     'hsla(24, 100%, 52%, 0.55)',
+  mazda:       'hsla(0, 90%, 44%, 0.55)',
+  nissan:      'hsla(0, 85%, 50%, 0.55)',
+  dallara:     'hsla(210, 85%, 48%, 0.55)',
+  ferrari:     'hsla(0, 90%, 48%, 0.55)',
+  porsche:     'hsla(0, 0%, 50%, 0.50)',
+  audi:        'hsla(0, 0%, 50%, 0.50)',
+  mercedes:    'hsla(175, 65%, 42%, 0.52)',
+  lamborghini: 'hsla(48, 90%, 48%, 0.52)',
+  chevrolet:   'hsla(40, 62%, 38%, 0.55)',
+  ford:        'hsla(237, 100%, 28%, 0.55)',
+  toyota:      'hsla(0, 85%, 48%, 0.55)',
+  hyundai:     'hsla(216, 85%, 45%, 0.55)',
+  cadillac:    'hsla(0, 0%, 50%, 0.50)',
+  astonmartin: 'hsla(155, 70%, 38%, 0.55)',
+  lotus:       'hsla(57, 100%, 50%, 0.55)',
+  ligier:      'hsla(204, 78%, 40%, 0.55)',
+  fia:         'hsla(228, 73%, 21%, 0.55)',
+  radical:     'hsla(43, 82%, 57%, 0.55)',
+  honda:       'hsla(0, 90%, 42%, 0.55)'
 };
 
 // Manufacturer → ISO 3166-1 alpha-2 country code (used for flag display)

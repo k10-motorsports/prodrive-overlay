@@ -194,7 +194,7 @@
     color: #e8e8f0;
   }
   .dp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .dp-title { font-family: var(--ff-display); font-size: 24px; font-weight: 700; }
+  .dp-title { font-family: var(--ff); font-size: 24px; font-weight: 700; }
   .dp-close {
     width: 36px; height: 36px; border: none; border-radius: 8px;
     background: hsla(0,0%,100%,0.06); color: hsla(0,0%,100%,0.5);
@@ -228,7 +228,7 @@
 
   .dp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .dp-section-title {
-    font-family: var(--ff-display); font-size: 14px; font-weight: 700; text-transform: uppercase;
+    font-family: var(--ff); font-size: 14px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.1em; color: hsla(0,0%,100%,0.4); margin-bottom: 8px;
   }
   .dp-chart { width: 100%; border-radius: 8px; background: hsla(0,0%,100%,0.02); }
@@ -418,6 +418,29 @@
   }
   /* Hide popout button when already in popout window */
   body.settings-popout .settings-popout-btn { display: none; }
+  .settings-titlebar-btn {
+    background: hsla(0,0%,100%,0.06);
+    border: 1px solid hsla(0,0%,100%,0.1);
+    border-radius: 6px;
+    color: hsla(0,0%,100%,0.5);
+    font-size: 14px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .settings-titlebar-btn:hover {
+    background: hsla(0,0%,100%,0.12);
+    color: hsla(0,0%,100%,0.8);
+  }
+  .settings-quit-btn:hover {
+    background: hsla(0, 70%, 45%, 0.3);
+    color: hsla(0, 80%, 70%, 1);
+  }
   .settings-titlebar-logo {
     display: flex;
     align-items: center;

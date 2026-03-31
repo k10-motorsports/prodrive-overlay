@@ -82,7 +82,7 @@
     z-index: 1;
   }
   .rc-title {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 28px;
     font-weight: 700;
     text-transform: uppercase;
@@ -588,7 +588,7 @@
   .re-tint-neutral .re-position { color: var(--text-primary); opacity: 0.8; }
 
   .re-title {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 32px;
     font-weight: 700;
     text-transform: uppercase;
@@ -758,7 +758,7 @@
   .sp-inner.sp-danger .sp-icon { color: hsl(0, 70%, 65%); }
   .sp-inner.sp-clear .sp-icon { color: hsl(145, 60%, 60%); }
   .sp-header {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
@@ -850,7 +850,7 @@
     position: absolute;
   }
   .grid-title {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
