@@ -19,13 +19,13 @@
   };
 
   // Logo-corner mapping: dashboard position → logo position
-  // Logo goes on the same vertical edge as the dashboard but on the
-  // opposite horizontal side — keeps it aligned with main modules.
+  // Logo goes on the opposite vertical edge AND opposite horizontal side
+  // to avoid overlap with the dashboard.
   var OPPOSITE_CORNER = {
-    'top-right':       'top-left',
-    'top-left':        'top-right',
-    'bottom-right':    'bottom-left',
-    'bottom-left':     'bottom-right',
+    'top-right':       'bottom-left',
+    'top-left':        'bottom-right',
+    'bottom-right':    'top-left',
+    'bottom-left':     'top-right',
     'absolute-center': 'bottom-left'
   };
 
@@ -42,7 +42,7 @@
     _logoEl = document.createElement('div');
     _logoEl.id = 'gameLogoOverlay';
     _logoEl.style.cssText =
-      'position:fixed;z-index:50;width:250px;pointer-events:none;' +
+      'position:fixed;z-index:50;width:180px;pointer-events:none;' +
       'opacity:0;transition:opacity 0.4s ease;' +
       'display:flex;align-items:center;justify-content:center;';
     document.body.appendChild(_logoEl);

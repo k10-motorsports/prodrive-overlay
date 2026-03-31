@@ -87,7 +87,7 @@
     border-bottom-right-radius: var(--corner-r);
   }
   .panel-label {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: var(--fs-xs);
     font-weight: 700;
     text-transform: uppercase;
@@ -171,7 +171,7 @@
   }
 
   .commentary-title {
-    font-family: var(--ff-display);
+    font-family: var(--ff);
     font-size: 20px;
     font-weight: 700;
     line-height: 1.0;
@@ -412,7 +412,7 @@
     border-bottom-right-radius: var(--corner-r);
   }
   .logo-square img {
-    width: 56px;
+    width: 70%;
     height: auto;
     opacity: 1;
   }
@@ -429,8 +429,8 @@
     flex-shrink: 0;
   }
   .car-logo-icon svg {
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
     opacity: 0.96;
   }
   .car-model-label {
@@ -1230,6 +1230,7 @@
     gap: var(--gap);
     flex-shrink: 0;
     width: 96px;
+    justify-content: flex-start;
   }
   .map-panel {
     flex: 1;
@@ -1238,6 +1239,12 @@
     align-items: center;
     justify-content: center;
     position: relative;
+  }
+  .map-panel:first-child {
+    flex: 2;
+  }
+  .map-panel:last-child {
+    flex: 1;
   }
   .map-svg { width: 92%; height: 92%; }
   /* Track outline — three-layer rendering: thick outer edges, dark gap, thin center line */
