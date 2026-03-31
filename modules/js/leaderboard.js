@@ -7,7 +7,11 @@
   // Sparkline history: keyed by driver name, stores last N lap times
   const _sparkHistory = {};
   const SPARK_MAX = 12;
-  let _lbLastJson = '';
+  // Player position history for sparkline (seeded from grid position)
+  const _posHistory = [];
+  let _posHistorySeeded = false;
+  // Use window-scoped cache key so settings.js can reliably reset it
+  window._lbLastJson = '';
 
   function updateLeaderboard(p) {
     const lbPanel = document.getElementById('leaderboardPanel');
@@ -25,8 +29,8 @@
     const expandToFill = _settings.lbExpandToFill === true; // Ensure boolean with default false
     const settingsKey = (_settings.lbFocus || 'me') + '|' + (_settings.lbMaxRows || 5) + '|' + (expandToFill ? '1' : '0') + '|' + (window.innerHeight || 0);
     const json = JSON.stringify(raw) + '|' + settingsKey;
-    if (json === _lbLastJson) return;
-    _lbLastJson = json;
+    if (json === window._lbLastJson) return;
+    window._lbLastJson = json;
 
     const container = document.getElementById('lbRows');
     if (!container) return;
@@ -139,55 +143,95 @@
       // iRating shorthand
       const irStr = ir > 0 ? (ir >= 1000 ? (ir / 1000).toFixed(1) + 'k' : '' + ir) : '';
 
-      // Update sparkline history (coerce to number, skip 0/NaN)
-      const lastNum = +last;
-      if (lastNum > 0) {
-        if (!_sparkHistory[name]) _sparkHistory[name] = [];
-        const h = _sparkHistory[name];
-        if (h.length === 0 || h[h.length - 1] !== lastNum) {
-          h.push(lastNum);
-          if (h.length > SPARK_MAX) h.shift();
+      // ── Sparkline data collection ──
+      // Non-player: track lap times. Player: track position (seeded from grid).
+      if (isPlayer) {
+        // Seed position history with grid position on first sight
+        if (!_posHistorySeeded && _startPosition > 0) {
+          _posHistory.push(_startPosition);
+          _posHistorySeeded = true;
+        }
+        // Record current position (dedupe consecutive same-position entries)
+        if (pos > 0 && (_posHistory.length === 0 || _posHistory[_posHistory.length - 1] !== pos)) {
+          _posHistory.push(pos);
+          if (_posHistory.length > SPARK_MAX) _posHistory.shift();
+        }
+      } else {
+        // Non-player: track lap times as before
+        const lastNum = +last;
+        if (lastNum > 0) {
+          if (!_sparkHistory[name]) _sparkHistory[name] = [];
+          const h = _sparkHistory[name];
+          if (h.length === 0 || h[h.length - 1] !== lastNum) {
+            h.push(lastNum);
+            if (h.length > SPARK_MAX) h.shift();
+          }
         }
       }
 
-      // Build sparkline SVG inline (mini polyline)
+      // ── Build sparkline SVG ──
       let sparkSvg = '';
-      // Filter out any stale 0s that may have entered the history
-      const hist = _sparkHistory[name] ? _sparkHistory[name].filter(v => v > 0) : null;
-      // During rolling/formation starts, draw a flat baseline when no lap data exists
-      if ((!hist || hist.length < 2) && window._isRollingStart) {
-        const w = 44, h2 = 14;
-        const midY = (h2 / 2).toFixed(1);
-        const col = isPlayer ? 'hsla(210,75%,55%,0.5)' : 'hsla(0,0%,100%,0.15)';
-        sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none">'
-          + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="' + col + '" stroke-width="1" stroke-dasharray="3,2"/>'
-          + '</svg>';
-      } else if (hist && hist.length >= 2) {
-        const mn = Math.min(...hist), mx = Math.max(...hist);
+
+      if (isPlayer && _posHistory.length >= 2) {
+        // Player: position sparkline (lower = better → invert Y axis)
+        const mn = Math.min(..._posHistory), mx = Math.max(..._posHistory);
         const range = mx - mn || 1;
         const w = 44, h2 = 14;
         let pts = '';
-        for (let i = 0; i < hist.length; i++) {
-          const x = (i / (hist.length - 1)) * w;
-          const y = ((hist[i] - mn) / range) * h2;
+        for (let i = 0; i < _posHistory.length; i++) {
+          const x = (i / (_posHistory.length - 1)) * w;
+          // Invert: P1 at top (y=0), higher positions at bottom
+          const y = ((_posHistory[i] - mn) / range) * h2;
           if (i === 0) {
             pts += x.toFixed(1) + ',' + y.toFixed(1);
           } else {
-            // Step: horizontal to new x at old y, then vertical to new y
-            const prevY = ((hist[i - 1] - mn) / range) * h2;
+            const prevY = ((_posHistory[i - 1] - mn) / range) * h2;
             pts += ' ' + x.toFixed(1) + ',' + prevY.toFixed(1);
             pts += ' ' + x.toFixed(1) + ',' + y.toFixed(1);
           }
         }
-        const lastY = ((hist[hist.length - 1] - mn) / range) * h2;
-        let col = 'hsla(0,0%,100%,0.3)';
-        if (isPlayer) {
-          if (pos === 1) col = 'hsla(42,80%,55%,1)';
-          else if (_startPosition > 0 && pos < _startPosition) col = 'hsla(145,75%,50%,1)';
-          else if (_startPosition > 0 && pos > _startPosition) col = 'hsla(0,75%,50%,1)';
-          else col = 'hsla(210,75%,55%,1)';
-        }
+        const lastY = ((_posHistory[_posHistory.length - 1] - mn) / range) * h2;
+        let col;
+        if (pos === 1) col = 'hsla(42,80%,55%,1)';
+        else if (_startPosition > 0 && pos < _startPosition) col = 'hsla(145,75%,50%,1)';
+        else if (_startPosition > 0 && pos > _startPosition) col = 'hsla(0,75%,50%,1)';
+        else col = 'hsla(210,75%,55%,1)';
         sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + (w).toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.5" fill="' + col + '"/></svg>';
+      } else if (isPlayer && _posHistory.length < 2) {
+        // Player waiting for data: flat baseline
+        const w = 44, h2 = 14;
+        const midY = (h2 / 2).toFixed(1);
+        sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none">'
+          + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="hsla(210,75%,55%,0.5)" stroke-width="1" stroke-dasharray="3,2"/>'
+          + '</svg>';
+      } else {
+        // Non-player: lap-time sparkline
+        const hist = _sparkHistory[name] ? _sparkHistory[name].filter(v => v > 0) : null;
+        if ((!hist || hist.length < 2) && window._isRollingStart) {
+          const w = 44, h2 = 14;
+          const midY = (h2 / 2).toFixed(1);
+          sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none">'
+            + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="hsla(0,0%,100%,0.15)" stroke-width="1" stroke-dasharray="3,2"/>'
+            + '</svg>';
+        } else if (hist && hist.length >= 2) {
+          const mn = Math.min(...hist), mx = Math.max(...hist);
+          const range = mx - mn || 1;
+          const w = 44, h2 = 14;
+          let pts = '';
+          for (let i = 0; i < hist.length; i++) {
+            const x = (i / (hist.length - 1)) * w;
+            const y = ((hist[i] - mn) / range) * h2;
+            if (i === 0) {
+              pts += x.toFixed(1) + ',' + y.toFixed(1);
+            } else {
+              const prevY = ((hist[i - 1] - mn) / range) * h2;
+              pts += ' ' + x.toFixed(1) + ',' + prevY.toFixed(1);
+              pts += ' ' + x.toFixed(1) + ',' + y.toFixed(1);
+            }
+          }
+          const lastY = ((hist[hist.length - 1] - mn) / range) * h2;
+          sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="hsla(0,0%,100%,0.3)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + (w).toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.5" fill="hsla(0,0%,100%,0.3)"/></svg>';
+        }
       }
 
       // Lap time display with color coding
