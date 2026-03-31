@@ -99,6 +99,12 @@
     // Datastream field toggles
     applyDsFieldToggles();
 
+    // Custom logo + subtitle
+    if (typeof applyCustomLogo === 'function') applyCustomLogo();
+    if (typeof applyLogoSubtitle === 'function') applyLogoSubtitle();
+    const subtitleInput = document.getElementById('logoSubtitleInput');
+    if (subtitleInput) subtitleInput.value = _settings.logoSubtitle || '';
+
     // Logo-only startup: apply body class so CSS hides everything except logos
     if (_settings.logoOnlyStart !== false) {
       document.body.classList.add('logo-only');
@@ -185,6 +191,69 @@
     _settings.lbExpandToFill = !isOn;
     _lbLastJson = '';
     saveSettings();
+  }
+
+  // ── Custom Logo + Subtitle ──
+  function selectCustomLogo() {
+    // Use file input to pick an image
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        _settings.customLogo = ev.target.result;
+        applyCustomLogo();
+        saveSettings();
+        const btn = document.getElementById('customLogoBtn');
+        if (btn) { btn.textContent = 'Updated!'; setTimeout(function() { btn.textContent = 'Choose Image'; }, 2000); }
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  function applyCustomLogo() {
+    const sq = document.getElementById('k10LogoSquare');
+    if (!sq) return;
+    const img = sq.querySelector('img');
+    if (_settings.customLogo && img) {
+      img.src = _settings.customLogo;
+    } else if (img) {
+      img.src = 'images/branding/logomark.png';
+    }
+  }
+
+  function updateLogoSubtitle(value) {
+    _settings.logoSubtitle = value;
+    applyLogoSubtitle();
+    saveSettings();
+  }
+
+  function applyLogoSubtitle() {
+    let label = document.getElementById('k10SubtitleLabel');
+    if (!label) {
+      // Create subtitle label element under the K10 logo square
+      const sq = document.getElementById('k10LogoSquare');
+      if (!sq) return;
+      label = document.createElement('span');
+      label.id = 'k10SubtitleLabel';
+      label.className = 'car-model-label';
+      label.style.position = 'relative';
+      label.style.zIndex = '2';
+      sq.appendChild(label);
+    }
+    const connected = window._k10ProUser || window._discordUser;
+    if (connected) {
+      label.textContent = _settings.logoSubtitle || '';
+    } else {
+      label.textContent = '';
+      // Show disabled input placeholder
+      const input = document.getElementById('logoSubtitleInput');
+      if (input) { input.disabled = true; input.placeholder = 'K10 Motorsports'; }
+    }
   }
 
   // ── Datastream field toggles ──

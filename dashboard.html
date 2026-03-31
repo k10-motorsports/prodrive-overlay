@@ -909,6 +909,16 @@
       <div class="settings-two-col">
       <div class="settings-row"><span class="settings-label">K10 Logo</span><div class="settings-toggle on" data-section="k10LogoSquare" data-key="showK10Logo" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Car Manufacturer</span><div class="settings-toggle on" data-section="carLogoSquare" data-key="showCarLogo" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-group-label">Customization</div>
+      <div class="settings-row" data-pro-feature="branding">
+        <span class="settings-label">Custom Logo</span>
+        <button class="settings-btn" id="customLogoBtn" onclick="selectCustomLogo()">Choose Image</button>
+      </div>
+      <div class="settings-row" data-pro-feature="branding">
+        <span class="settings-label">Logo Subtitle</span>
+        <input type="text" class="settings-input" id="logoSubtitleInput" placeholder="K10 Motorsports" maxlength="30" oninput="updateLogoSubtitle(this.value)">
+      </div>
+      <div class="settings-hint">When not connected, shows "K10 Motorsports" by default</div>
       <div class="settings-row"><span class="settings-label">Game Logo</span><div class="settings-toggle on" data-key="showGameLogo" onclick="toggleGameLogo(this)"></div></div>
       <div class="settings-row"><span class="settings-label">WebGL Effects</span><div class="settings-toggle on" data-key="showWebGL" data-pro-feature="webgl" onclick="toggleWebGL(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Ambient Light</span>
@@ -1188,13 +1198,14 @@
         </div>
       </div>
 
-      <div class="settings-group-label">Moza Pithouse</div>
+      <div class="settings-group-label">Moza Pit House</div>
       <div class="settings-row">
         <span class="settings-label" id="mozaStatusLabel">Detecting...</span>
         <button class="settings-btn" id="mozaImportBtn" onclick="importMozaPedals()" disabled>Import from Moza</button>
       </div>
+      <div class="settings-row"><span class="settings-label">Moza Folder</span><button class="settings-btn" id="mozaBrowseBtn" onclick="browseMozaFolder()">Browse Folder</button></div>
       <div class="settings-info-text" id="mozaInfoText">
-        Moza Pithouse integration lets you save pedal curves per car and auto-load them when you switch cars.
+        Moza Pit House integration lets you save pedal curves per car and auto-load them when you switch cars.
       </div>
 
       <div class="settings-group-label">Debug</div>

@@ -668,6 +668,16 @@ ipcMain.handle('get-green-screen-mode', async () => {
   return greenScreenMode;
 });
 
+// ── IPC: Folder dialog for file browser ──
+ipcMain.handle('open-folder-dialog', async (event, title) => {
+  const { dialog } = require('electron');
+  const result = await dialog.showOpenDialog(overlayWindow, {
+    title: title || 'Select Folder',
+    properties: ['openDirectory']
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
 // ── IPC: Dashboard mode query (legacy, returns 'build') ──
 ipcMain.handle('get-dashboard-mode', async () => {
   return 'build';

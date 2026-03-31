@@ -238,7 +238,7 @@
     });
 
     // ─── Fuel — bar shows current fuel vs full tank capacity ───
-    const fuel = +d('DataCorePlugin.GameData.Fuel', 'Demo.Fuel') || 0;
+    const fuel = +d('DataCorePlugin.GameData.Fuel', 'Demo.Fuel') || +v('DataCorePlugin.GameRawData.Telemetry.FuelLevel') || 0;
     const maxFuel = +d('DataCorePlugin.GameData.MaxFuel', 'Demo.MaxFuel') || 0;
     // Bar percentage: current fuel / full tank capacity (not starting fuel)
     const fuelPct = maxFuel > 0 ? (fuel / maxFuel) * 100 : 0;
@@ -284,10 +284,26 @@
       updateTyreCell(2, +v('K10Motorsports.Plugin.Demo.TyreTempRL'), (1 - (+v('K10Motorsports.Plugin.Demo.TyreWearRL') || 0)) * 100);
       updateTyreCell(3, +v('K10Motorsports.Plugin.Demo.TyreTempRR'), (1 - (+v('K10Motorsports.Plugin.Demo.TyreWearRR') || 0)) * 100);
     } else {
-      updateTyreCell(0, +v('DataCorePlugin.GameData.TyreTempFrontLeft'), (p['DataCorePlugin.GameData.TyreWearFrontLeft'] != null ? (1 - +p['DataCorePlugin.GameData.TyreWearFrontLeft']) * 100 : -1));
-      updateTyreCell(1, +v('DataCorePlugin.GameData.TyreTempFrontRight'), (p['DataCorePlugin.GameData.TyreWearFrontRight'] != null ? (1 - +p['DataCorePlugin.GameData.TyreWearFrontRight']) * 100 : -1));
-      updateTyreCell(2, +v('DataCorePlugin.GameData.TyreTempRearLeft'), (p['DataCorePlugin.GameData.TyreWearRearLeft'] != null ? (1 - +p['DataCorePlugin.GameData.TyreWearRearLeft']) * 100 : -1));
-      updateTyreCell(3, +v('DataCorePlugin.GameData.TyreTempRearRight'), (p['DataCorePlugin.GameData.TyreWearRearRight'] != null ? (1 - +p['DataCorePlugin.GameData.TyreWearRearRight']) * 100 : -1));
+      // Temps — try game data first, fall back to raw telemetry
+      const tFL = +v('DataCorePlugin.GameData.TyreTempFrontLeft') || +v('DataCorePlugin.GameRawData.Telemetry.LFtempCL') || 0;
+      const tFR = +v('DataCorePlugin.GameData.TyreTempFrontRight') || +v('DataCorePlugin.GameRawData.Telemetry.RFtempCL') || 0;
+      const tRL = +v('DataCorePlugin.GameData.TyreTempRearLeft') || +v('DataCorePlugin.GameRawData.Telemetry.LRtempCL') || 0;
+      const tRR = +v('DataCorePlugin.GameData.TyreTempRearRight') || +v('DataCorePlugin.GameRawData.Telemetry.RRtempCL') || 0;
+
+      // Wear — try game data first, fall back to iRacing raw telemetry
+      const wFL = p['DataCorePlugin.GameData.TyreWearFrontLeft'] != null ? +p['DataCorePlugin.GameData.TyreWearFrontLeft']
+                : (p['DataCorePlugin.GameRawData.Telemetry.LFwearL'] != null ? (+p['DataCorePlugin.GameRawData.Telemetry.LFwearL'] + +p['DataCorePlugin.GameRawData.Telemetry.LFwearM'] + +p['DataCorePlugin.GameRawData.Telemetry.LFwearR']) / 3 : null);
+      const wFR = p['DataCorePlugin.GameData.TyreWearFrontRight'] != null ? +p['DataCorePlugin.GameData.TyreWearFrontRight']
+                : (p['DataCorePlugin.GameRawData.Telemetry.RFwearL'] != null ? (+p['DataCorePlugin.GameRawData.Telemetry.RFwearL'] + +p['DataCorePlugin.GameRawData.Telemetry.RFwearM'] + +p['DataCorePlugin.GameRawData.Telemetry.RFwearR']) / 3 : null);
+      const wRL = p['DataCorePlugin.GameData.TyreWearRearLeft'] != null ? +p['DataCorePlugin.GameData.TyreWearRearLeft']
+                : (p['DataCorePlugin.GameRawData.Telemetry.LRwearL'] != null ? (+p['DataCorePlugin.GameRawData.Telemetry.LRwearL'] + +p['DataCorePlugin.GameRawData.Telemetry.LRwearM'] + +p['DataCorePlugin.GameRawData.Telemetry.LRwearR']) / 3 : null);
+      const wRR = p['DataCorePlugin.GameData.TyreWearRearRight'] != null ? +p['DataCorePlugin.GameData.TyreWearRearRight']
+                : (p['DataCorePlugin.GameRawData.Telemetry.RRwearL'] != null ? (+p['DataCorePlugin.GameRawData.Telemetry.RRwearL'] + +p['DataCorePlugin.GameRawData.Telemetry.RRwearM'] + +p['DataCorePlugin.GameRawData.Telemetry.RRwearR']) / 3 : null);
+
+      updateTyreCell(0, tFL, wFL != null ? (1 - wFL) * 100 : -1);
+      updateTyreCell(1, tFR, wFR != null ? (1 - wFR) * 100 : -1);
+      updateTyreCell(2, tRL, wRL != null ? (1 - wRL) * 100 : -1);
+      updateTyreCell(3, tRR, wRR != null ? (1 - wRR) * 100 : -1);
     }
 
     // ─── Controls (BB / TC / ABS) ───

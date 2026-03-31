@@ -74,6 +74,16 @@
       maxRows = calculatedMaxRows;
     }
 
+    // Apply expand-to-fill height to container
+    const lbPanel = document.getElementById('leaderboardPanel');
+    if (lbPanel) {
+      if (expandToFill) {
+        lbPanel.style.maxHeight = 'none';
+      } else {
+        lbPanel.style.maxHeight = '';
+      }
+    }
+
     // Entry format: [pos, name, irating, bestLap, lastLap, gapToPlayer, inPit, isPlayer]
     // Find player index and session best
     let playerIdx = -1;
@@ -122,18 +132,36 @@
       }
       if (pit) classes.push('lb-pit');
 
-      // Gap display
+      // Gap display — mode-dependent
       let gapStr = '', gapClass = 'gap-player';
-      if (isPlayer) {
-        gapStr = '';
-      } else if (gap < 0) {
-        gapStr = '-' + Math.abs(gap).toFixed(1) + 's';
-        gapClass = 'gap-ahead';
-      } else if (gap > 0) {
-        gapStr = '+' + gap.toFixed(1) + 's';
-        gapClass = 'gap-behind';
+      if (focusMode === 'lead') {
+        // Gap to leader mode
+        if (pos === 1) {
+          gapStr = '';  // leader shows no gap
+        } else {
+          const leaderEntry = raw.find(e => e[0] === 1);
+          const leaderGap = leaderEntry ? leaderEntry[5] : 0;
+          const gapToLeader = gap - leaderGap;
+          if (gapToLeader > 0) {
+            gapStr = '+' + gapToLeader.toFixed(1) + 's';
+            gapClass = 'gap-behind';
+          } else {
+            gapStr = '';
+          }
+        }
       } else {
-        gapStr = '';
+        // Relative to player mode (existing logic)
+        if (isPlayer) {
+          gapStr = '';
+        } else if (gap < 0) {
+          gapStr = '-' + Math.abs(gap).toFixed(1) + 's';
+          gapClass = 'gap-ahead';
+        } else if (gap > 0) {
+          gapStr = '+' + gap.toFixed(1) + 's';
+          gapClass = 'gap-behind';
+        } else {
+          gapStr = '';
+        }
       }
 
       // iRating shorthand

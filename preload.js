@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('k10', {
   },
   // Ambient light — screen capture moved to C# plugin (ScreenColorSampler).
   // Color data now arrives via poll JSON (DS.AmbientR/G/B), no IPC needed.
+  // Folder dialog for file browser
+  openFolderDialog: (title) => ipcRenderer.invoke('open-folder-dialog', title),
   // Quit application
   quitApp: () => ipcRenderer.invoke('quit-app'),
 });

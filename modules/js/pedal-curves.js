@@ -466,6 +466,38 @@ function importMozaPedals() {
   }).catch(function () {});
 }
 
+function browseMozaFolder() {
+  // Use Electron file dialog if available, otherwise prompt for path
+  if (window.k10 && window.k10.openFolderDialog) {
+    window.k10.openFolderDialog('Select Moza Pit House folder').then(function(folderPath) {
+      if (!folderPath) return;
+      importMozaFromPath(folderPath);
+    });
+  } else {
+    // Fallback: prompt for path
+    var path = prompt('Enter the path to your MOZA Pit House folder:');
+    if (path) importMozaFromPath(path);
+  }
+}
+
+function importMozaFromPath(folderPath) {
+  var url = (window._simhubUrlOverride || SIMHUB_URL) + '?action=importMozaPedals&path=' + encodeURIComponent(folderPath);
+  fetch(url).then(function(r) { return r.json(); })
+    .then(function(result) {
+      if (result.ok) {
+        loadPedalProfiles();
+        var btn = document.getElementById('mozaBrowseBtn');
+        if (btn) { btn.textContent = 'Imported!'; setTimeout(function() { btn.textContent = 'Browse Folder'; }, 3000); }
+      } else {
+        var btn = document.getElementById('mozaBrowseBtn');
+        if (btn) { btn.textContent = 'Not found'; setTimeout(function() { btn.textContent = 'Browse Folder'; }, 3000); }
+      }
+    }).catch(function() {
+      var btn = document.getElementById('mozaBrowseBtn');
+      if (btn) { btn.textContent = 'Error'; setTimeout(function() { btn.textContent = 'Browse Folder'; }, 3000); }
+    });
+}
+
 // Detect Moza status and update UI when the Pedals tab loads
 function updatePedalSettingsUI() {
   var profile = window.getCurrentPedalProfile ? window.getCurrentPedalProfile() : null;
