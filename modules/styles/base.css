@@ -28,12 +28,13 @@
     --purple: hsl(280,80%,70%);
 
     --ff: 'Barlow Condensed', 'Corbel', 'Segoe UI', system-ui, sans-serif;
+    --ff-display: 'Cinzel Decorative', 'Georgia', serif;
     --ff-mono: 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
     --fs-xl: 20px;
-    --fs-lg: 13px;
-    --fs-md: 11px;
-    --fs-sm: 11px;
-    --fs-xs: 10px;
+    --fs-lg: 14px;
+    --fs-md: 14px;
+    --fs-sm: 14px;
+    --fs-xs: 14px;
     --fw-black: 800;
     --fw-bold: 700;
     --fw-semi: 600;
@@ -84,7 +85,7 @@
 
   /* Settings hint text */
   .settings-hint {
-    font-size: 9px;
+    font-size: 14px;
     color: hsla(0,0%,100%,0.35);
     padding: 2px 0 6px;
     line-height: 1.4;

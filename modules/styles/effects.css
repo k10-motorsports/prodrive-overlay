@@ -82,9 +82,9 @@
     z-index: 1;
   }
   .rc-title {
-    font-family: var(--ff);
+    font-family: var(--ff-display);
     font-size: 28px;
-    font-weight: var(--fw-black);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.10em;
     color: #FFFFFF;
@@ -223,7 +223,7 @@
     border-radius: 50%;
     background: hsl(200, 80%, 60%);
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 800; color: #000;
+    font-size: 14px; font-weight: 800; color: #000;
     line-height: 1;
   }
   .pit-label {
@@ -234,7 +234,7 @@
     color: hsl(200, 80%, 70%);
   }
   .pit-speed {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: var(--fw-bold);
     color: hsla(0, 0%, 100%, 0.60);
     font-variant-numeric: tabular-nums;
@@ -454,7 +454,7 @@
   /* Limit value: pulsing red */
   .pit-banner.pit-bonkers .pit-limit {
     color: hsla(0, 100%, 65%, 0.8) !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
   }
 
   /* ── Spark particles (spawned by JS) ── */
@@ -588,9 +588,9 @@
   .re-tint-neutral .re-position { color: var(--text-primary); opacity: 0.8; }
 
   .re-title {
-    font-family: var(--ff);
+    font-family: var(--ff-display);
     font-size: 32px;
-    font-weight: var(--fw-black);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin: 0 0 4px 0;
@@ -598,7 +598,7 @@
     color: var(--text-primary);
   }
   .re-subtitle {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-regular);
     color: var(--text-secondary);
     margin: 0;
@@ -613,7 +613,7 @@
     border: 1px solid var(--green);
     border-radius: var(--corner-r-sm);
     color: var(--green);
-    font-size: 10px;
+    font-size: 14px;
     font-weight: var(--fw-bold);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -636,7 +636,7 @@
     flex: 1;
   }
   .re-stat-label {
-    font-size: 10px;
+    font-size: 14px;
     font-weight: var(--fw-semi);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -758,8 +758,9 @@
   .sp-inner.sp-danger .sp-icon { color: hsl(0, 70%, 65%); }
   .sp-inner.sp-clear .sp-icon { color: hsl(145, 60%, 60%); }
   .sp-header {
-    font-size: 9px;
-    font-weight: var(--fw-bold);
+    font-family: var(--ff-display);
+    font-size: 14px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: hsla(220, 60%, 60%, 0.55);
@@ -849,8 +850,9 @@
     position: absolute;
   }
   .grid-title {
-    font-size: 10px;
-    font-weight: var(--fw-bold);
+    font-family: var(--ff-display);
+    font-size: 14px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.18em;
     color: hsla(220, 60%, 65%, 0.60);
@@ -906,7 +908,7 @@
   }
 
   .grid-start-type {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: var(--fw-semi);
     text-transform: uppercase;
     letter-spacing: 0.14em;
