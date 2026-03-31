@@ -53,47 +53,9 @@
     border-top-left-radius: var(--corner-r); border-bottom-left-radius: var(--corner-r);
   }
 
-  /* ── Vertical swap for bottom corners ──
-     Reverses internal column order so panels read correctly
-     when the HUD is anchored to the bottom edge. */
-  .dashboard.layout-br .fuel-tyres-col,
-  .dashboard.layout-bl .fuel-tyres-col,
-  .dashboard.layout-br .controls-pedals-block,
-  .dashboard.layout-bl .controls-pedals-block,
-  .dashboard.layout-br .maps-col,
-  .dashboard.layout-bl .maps-col,
-  .dashboard.layout-br .pos-gaps-col,
-  .dashboard.layout-bl .pos-gaps-col,
-  .dashboard.layout-br .logo-col,
-  .dashboard.layout-bl .logo-col {
-    flex-direction: column-reverse;
-  }
-
-  /* Vswap corner rounding — bottom-right (RTL): fuel→bottom-left, tyres→top-left */
-  .dashboard.layout-br .fuel-block  { border-top-left-radius: 0; border-bottom-left-radius: var(--corner-r); }
-  .dashboard.layout-br .tyres-block { border-bottom-left-radius: 0; border-top-left-radius: var(--corner-r); }
-
-  /* Vswap corner rounding — bottom-left (LTR): fuel→bottom-right, tyres→top-right */
-  .dashboard.layout-bl .fuel-block  {
-    border-top-right-radius: 0; border-bottom-right-radius: var(--corner-r);
-    border-top-left-radius: 0; border-bottom-left-radius: 0;
-  }
-  .dashboard.layout-bl .tyres-block {
-    border-bottom-right-radius: 0; border-top-right-radius: var(--corner-r);
-    border-bottom-left-radius: 0; border-top-left-radius: 0;
-  }
-
-  /* Vswap logo column — bottom corners flip logo squares */
-  .dashboard.layout-br .logo-col .logo-square:first-child,
-  .dashboard.layout-bl .logo-col .logo-square:first-child {
-    border-top-left-radius: 0; border-top-right-radius: 0;
-    border-bottom-left-radius: var(--corner-r); border-bottom-right-radius: var(--corner-r);
-  }
-  .dashboard.layout-br .logo-col .logo-square:last-child,
-  .dashboard.layout-bl .logo-col .logo-square:last-child {
-    border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-    border-top-left-radius: var(--corner-r); border-top-right-radius: var(--corner-r);
-  }
+  /* ── Vertical swap DISABLED ──
+     Previously reversed internal column order for bottom layouts.
+     Modules now keep the same orientation regardless of HUD position. */
   .dashboard::before {
     content: '';
     position: absolute;
