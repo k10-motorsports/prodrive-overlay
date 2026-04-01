@@ -83,7 +83,10 @@
     let playerIdx = -1;
     let sessionBest = Infinity;
     for (let i = 0; i < raw.length; i++) {
-      if (raw[i][7]) playerIdx = i;
+      if (raw[i][7]) {
+        playerIdx = i;
+        playerLastLap = +raw[i][4]; // capture player's last lap
+      }
       const b = +raw[i][3];
       if (b > 0 && b < sessionBest) sessionBest = b;
     }
@@ -149,19 +152,25 @@
               gapStr = '+' + gapToLeader.toFixed(1) + 's';
               gapClass = 'gap-behind';
             } else if (gapToLeader < 0) {
-              gapStr = Math.abs(gapToLeader).toFixed(1) + 's';
+              gapStr = '-' + Math.abs(gapToLeader).toFixed(1) + 's';
               gapClass = 'gap-ahead';
             }
           }
         }
       } else {
-        // 'me' mode: show gap to player (original behavior)
-        if (gap < 0) {
-          gapStr = '-' + Math.abs(gap).toFixed(1) + 's';
-          gapClass = 'gap-ahead';
-        } else if (gap > 0) {
-          gapStr = '+' + gap.toFixed(1) + 's';
-          gapClass = 'gap-behind';
+        // 'me' mode: show gap to player (relative to player's last lap)
+        // Calculate gap as: driver.lastLap - player.lastLap
+        if (last > 0 && playerLastLap > 0) {
+          const relativeGap = last - playerLastLap;
+          if (relativeGap > 0) {
+            gapStr = '+' + relativeGap.toFixed(1) + 's';
+            gapClass = 'gap-behind';
+          } else if (relativeGap < 0) {
+            gapStr = '-' + Math.abs(relativeGap).toFixed(1) + 's';
+            gapClass = 'gap-ahead';
+          } else {
+            gapStr = '';
+          }
         } else {
           gapStr = '';
         }
@@ -286,6 +295,7 @@
         brandColor = _mfrBrandColors[brandKey] || _defaultLogoBg;
       } else {
         // Non-player drivers: show neutral dark square for now (car data not available per opponent)
+        // Non-player drivers: show generic square for now (car data not available per opponent)
         brandColor = 'hsla(0,0%,20%,1.0)';
       }
 
