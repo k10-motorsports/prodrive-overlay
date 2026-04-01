@@ -132,6 +132,12 @@
   }
 
   function _collapseParentColumns() {
+    // When a visual preset mode is active, CSS rules in modes.css handle all
+    // visibility. Skip the section-hidden collapse logic to avoid interfering.
+    if (document.body.classList.contains('mode-minimal') || document.body.classList.contains('mode-minimal-plus')) {
+      return;
+    }
+
     // Controls + Pedals share controls-pedals-block
     const cpBlock = document.querySelector('.controls-pedals-block');
     if (cpBlock) {
@@ -271,6 +277,9 @@
       _settings.showK10Logo = true;
       _settings.showCarLogo = true;
       _settings.showGameLogo = true;
+      // When switching back to standard, ensure mode classes are removed
+      // so _collapseParentColumns() can properly restore column states
+      document.body.classList.remove('mode-minimal', 'mode-minimal-plus');
     }
 
     // Sync UI toggles and save

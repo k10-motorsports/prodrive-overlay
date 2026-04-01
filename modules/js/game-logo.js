@@ -50,7 +50,9 @@
 
   function updatePosition() {
     if (!_logoEl) return;
-    var layoutPos = (window._settings && window._settings.layoutPosition) || 'top-right';
+    // Read from global _settings object (not window._settings)
+    // _settings is exposed as a global from config.js
+    var layoutPos = (_settings && _settings.layoutPosition) || 'top-right';
     var logoPos = OPPOSITE_CORNER[layoutPos] || 'bottom-left';
     var style = POS_STYLES[logoPos] || POS_STYLES['bottom-left'];
     // Reset all positioning
@@ -138,4 +140,17 @@
   }
   // Also listen for settings changes
   window.addEventListener('k10-layout-changed', updatePosition);
+
+  // Ensure position is updated when applySettings is called
+  // (which loads _settings from localStorage)
+  var _origApplySettings = window.applySettings;
+  if (typeof _origApplySettings === 'function') {
+    window.applySettings = function() {
+      _origApplySettings.apply(this, arguments);
+      // Update logo position after settings are applied
+      if (_logoEl) {
+        updatePosition();
+      }
+    };
+  }
 })();
