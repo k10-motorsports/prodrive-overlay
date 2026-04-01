@@ -657,12 +657,6 @@
   const _MAP_MAX_OPPONENTS = 63; // iRacing max field size
 
   // G-force animation trail on player dot — ring buffer of recent positions
-  const _MAP_TRAIL_LEN = 24;
-  const _mapTrailX = new Float32Array(_MAP_TRAIL_LEN);
-  const _mapTrailY = new Float32Array(_MAP_TRAIL_LEN);
-  const _mapTrailG = new Float32Array(_MAP_TRAIL_LEN); // total G at each sample
-  let _mapTrailIdx = 0;
-  let _mapTrailCount = 0;
   let _fullMapTrailEl = null;
   let _zoomMapTrailEl = null;
 
@@ -670,94 +664,120 @@
   let _trackPathCoords = []; // [{x, y}, ...]
   const _OFF_TRACK_DIST = 4.0; // SVG units — beyond this, player is off-track
 
-  // G threshold for "in a turn" — above this, a new trail segment begins
+  // Trail: draws a section of the actual track path behind the player,
+  // fading from transparent at the tail to opaque near the car.
+  // On turn entry the trail fades out gradually instead of snapping away.
   const _TURN_G_THRESHOLD = 0.5;
+  var _wasInTurn = false;
+  var _trailStartIdx = -1;  // index in _trackPathCoords where current trail begins
+  var _trailFading = false;  // true while trail is shrinking toward player
+  const _TRAIL_FADE_SPEED = 12; // indices to advance _trailStartIdx per frame during fade
 
-  function _ensureTrailGroup(parentId, refElId) {
-    const parent = document.getElementById(parentId);
-    if (!parent) return null;
-    let grp = parent.querySelector('.map-trail-group');
-    if (grp) return grp;
-    grp = document.createElementNS(_SVG_NS, 'g');
-    grp.classList.add('map-trail-group');
-    // Insert before the player dot so trail draws behind it
-    const refEl = document.getElementById(refElId);
-    if (refEl) parent.insertBefore(grp, refEl);
-    else parent.appendChild(grp);
-    return grp;
+  // 25% of the track path length (in coordinate indices)
+  function _trailMaxLen() {
+    return Math.max(4, Math.floor(_trackPathCoords.length * 0.25));
   }
 
-  // Pool of reusable <line> elements per trail group
-  var _trailLinePool = new WeakMap();
+  function _ensureTrailPolyline(parentId, refElId, trailId) {
+    var parent = document.getElementById(parentId);
+    if (!parent) return null;
+    var trail = document.getElementById(trailId);
+    if (trail) return trail;
 
-  function _renderMapTrail(grp, strokeWidth) {
-    if (!grp) return;
-    const count = Math.min(_mapTrailCount, _MAP_TRAIL_LEN);
+    // Create SVG gradient: transparent at tail → trail color at head
+    var svgRoot = parent.closest('svg') || parent.ownerSVGElement;
+    if (svgRoot) {
+      var defs = svgRoot.querySelector('defs');
+      if (!defs) {
+        defs = document.createElementNS(_SVG_NS, 'defs');
+        svgRoot.insertBefore(defs, svgRoot.firstChild);
+      }
+      var gradId = trailId + '-grad';
+      if (!document.getElementById(gradId)) {
+        var grad = document.createElementNS(_SVG_NS, 'linearGradient');
+        grad.id = gradId;
+        grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+        var stop0 = document.createElementNS(_SVG_NS, 'stop');
+        stop0.setAttribute('offset', '0%');
+        stop0.setAttribute('stop-color', '#00acc1');
+        stop0.setAttribute('stop-opacity', '0');
+        var stop1 = document.createElementNS(_SVG_NS, 'stop');
+        stop1.setAttribute('offset', '100%');
+        stop1.setAttribute('stop-color', '#00acc1');
+        stop1.setAttribute('stop-opacity', '0.90');
+        grad.appendChild(stop0);
+        grad.appendChild(stop1);
+        defs.appendChild(grad);
+      }
+    }
 
-    // Get or create line pool for this group
-    var lines = _trailLinePool.get(grp);
-    if (!lines) { lines = []; _trailLinePool.set(grp, lines); }
+    trail = document.createElementNS(_SVG_NS, 'polyline');
+    trail.id = trailId;
+    trail.setAttribute('fill', 'none');
+    trail.setAttribute('stroke', 'url(#' + trailId + '-grad)');
+    trail.setAttribute('stroke-linecap', 'round');
+    trail.setAttribute('stroke-linejoin', 'round');
+    var refEl = document.getElementById(refElId);
+    if (refEl) parent.insertBefore(trail, refEl);
+    else parent.appendChild(trail);
+    return trail;
+  }
 
-    if (count < 2) {
-      for (var h = 0; h < lines.length; h++) lines[h].setAttribute('visibility', 'hidden');
+  function _renderTrackTrail(trailEl, strokeWidth, playerIdx) {
+    if (!trailEl || playerIdx < 0 || _trackPathCoords.length < 4) {
+      if (trailEl) trailEl.setAttribute('points', '');
       return;
     }
 
-    // Walk samples newest→oldest, detect turn boundaries via G threshold.
-    // "distFromTurn" tracks how far (in samples) we are from the most recent
-    // high-G sample. Opacity starts bright at each turn and fades on straights.
-    var segments = count - 1;
-    var distFromTurn = 0;
-    var inTurn = false;
+    var maxLen = _trailMaxLen();
+    var n = _trackPathCoords.length;
 
-    for (var i = 0; i < segments; i++) {
-      var idxA = (_mapTrailIdx - 1 - i     + _MAP_TRAIL_LEN) % _MAP_TRAIL_LEN;
-      var idxB = (_mapTrailIdx - 2 - i     + _MAP_TRAIL_LEN) % _MAP_TRAIL_LEN;
-      var gA = _mapTrailG[idxA];
-
-      // Detect turn boundary
-      if (gA >= _TURN_G_THRESHOLD) {
-        distFromTurn = 0;
-        inTurn = true;
-      } else {
-        distFromTurn++;
-        inTurn = false;
-      }
-
-      // Opacity: bright at turns, fading on straights
-      // At turn (distFromTurn=0): alpha = 0.7
-      // Fading linearly to 0.05 over ~12 samples on straights
-      var fadeAlpha = Math.max(0.05, 0.7 - distFromTurn * 0.055);
-      // Also fade older samples slightly (age-based)
-      var ageFade = 1.0 - (i / segments) * 0.3;
-      var alpha = fadeAlpha * ageFade;
-
-      // Color: in-turn → warm (orange), straight → cool (cyan)
-      var gNorm = Math.min(gA / 2.5, 1.0);
-      var hue = Math.round(185 - gNorm * 155);
-      var sat = Math.round(60 + gNorm * 30);
-      var lum = Math.round(50 + gNorm * 10);
-
-      // Ensure we have a <line> element
-      if (i >= lines.length) {
-        var ln = document.createElementNS(_SVG_NS, 'line');
-        ln.setAttribute('stroke-linecap', 'round');
-        grp.appendChild(ln);
-        lines.push(ln);
-      }
-      var el = lines[i];
-      el.setAttribute('x1', _mapTrailX[idxA].toFixed(1));
-      el.setAttribute('y1', _mapTrailY[idxA].toFixed(1));
-      el.setAttribute('x2', _mapTrailX[idxB].toFixed(1));
-      el.setAttribute('y2', _mapTrailY[idxB].toFixed(1));
-      el.setAttribute('stroke', 'hsla(' + hue + ',' + sat + '%,' + lum + '%,' + alpha.toFixed(2) + ')');
-      el.setAttribute('stroke-width', String(strokeWidth));
-      el.setAttribute('visibility', 'visible');
+    // Walk backward from player along track path, up to maxLen points
+    // or until we hit the trail start (turn entry)
+    var startIdx = _trailStartIdx >= 0 ? _trailStartIdx : playerIdx;
+    // How many points back from player to the trail start?
+    var backDist = (playerIdx - startIdx + n) % n;
+    // Clamp to max trail length
+    if (backDist > maxLen || backDist === 0) {
+      startIdx = (playerIdx - maxLen + n) % n;
+      backDist = maxLen;
     }
 
-    // Hide unused lines
-    for (var j = segments; j < lines.length; j++) {
-      lines[j].setAttribute('visibility', 'hidden');
+    // Build points from tail (startIdx) → head (playerIdx) along the track path
+    var pts = '';
+    var tailC = _trackPathCoords[startIdx];
+    var headC = _trackPathCoords[playerIdx];
+    for (var i = 0; i <= backDist; i++) {
+      var ci = (startIdx + i) % n;
+      var c = _trackPathCoords[ci];
+      pts += c.x.toFixed(1) + ',' + c.y.toFixed(1) + ' ';
+    }
+
+    trailEl.setAttribute('points', pts);
+    trailEl.setAttribute('stroke-width', String(strokeWidth));
+
+    // Update gradient: tail (transparent) → head (opaque near player)
+    // Color follows the car manufacturer brand, pushed 50% toward white
+    var gradId = trailEl.id + '-grad';
+    var grad = document.getElementById(gradId);
+    if (grad) {
+      grad.setAttribute('x1', tailC.x.toFixed(1));
+      grad.setAttribute('y1', tailC.y.toFixed(1));
+      grad.setAttribute('x2', headC.x.toFixed(1));
+      grad.setAttribute('y2', headC.y.toFixed(1));
+      // Read brand color and lighten 50% toward white
+      var raw = getComputedStyle(document.documentElement).getPropertyValue('--map-player-color').trim();
+      var trailColor = raw || '#00acc1';
+      // Parse HSLA and push lightness 50% toward 100
+      var hm = trailColor.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/);
+      if (hm) {
+        var h = hm[1], s = hm[2], l = parseFloat(hm[3]);
+        var newL = l + (100 - l) * 0.5;
+        trailColor = 'hsl(' + h + ',' + s + '%,' + newL.toFixed(0) + '%)';
+      }
+      var stops = grad.querySelectorAll('stop');
+      if (stops[0]) stops[0].setAttribute('stop-color', trailColor);
+      if (stops[1]) stops[1].setAttribute('stop-color', trailColor);
     }
   }
 
@@ -772,14 +792,14 @@
   }
 
   // Find the nearest point on the parsed track path to (px, py)
-  // Returns {x, y, dist} of the closest path coordinate
+  // Returns {x, y, dist, idx} of the closest path coordinate
   function _nearestTrackPoint(px, py) {
-    var best = { x: px, y: py, dist: Infinity };
+    var best = { x: px, y: py, dist: Infinity, idx: -1 };
     for (var i = 0; i < _trackPathCoords.length; i++) {
       var c = _trackPathCoords[i];
       var dx = px - c.x, dy = py - c.y;
       var d = dx * dx + dy * dy;
-      if (d < best.dist) { best.x = c.x; best.y = c.y; best.dist = d; }
+      if (d < best.dist) { best.x = c.x; best.y = c.y; best.dist = d; best.idx = i; }
     }
     best.dist = Math.sqrt(best.dist);
     return best;
@@ -791,16 +811,15 @@
     _mapLastPath = '';
     _mapHasInit = false;
     _trackPathCoords = [];
-    _mapTrailCount = 0;
-    _mapTrailIdx = 0;
+    _trailStartIdx = -1;
     ['fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner',
      'zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.setAttribute('d', '');
     });
     // Clear trail polylines
-    if (_fullMapTrailEl) _fullMapTrailEl.setAttribute('points', '');
-    if (_zoomMapTrailEl) _zoomMapTrailEl.setAttribute('points', '');
+    if (_fullMapTrailEl) { _fullMapTrailEl.setAttribute('points', ''); }
+    if (_zoomMapTrailEl) { _zoomMapTrailEl.setAttribute('points', ''); }
     // Clear opponent dots
     const fg = document.getElementById('fullMapOpponents');
     const zg = document.getElementById('zoomMapOpponents');
@@ -972,12 +991,12 @@
     const sx = _mapSmoothedX;
     const sy = _mapSmoothedY;
 
-    // Off-track detection: check distance from smoothed position to track path
-    let isOffTrack = false;
-    if (_trackPathCoords.length > 10) {
-      var nearest = _nearestTrackPoint(sx, sy);
-      isOffTrack = nearest.dist > _OFF_TRACK_DIST;
-    }
+    // Find player's nearest point on track (used for off-track detection + trail)
+    var playerNearest = _trackPathCoords.length > 10 ? _nearestTrackPoint(sx, sy) : null;
+    var playerIdx = playerNearest ? playerNearest.idx : -1;
+
+    // Off-track detection
+    let isOffTrack = playerNearest ? playerNearest.dist > _OFF_TRACK_DIST : false;
 
     // Update track line highlighting based on on/off-track state
     document.querySelectorAll('.map-track-outer').forEach(function(el) {
@@ -1010,20 +1029,31 @@
     const longG = window._ambientLongG || 0;
     const totalG = Math.sqrt(latG * latG + longG * longG);
 
-    // Sample position into ring buffer (every frame)
-    _mapTrailX[_mapTrailIdx] = sx;
-    _mapTrailY[_mapTrailIdx] = sy;
-    _mapTrailG[_mapTrailIdx] = totalG;
-    _mapTrailIdx = (_mapTrailIdx + 1) % _MAP_TRAIL_LEN;
-    _mapTrailCount++;
+    // Turn detection: when G crosses above threshold, start fading the trail out
+    var inTurnNow = totalG >= _TURN_G_THRESHOLD;
+    if (inTurnNow && !_wasInTurn) {
+      _trailFading = true;
+    }
+    _wasInTurn = inTurnNow;
 
-    // Ensure trail SVG groups exist and render
-    // Full map: trail as sibling before player dot
-    if (!_fullMapTrailEl)  _fullMapTrailEl  = _ensureTrailGroup('fullMapSvg', 'fullMapPlayer');
-    // Zoom map: trail INSIDE the rotate group so it rotates with the track
-    if (!_zoomMapTrailEl) _zoomMapTrailEl = _ensureTrailGroup('zoomMapRotateGroup', 'zoomMapOpponents');
-    _renderMapTrail(_fullMapTrailEl, 3);
-    _renderMapTrail(_zoomMapTrailEl, 1.8);
+    // Gradual fade: advance trail start toward player each frame
+    if (_trailFading && _trailStartIdx >= 0 && playerIdx >= 0) {
+      var n = _trackPathCoords.length;
+      var gap = (playerIdx - _trailStartIdx + n) % n;
+      if (gap <= _TRAIL_FADE_SPEED) {
+        // Caught up — trail fully faded, restart from player
+        _trailStartIdx = playerIdx;
+        _trailFading = false;
+      } else {
+        _trailStartIdx = (_trailStartIdx + _TRAIL_FADE_SPEED) % n;
+      }
+    }
+
+    // Ensure trail polylines exist and render using actual track geometry
+    if (!_fullMapTrailEl)  _fullMapTrailEl  = _ensureTrailPolyline('fullMapSvg', 'fullMapPlayer', 'fullMapTrail');
+    if (!_zoomMapTrailEl) _zoomMapTrailEl = _ensureTrailPolyline('zoomMapRotateGroup', 'zoomMapOpponents', 'zoomMapTrail');
+    _renderTrackTrail(_fullMapTrailEl, 5, playerIdx);    // matches .map-track-outer stroke-width
+    _renderTrackTrail(_zoomMapTrailEl, 2.5, playerIdx);  // matches .map-zoom-svg .map-track-outer stroke-width
 
     // Update zoom map — player always centered, track rotates so
     // driving direction always points UP. Zoom in when slow (corners),
