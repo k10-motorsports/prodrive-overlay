@@ -1031,14 +1031,9 @@
     const zoomSvg = document.getElementById('zoomMapSvg');
     if (zoomSvg) {
       const spd = typeof speedMph === 'number' ? speedMph : 0;
-      // Two-band zoom (zoom% where 100% = dot fills panel, 0% = full map):
-      //   0-30 mph → 75%    30-75 mph ramps to 100%    75+ mph → 100% (capped)
-      // Convert zoom% to SVG viewBox radius: r = 50 - zoom% * 0.46
-      var zoomPct;
-      if (spd < 30)       zoomPct = 75;
-      else if (spd < 75)  zoomPct = 75 + (spd - 30) / 45 * 25; // 75% → 100%
-      else                zoomPct = 100;
-      const targetZR = 50 - zoomPct * 0.46;
+      // 3× zoom: viewBox = 1/3 of full map (radius 16.7 of 50).
+      // Flat across 0-75 mph, clamped above 75.
+      const targetZR = 50 / 3;
       _mapZoomRadius += (targetZR - _mapZoomRadius) * 0.15;
       const zr = _mapZoomRadius;
 
