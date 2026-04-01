@@ -90,7 +90,7 @@
     if (!window.k10 || !window.k10.k10Connect) {
       // Fallback: open website in browser
       if (window.k10 && window.k10.openExternal) {
-        window.k10.openExternal('https://drive.racecor.io');
+        window.k10.openExternal('https://prodrive.racecor.io');
       }
       return;
     }
