@@ -255,6 +255,51 @@
             font-size: 8px;
             color: var(--text-secondary);
           }
+
+          /* ── MINIMAL MODE — Tufte-pure: huge position, numbers only ── */
+          :host-context(body.mode-minimal) .card-container {
+            background: transparent;
+            border: none;
+            padding: 2px;
+          }
+
+          :host-context(body.mode-minimal) .pos-number {
+            font-size: 36px;
+            line-height: 0.9;
+          }
+
+          :host-context(body.mode-minimal) .pos-of-total {
+            font-size: 9px;
+            color: var(--text-dim);
+          }
+
+          :host-context(body.mode-minimal) .rating-value {
+            font-size: 16px;
+            font-weight: var(--fw-black);
+          }
+
+          :host-context(body.mode-minimal) .rating-bar,
+          :host-context(body.mode-minimal) .rating-bar-fill {
+            display: none !important;
+          }
+
+          /* SR: number only, no pie — color encodes threshold */
+          :host-context(body.mode-minimal) .sr-pie {
+            width: auto;
+            height: auto;
+            border-radius: 0;
+            background: none !important;
+            border: none;
+            font-size: 16px;
+            font-weight: var(--fw-black);
+            color: var(--text-primary);
+          }
+
+          :host-context(body.mode-minimal) .rating-label {
+            font-size: 8px;
+            font-weight: var(--fw-medium);
+            color: var(--text-dim);
+          }
         </style>
 
         <div class="card-container">
@@ -333,10 +378,20 @@
       }
 
       if (this._srPieEl && this._safetyRating > 0) {
-        // Safety rating goes from 0-4.0, map to pie angle
-        const srPct = Math.min(100, (this._safetyRating / 4.0) * 100);
-        const angle = (srPct / 100) * 360;
-        this._srPieEl.style.background = `conic-gradient(var(--green) 0deg ${angle}deg, var(--bg) ${angle}deg 360deg)`;
+        const isMinimal = document.body && document.body.classList.contains('mode-minimal');
+        if (isMinimal) {
+          // Tufte: no pie — color the number by license-class thresholds
+          const srColor = this._safetyRating >= 3.0 ? 'var(--green)'
+            : this._safetyRating >= 2.0 ? 'var(--amber)'
+            : 'var(--red)';
+          this._srPieEl.style.background = 'none';
+          this._srPieEl.style.color = srColor;
+        } else {
+          // Standard: pie chart encoding
+          const srPct = Math.min(100, (this._safetyRating / 4.0) * 100);
+          const angle = (srPct / 100) * 360;
+          this._srPieEl.style.background = `conic-gradient(var(--green) 0deg ${angle}deg, var(--bg) ${angle}deg 360deg)`;
+        }
       }
     }
 

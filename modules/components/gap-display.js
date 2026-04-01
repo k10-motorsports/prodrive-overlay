@@ -212,6 +212,42 @@
             color: var(--text-secondary);
             white-space: nowrap;
           }
+
+          /* ── MINIMAL MODE — Tufte-pure: big numbers, directional arrows, no chrome ── */
+          :host-context(body.mode-minimal) .gap-item {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 2px 0;
+          }
+
+          :host-context(body.mode-minimal) .gap-item.gaining,
+          :host-context(body.mode-minimal) .gap-item.losing {
+            border: none;
+          }
+
+          :host-context(body.mode-minimal) .gap-time {
+            font-size: 20px;
+            font-weight: var(--fw-black);
+            font-variant-numeric: tabular-nums;
+          }
+
+          :host-context(body.mode-minimal) .gap-label {
+            font-size: 8px;
+            margin-bottom: 1px;
+          }
+
+          :host-context(body.mode-minimal) .gap-info {
+            font-size: 8px;
+          }
+
+          :host-context(body.mode-minimal) .gap-driver {
+            font-size: 8px;
+          }
+
+          :host-context(body.mode-minimal) .gap-ir {
+            font-size: 8px;
+          }
         </style>
 
         <div class="gaps-container">
@@ -278,11 +314,17 @@
       // Ahead gap
       if (this._aheadTimeEl) {
         const gapStr = this._formatGap(this._aheadGap);
-        this._aheadTimeEl.textContent = gapStr;
 
         // Determine color: green if gap is shrinking (approaching), red if growing (falling back)
-        const isGaining = this._prevAheadGap > 0 && this._aheadGap < this._prevAheadGap;
-        this._aheadTimeEl.className = 'gap-time ahead ' + (isGaining ? 'gaining' : this._aheadGap > this._prevAheadGap && this._prevAheadGap > 0 ? 'losing' : '');
+        const isGainingAhead = this._prevAheadGap > 0 && this._aheadGap < this._prevAheadGap;
+        const isLosingAhead = this._aheadGap > this._prevAheadGap && this._prevAheadGap > 0;
+
+        // Tufte: add directional arrows for colorblind accessibility in minimal mode
+        const isMinimal = document.body && document.body.classList.contains('mode-minimal');
+        const aheadArrow = isMinimal ? (isGainingAhead ? '↑ ' : isLosingAhead ? '↓ ' : '  ') : '';
+        this._aheadTimeEl.textContent = aheadArrow + gapStr;
+
+        this._aheadTimeEl.className = 'gap-time ahead ' + (isGainingAhead ? 'gaining' : isLosingAhead ? 'losing' : '');
         this._prevAheadGap = this._aheadGap;
 
         if (this._aheadCellEl) {
@@ -301,11 +343,17 @@
       // Behind gap
       if (this._behindTimeEl) {
         const gapStr = this._formatGap(this._behindGap);
-        this._behindTimeEl.textContent = gapStr;
 
         // For behind: green if gap is growing (pulling away), red if shrinking (being caught)
-        const isGaining = this._prevBehindGap > 0 && this._behindGap > this._prevBehindGap;
-        this._behindTimeEl.className = 'gap-time behind ' + (isGaining ? 'gaining' : this._behindGap < this._prevBehindGap && this._prevBehindGap > 0 ? 'losing' : '');
+        const isGainingBehind = this._prevBehindGap > 0 && this._behindGap > this._prevBehindGap;
+        const isLosingBehind = this._behindGap < this._prevBehindGap && this._prevBehindGap > 0;
+
+        // Tufte: directional arrows for colorblind-safe encoding
+        const isMinimalBehind = document.body && document.body.classList.contains('mode-minimal');
+        const behindArrow = isMinimalBehind ? (isGainingBehind ? '↑ ' : isLosingBehind ? '↓ ' : '  ') : '';
+        this._behindTimeEl.textContent = behindArrow + gapStr;
+
+        this._behindTimeEl.className = 'gap-time behind ' + (isGainingBehind ? 'gaining' : isLosingBehind ? 'losing' : '');
         this._prevBehindGap = this._behindGap;
 
         if (this._behindCellEl) {
