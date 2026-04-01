@@ -643,6 +643,12 @@
     let sr = window._manualSafetyRating > 0 ? window._manualSafetyRating
       : (_demo ? (+v('K10Motorsports.Plugin.Demo.SafetyRating') || 0) : (+v('IRacingExtraProperties.iRacing_DriverInfo_SafetyRating') || 0));
     _hasRatingData = (ir > 0 || sr > 0);
+
+    // Initial rating backfill (one-time on first connection)
+    if (typeof window.initialRatingSync === 'function') {
+      window.initialRatingSync(p, _demo);
+    }
+
     const ratVals = document.querySelectorAll('.rating-value');
     if (ratVals.length >= 2) { ratVals[0].textContent = ir > 0 ? ir : '—'; ratVals[1].textContent = sr > 0 ? sr.toFixed(2) : '—'; }
     updateIRBar(ir);
