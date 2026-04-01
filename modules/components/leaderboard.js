@@ -119,7 +119,7 @@
 
           .lb-header {
             display: grid;
-            grid-template-columns: 30px 140px 60px 40px 50px 50px;
+            grid-template-columns: 30px 140px 60px 40px 50px 1fr;
             gap: var(--gap);
             padding: var(--pad);
             background: var(--bg-panel);
@@ -142,7 +142,7 @@
 
           .lb-row {
             display: grid;
-            grid-template-columns: 30px 140px 60px 40px 50px 50px;
+            grid-template-columns: 30px 140px 60px 40px 50px 1fr;
             gap: var(--gap);
             padding: var(--pad);
             background: var(--bg);
@@ -263,8 +263,13 @@
 
       // Find player and calculate visible rows
       let playerIdx = -1;
+      let playerLastLap = 0;
       for (let i = 0; i < this._drivers.length; i++) {
-        if (this._drivers[i][7]) { playerIdx = i; break; }
+        if (this._drivers[i][7]) {
+          playerIdx = i;
+          playerLastLap = +this._drivers[i][4]; // capture player's last lap
+          break;
+        }
       }
 
       let visible = [];
@@ -314,19 +319,23 @@
                   gapStr = '+' + gapToLeader.toFixed(1) + 's';
                   gapClass = 'gap-behind';
                 } else if (gapToLeader < 0) {
-                  gapStr = Math.abs(gapToLeader).toFixed(1) + 's';
+                  gapStr = '-' + Math.abs(gapToLeader).toFixed(1) + 's';
                   gapClass = 'gap-ahead';
                 }
               }
             }
           } else {
-            // 'me' mode: show gap to player (original behavior)
-            if (gap < 0) {
-              gapStr = '-' + Math.abs(gap).toFixed(1) + 's';
-              gapClass = 'gap-ahead';
-            } else if (gap > 0) {
-              gapStr = '+' + gap.toFixed(1) + 's';
-              gapClass = 'gap-behind';
+            // 'me' mode: show gap to player (relative to player's last lap)
+            // Calculate gap as: driver.lastLap - player.lastLap
+            if (last > 0 && playerLastLap > 0) {
+              const relativeGap = last - playerLastLap;
+              if (relativeGap > 0) {
+                gapStr = '+' + relativeGap.toFixed(1) + 's';
+                gapClass = 'gap-behind';
+              } else if (relativeGap < 0) {
+                gapStr = '-' + Math.abs(relativeGap).toFixed(1) + 's';
+                gapClass = 'gap-ahead';
+              }
             }
           }
         }

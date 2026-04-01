@@ -50,12 +50,46 @@
     return card;
   }
 
-  function _pushSpotterMsg(msg, severity, headerOverride, iconOverride, adjType) {
+  function _pushSpotterMsg(msg, severity, headerOverride, iconOverride, adjType, category) {
     const stack = document.getElementById('spotterStack');
     if (!stack || !msg) return;
 
+    // Reuse existing card of same category (avoid stacking duplicates)
+    if (category) {
+      const existing = stack.querySelector(`[data-spot-cat="${category}"]`);
+      if (existing) {
+        // Update content
+        const msgEl = existing.querySelector('.sp-message');
+        if (msgEl) msgEl.textContent = msg;
+        const headerEl = existing.querySelector('.sp-header');
+        if (headerEl) headerEl.textContent = headerOverride || 'Spotter';
+
+        // Update severity class
+        existing.className = 'sp-inner ' + severity + ' sp-active';
+
+        // Update icon
+        const iconPath = _spotterIcons[iconOverride || severity] || _spotterIcons.default;
+        const iconEl = existing.querySelector('.sp-icon');
+        if (iconEl) iconEl.innerHTML = iconPath;
+
+        // Reset auto-dismiss timer
+        if (existing._spotterTimer) clearTimeout(existing._spotterTimer);
+        existing._spotterTimer = setTimeout(() => {
+          _fadeOutCard(existing);
+        }, _spotterMsgDuration);
+
+        // Re-trigger WebGL glow
+        if (window.setSpotterGlow) {
+          const glowMap = { 'sp-warn': 'warn', 'sp-danger': 'danger', 'sp-clear': 'clear' };
+          window.setSpotterGlow(glowMap[severity] || 'warn');
+        }
+        return;
+      }
+    }
+
     // Create and insert the new card
     const card = _createSpotterCard(msg, severity, headerOverride, iconOverride, adjType);
+    if (category) card.setAttribute('data-spot-cat', category);
     stack.prepend(card);
 
     // Trigger WebGL glow for the newest message
@@ -112,9 +146,10 @@
   // Recent-message memo: pattern → expiry timestamp
   // Prevents any message of the same pattern from repeating within the cooldown
   const _spotterMemo = new Map();
-  const _spotterMemoCooldown = 4000;  // ms — suppress same pattern for 4s (was 8s, too aggressive)
+  const _spotterPatternCooldown = 4000;  // ms — suppress same pattern for 4s
+  const _spotterExactCooldown = 5000;    // ms — suppress exact match for 5s (matches message duration)
 
-  function _showSpotterMsg(msg, severity, headerOverride) {
+  function _showSpotterMsg(msg, severity, headerOverride, category) {
     if (!msg) return;
     const pattern = _spotterMsgPattern(msg);
     const now = Date.now();
@@ -133,9 +168,9 @@
       return;
     }
 
-    // Record both pattern and exact text
-    _spotterMemo.set(pattern, now + _spotterMemoCooldown);
-    _spotterMemo.set(msg, now + _spotterMemoCooldown);
+    // Record both pattern and exact text with their respective cooldowns
+    _spotterMemo.set(pattern, now + _spotterPatternCooldown);
+    _spotterMemo.set(msg, now + _spotterExactCooldown);
 
     // Prune old entries periodically (keep map from growing)
     if (_spotterMemo.size > 30) {
@@ -145,7 +180,7 @@
     }
 
     console.debug('[K10 Spotter] Showing message:', msg, 'severity:', severity);
-    _pushSpotterMsg(msg, severity, headerOverride);
+    _pushSpotterMsg(msg, severity, headerOverride, null, null, category);
   }
 
   function updateSpotter(p, isDemo) {
@@ -164,6 +199,7 @@
 
     let msg = '';
     let severity = '';
+    let category = null;
 
     // ═ FIRST READING: when we first detect a car nearby (previous was 0, now > 0) ═
     // Show basic proximity alert without requiring delta change
@@ -181,6 +217,7 @@
         msg = 'Car ahead — ' + gAhead.toFixed(1) + 's';
         severity = 'sp-warn';
       }
+      category = 'ahead';
     }
 
     if (isFirstReadingBehind && !msg) {
@@ -194,12 +231,14 @@
         msg = 'Car behind — ' + gBehind.toFixed(1) + 's';
         severity = 'sp-warn';
       }
+      category = 'behind';
     }
 
     // ═ Threat behind — car closing on us ═
     if (!msg && gBehind > 0 && gBehind <= 0.8) {
       msg = 'Car alongside — ' + gBehind.toFixed(1) + 's';
       severity = 'sp-danger';
+      category = 'behind';
     } else if (!msg && gBehind > 0 && gBehind <= 2.0) {
       if (deltaB < -0.03) {
         msg = 'Car closing — ' + gBehind.toFixed(1) + 's';
@@ -208,15 +247,18 @@
         msg = 'Car behind — ' + gBehind.toFixed(1) + 's';
         severity = 'sp-warn';
       }
+      category = 'behind';
     } else if (!msg && gBehind > 0 && gBehind <= 4.0 && deltaB < -0.03) {
       msg = 'Car reeling in — ' + gBehind.toFixed(1) + 's';
       severity = 'sp-warn';
+      category = 'behind';
     }
 
     // ═ Opportunity ahead — we're closing on the car ahead ═
     if (!msg && gAhead > 0 && gAhead <= 0.8) {
       msg = 'Car right there — ' + gAhead.toFixed(1) + 's';
       severity = 'sp-danger';
+      category = 'ahead';
     } else if (!msg && gAhead > 0 && gAhead <= 2.0) {
       if (deltaA < -0.03) {
         msg = 'Closing on car ahead — ' + gAhead.toFixed(1) + 's';
@@ -228,12 +270,14 @@
         msg = 'Car ahead — ' + gAhead.toFixed(1) + 's';
         severity = 'sp-clear';
       }
+      category = 'ahead';
     } else if (!msg && gAhead > 0 && gAhead <= 4.0 && deltaA < -0.03) {
       msg = 'Gaining on car ahead — ' + gAhead.toFixed(1) + 's';
       severity = 'sp-clear';
+      category = 'ahead';
     }
 
-    // ═ Pass events — position swaps ═
+    // ═ Pass events — position swaps (no category, normal stacking) ═
     if (!msg && _spotterLastGapA > 0 && _spotterLastGapA < 3.0 && gAhead > _spotterLastGapA + 2.0 && gBehind > 0 && gBehind < 3.0) {
       msg = 'Clear — position gained';
       severity = 'sp-clear';
@@ -246,7 +290,7 @@
     _spotterLastGapA = gAhead;
     _spotterLastGapB = gBehind;
 
-    if (msg) _showSpotterMsg(msg, severity);
+    if (msg) _showSpotterMsg(msg, severity, null, category);
   }
 
   // ═══════════════════════════════════════════════════════════════
