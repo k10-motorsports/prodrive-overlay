@@ -716,17 +716,17 @@
 
     // ── 7. Apply bottom Y-offset ──
     // When layout is bottom-oriented, apply margin-bottom offset to relevant panels
+    // Bottom Y-offset: apply margin-bottom to bottom-oriented panels
     var yOff = (_settings.bottomYOffset || 0) + 'px';
-    var secContainer = document.getElementById('secContainer');
-    var incPanel = document.getElementById('incidentsPanel');
-    var cmtCol = document.getElementById('commentaryCol');
-    var gameLogo = document.getElementById('gameLogoOverlay');
-    // Only apply when layout is bottom-oriented
     var isBottomLayout = pos.startsWith('bottom');
-    if (secContainer) secContainer.style.marginBottom = isBottomLayout ? yOff : '';
-    if (incPanel) incPanel.style.marginBottom = isBottomLayout ? yOff : '';
-    if (cmtCol) cmtCol.style.marginBottom = isBottomLayout ? yOff : '';
-    if (gameLogo) gameLogo.style.marginBottom = isBottomLayout ? yOff : '';
+    var ySecContainer = document.getElementById('secContainer');
+    var yIncPanel = document.getElementById('incidentsPanel');
+    var yCmtCol = document.getElementById('commentaryCol');
+    var yGameLogo = document.getElementById('gameLogoOverlay');
+    if (ySecContainer) ySecContainer.style.marginBottom = isBottomLayout ? yOff : '';
+    if (yIncPanel) yIncPanel.style.marginBottom = isBottomLayout ? yOff : '';
+    if (yCmtCol) yCmtCol.style.marginBottom = isBottomLayout ? yOff : '';
+    if (yGameLogo) yGameLogo.style.marginBottom = isBottomLayout ? yOff : '';
   }
 
   function updateLayoutPosition(value) {
