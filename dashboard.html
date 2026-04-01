@@ -1101,9 +1101,31 @@
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
               <input class="settings-input" id="agentKeyInput" type="password"
-                     placeholder="sk-..."
+                     placeholder="sk-ant-..."
                      style="flex:1;font-size:10px;padding:6px 8px;font-family:var(--ff-mono);"
                      onchange="updateAgentKey(this.value)" />
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <div style="flex:1;">
+                <div class="conn-card-detail" style="font-size:9px;margin-bottom:3px;color:var(--text-dim);">Tone</div>
+                <select class="settings-input" id="coachToneSelect"
+                        style="width:100%;font-size:10px;padding:4px 6px;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--border);"
+                        onchange="updateCoachTone(this.value)">
+                  <option value="broadcast">Broadcast Commentator</option>
+                  <option value="coach">Racing Engineer</option>
+                  <option value="mentor">Friendly Mentor</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <div class="conn-card-detail" style="font-size:9px;margin-bottom:3px;color:var(--text-dim);">Depth</div>
+                <select class="settings-input" id="coachDepthSelect"
+                        style="width:100%;font-size:10px;padding:4px 6px;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--border);"
+                        onchange="updateCoachDepth(this.value)">
+                  <option value="quick">Quick (~$0.01)</option>
+                  <option value="standard">Standard (~$0.05)</option>
+                  <option value="deep">Deep Dive (~$0.15)</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="conn-card-actions">
@@ -1455,6 +1477,7 @@
 <script src="modules/js/incidents.js"></script>
 <script src="modules/js/pit-limiter.js"></script>
 <script src="modules/js/race-end.js"></script>
+<script src="modules/js/race-coach.js"></script>
 <script src="modules/js/race-results.js"></script>
 <script src="modules/js/formation.js"></script>
 <script src="modules/js/spotter.js"></script>
