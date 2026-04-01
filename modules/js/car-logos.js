@@ -4,12 +4,12 @@
   const CAR_LOGO_KEYS = ['bmw','mclaren','mazda','nissan','dallara','ferrari','porsche','audi',
     'mercedes','lamborghini','chevrolet','ford','toyota','hyundai','cadillac','astonmartin',
     'lotus','honda','honda_white','ligier','fia','radical','generic','none'];
-  const carLogos = {};
+  window.carLogos = {};
   async function loadCarLogos() {
     const results = await Promise.allSettled(
       CAR_LOGO_KEYS.map(async key => {
         const resp = await fetch('images/logos/' + key + '.svg');
-        if (resp.ok) carLogos[key] = await resp.text();
+        if (resp.ok) window.carLogos[key] = await resp.text();
       })
     );
   }

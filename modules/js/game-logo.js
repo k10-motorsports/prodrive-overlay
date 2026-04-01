@@ -30,11 +30,14 @@
   };
 
   // CSS class map for positioning
+  // When dashboard is at bottom (bottom-left/bottom-right), logo must clear
+  // the 200px dashboard height + 10px gap, so position at bottom:210px.
+  // Otherwise use 10px from top edges.
   var POS_STYLES = {
     'top-left':     'top:10px;left:10px;',
     'top-right':    'top:10px;right:10px;',
-    'bottom-left':  'bottom:10px;left:10px;',
-    'bottom-right': 'bottom:10px;right:10px;'
+    'bottom-left':  'bottom:210px;left:10px;',
+    'bottom-right': 'bottom:210px;right:10px;'
   };
 
   function createLogoElement() {
