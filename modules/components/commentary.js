@@ -142,6 +142,33 @@
             font-family: var(--ff-mono);
             text-align: right;
           }
+
+          /* ── MINIMAL MODE — Tufte-pure: tight, no decoration ── */
+          :host-context(body.mode-minimal) .cm-panel {
+            padding: 6px;
+            border-width: 1px;
+            border-radius: 3px;
+            background: transparent;
+          }
+
+          :host-context(body.mode-minimal) .cm-icon {
+            display: none;
+          }
+
+          :host-context(body.mode-minimal) .cm-header {
+            margin-bottom: 4px;
+            gap: 4px;
+          }
+
+          :host-context(body.mode-minimal) .cm-body {
+            font-size: 11px;
+            line-height: 1.3;
+            margin-bottom: 4px;
+          }
+
+          :host-context(body.mode-minimal) .cm-meta {
+            font-size: 9px;
+          }
         </style>
 
         <div class="cm-panel">

@@ -201,8 +201,60 @@
             color: var(--text-dim);
             margin-top: 2px;
           }
+
+          /* Optimal range annotation — shown only in minimal mode */
+          .tire-opt-range {
+            display: none;
+            font-size: 8px;
+            color: var(--text-dim);
+            text-align: center;
+            margin-bottom: 2px;
+            font-family: var(--ff-mono);
+            letter-spacing: 0.03em;
+          }
+
+          /* ── MINIMAL MODE — Tufte-pure: big temps, no chrome, spatial = label ── */
+          :host-context(body.mode-minimal) .tire-opt-range {
+            display: block;
+          }
+
+          :host-context(body.mode-minimal) .tire-cell {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 2px;
+            min-width: 40px;
+            min-height: 36px;
+          }
+
+          /* Spatial position IS the label — remove redundant text labels */
+          :host-context(body.mode-minimal) .tire-position {
+            display: none;
+          }
+
+          :host-context(body.mode-minimal) .tire-temp {
+            font-size: 22px;
+            font-weight: var(--fw-black);
+            margin-bottom: 0;
+          }
+
+          :host-context(body.mode-minimal) .tire-unit {
+            font-size: 10px;
+          }
+
+          /* Wear bar is redundant with the wear label number */
+          :host-context(body.mode-minimal) .tire-wear-outer {
+            display: none;
+          }
+
+          :host-context(body.mode-minimal) .tire-wear-label {
+            font-size: 7px;
+            color: var(--text-dim);
+            margin-top: 0;
+          }
         </style>
 
+        <div class="tire-opt-range">opt 80–95°C</div>
         <div class="tire-grid">
           <div class="tire-cell" data-pos="fl">
             <div class="tire-position">FL</div>

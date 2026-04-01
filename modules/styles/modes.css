@@ -31,6 +31,10 @@ body.mode-minimal {
   --border: transparent;
   --pad: 4px;
   --gap: 3px;
+  --corner-r: 2px;
+  --corner-r-sm: 1px;
+  --panel-gap: 4px;
+  --edge: 6px;
 }
 
 /* Panel borders removed: transparent color preserves gap spacing */
@@ -192,6 +196,15 @@ body.mode-minimal [class*="value"],
 body.mode-minimal [class*="data"],
 body.mode-minimal .number {
   font-weight: var(--fw-bold) !important;
+}
+
+/* ── Remove backdrop-filter everywhere — pure Tufte, no glass effects ── */
+body.mode-minimal [class*="panel"],
+body.mode-minimal [class*="cell"],
+body.mode-minimal [class*="item"],
+body.mode-minimal [class*="card"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ── Animations: Disable all except essential state changes ── */
