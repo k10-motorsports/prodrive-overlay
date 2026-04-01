@@ -126,18 +126,45 @@
       }
       if (pit) classes.push('lb-pit');
 
-      // Gap display
+      // Gap display based on focus mode
       let gapStr = '', gapClass = 'gap-player';
       if (isPlayer) {
         gapStr = '';
-      } else if (gap < 0) {
-        gapStr = '-' + Math.abs(gap).toFixed(1) + 's';
-        gapClass = 'gap-ahead';
-      } else if (gap > 0) {
-        gapStr = '+' + gap.toFixed(1) + 's';
-        gapClass = 'gap-behind';
+      } else if (focusMode === 'lead') {
+        // In 'lead' mode, show either lap time (P1) or gap to leader
+        if (pos === 1) {
+          // P1: show their last lap time formatted as mm:ss.fff
+          if (last > 0) {
+            const m = Math.floor(last / 60), s = last - m * 60;
+            gapStr = m + ':' + (s < 10 ? '0' : '') + s.toFixed(2);
+          }
+          gapClass = 'gap-leader';
+        } else {
+          // Others: show gap to P1 (first entry in raw array)
+          const leader = raw[0];
+          if (leader) {
+            const leaderLast = +leader[4]; // P1's lastLap
+            const gapToLeader = last > 0 && leaderLast > 0 ? last - leaderLast : 0;
+            if (gapToLeader > 0) {
+              gapStr = '+' + gapToLeader.toFixed(1) + 's';
+              gapClass = 'gap-behind';
+            } else if (gapToLeader < 0) {
+              gapStr = Math.abs(gapToLeader).toFixed(1) + 's';
+              gapClass = 'gap-ahead';
+            }
+          }
+        }
       } else {
-        gapStr = '';
+        // 'me' mode: show gap to player (original behavior)
+        if (gap < 0) {
+          gapStr = '-' + Math.abs(gap).toFixed(1) + 's';
+          gapClass = 'gap-ahead';
+        } else if (gap > 0) {
+          gapStr = '+' + gap.toFixed(1) + 's';
+          gapClass = 'gap-behind';
+        } else {
+          gapStr = '';
+        }
       }
 
       // iRating shorthand
