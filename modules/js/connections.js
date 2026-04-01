@@ -571,6 +571,23 @@
     if (window.updateGameLogo) window.updateGameLogo(window._currentGameId || 'iracing', !isOn);
   }
 
+  // ─── iRacing Data Sync toggle ───
+  function toggleIRacingSync(el) {
+    var isOn = el.classList.contains('on');
+    var newVal = !isOn;
+    el.classList.toggle('on', newVal);
+    _settings.iracingDataSync = newVal;
+    if (window.setSessionSyncEnabled) window.setSessionSyncEnabled(newVal);
+
+    var detail = document.getElementById('iracingSyncDetail');
+    var active = document.getElementById('iracingSyncActive');
+    if (detail) detail.style.display = newVal ? 'none' : '';
+    if (active) active.style.display = newVal ? '' : 'none';
+
+    saveSettings();
+  }
+  window.toggleIRacingSync = toggleIRacingSync;
+
   // ─── Logo subtitle ───
   function updateLogoSubtitle(value) {
     _settings.logoSubtitle = value;
@@ -892,5 +909,16 @@
   initDiscordState();
   initK10State();
   initRemoteDashState();
+
+  // Restore iRacing sync toggle state
+  var syncToggle = document.getElementById('iracingSyncToggle');
+  if (syncToggle && _settings.iracingDataSync) {
+    syncToggle.classList.add('on');
+    if (window.setSessionSyncEnabled) window.setSessionSyncEnabled(true);
+    var detail = document.getElementById('iracingSyncDetail');
+    var active = document.getElementById('iracingSyncActive');
+    if (detail) detail.style.display = 'none';
+    if (active) active.style.display = '';
+  }
 
   // ═══════════════════════════════════════════════════════════════

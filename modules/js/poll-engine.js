@@ -139,8 +139,19 @@
     if (_currSessionTypeName && _currSessionTypeName !== _prevSessionTypeName && _prevSessionTypeName) {
       console.log('[K10] Session changed:', _prevSessionTypeName, '→', _currSessionTypeName);
       if (typeof resetTimeline === 'function') resetTimeline();
+      // Capture session start snapshot for sync
+      if (typeof window.captureSessionStart === 'function') {
+        window.captureSessionStart(p, _demo);
+      }
+      window._sessionStartCaptured = true;
     }
     if (_currSessionTypeName) _prevSessionTypeName = _currSessionTypeName;
+
+    // First-frame capture: if we haven't captured a start snapshot yet and have session data
+    if (typeof window.captureSessionStart === 'function' && !window._sessionStartCaptured && _currSessionTypeName) {
+      window.captureSessionStart(p, _demo);
+      window._sessionStartCaptured = true;
+    }
 
     // Detect game and apply feature gating
     const rawGameId = v('K10Motorsports.Plugin.GameId') || '';
@@ -1101,6 +1112,10 @@
       const isCheckered = flagState === 'checkered';
       if (isCheckered && !_prevCheckered) {
         showRaceEnd(p, _demo);
+        // Capture session end for sync
+        if (typeof window.captureSessionEnd === 'function') {
+          window.captureSessionEnd(p, _demo);
+        }
       } else if (!isCheckered && _prevCheckered && _raceEndVisible) {
         hideRaceEnd();
       }
