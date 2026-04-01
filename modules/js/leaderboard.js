@@ -287,8 +287,26 @@
         }
       }
 
+      // Get brand logo for driver (player uses current car, others use generic)
+      let brandKey = 'generic';
+      let brandColor = _defaultLogoBg;
+      if (isPlayer) {
+        brandKey = _currentCarLogo || 'generic';
+        brandColor = _mfrBrandColors[brandKey] || _defaultLogoBg;
+      } else {
+        // Non-player drivers: show generic square for now (car data not available per opponent)
+        brandColor = 'hsla(0,0%,20%,1.0)';
+      }
+
+      // Build brand logo SVG or colored square
+      const logoSvg = (isPlayer && carLogos[brandKey]) ? carLogos[brandKey] : '';
+      const brandLogoHtml = '<div class="lb-brand" style="background:' + brandColor + '">'
+        + (logoSvg ? '<div class="lb-brand-icon">' + logoSvg + '</div>' : '')
+        + '</div>';
+
       html += '<div class="' + classes.join(' ') + '">'
         + '<div class="lb-pos">' + pos + '</div>'
+        + brandLogoHtml
         + '<div class="lb-name">' + escHtml(isPlayer ? _driverDisplayName : name) + '</div>'
         + '<div class="lb-lap ' + lapClass + '">' + lapStr + '</div>'
         + '<div class="lb-ir">' + irStr + '</div>'
