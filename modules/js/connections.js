@@ -567,7 +567,7 @@
       label = document.createElement('span');
       label.id = 'k10SubtitleLabel';
       label.className = 'logo-subtitle';
-      logo.parentNode.insertBefore(label, logo.nextSibling);
+      logo.appendChild(label);
     }
 
     var text = _settings.logoSubtitle || '';
