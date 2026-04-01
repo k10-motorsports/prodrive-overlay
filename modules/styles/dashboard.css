@@ -1246,29 +1246,23 @@
     gap: var(--gap);
     flex-shrink: 0;
     width: 96px;
-    align-self: stretch;
   }
   .map-panel {
-    flex: 1 1 0;
+    height: var(--row-h);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
     padding: 2px 0;
-    min-height: 0;
     overflow: hidden;
   }
-  .map-svg { width: 92%; flex: 1 1 0; min-height: 0; object-fit: contain; }
-  /* Full map label: flow below SVG, fixed 2-line height so both panels match */
+  .map-svg { width: 92%; flex: 1 1 0; min-height: 0; }
+  /* Full map label: flows below SVG — two-line names shrink the map above */
   .map-panel > .map-zoom-label {
     position: static;
     flex: 0 0 auto;
     margin-top: 4px;
-    height: 2.4em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   /* Track outline — three-layer rendering: thick outer edges, dark gap, thin center line */
   .map-track-outer {
@@ -1361,21 +1355,23 @@
   }
 
   .map-zoom-panel {
-    flex: 1;
+    height: var(--row-h);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     position: relative;
   }
   .map-zoom-svg {
-    width: 280px;
-    height: 280px;
+    width: 92%;
+    flex: 1 1 0;
+    min-height: 0;
   }
   .map-zoom-label {
-    position: absolute;
-    bottom: 4px;
-    left: 0; right: 0;
+    position: static;
+    flex: 0 0 auto;
+    margin-top: 4px;
     text-align: center;
     font-size: var(--fs-xs);
     color: var(--text-dim);
