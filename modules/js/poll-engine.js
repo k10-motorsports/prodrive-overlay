@@ -46,7 +46,7 @@
   // Falls back to the game-provided name if no custom name is set or API is unreachable.
   const _trackDisplayNameCache = {};    // { gameTrackName → displayName }
   const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
-  const K10_DISPLAY_NAME_API = 'https://prodrive.racecor.io/api/tracks';
+  const K10_DISPLAY_NAME_API = 'https://drive.racecor.io/api/tracks';
 
   function resolveTrackDisplayName(gameTrackName) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
@@ -97,6 +97,10 @@
     _pollFrame++;
     _cycleFrameCount++;
     try {
+      // Accumulate race data for post-race results screen
+      if (typeof accumulateRaceData === 'function') {
+        try { accumulateRaceData(p, _demo); } catch(e) { /* silent */ }
+      }
 
     // Diagnostic logging (first 3 frames + every 300 frames ~10s)
     if (_pollFrame <= 3 || _pollFrame % 300 === 0) {
@@ -139,6 +143,7 @@
     if (_currSessionTypeName && _currSessionTypeName !== _prevSessionTypeName && _prevSessionTypeName) {
       console.log('[K10] Session changed:', _prevSessionTypeName, '→', _currSessionTypeName);
       if (typeof resetTimeline === 'function') resetTimeline();
+      if (typeof resetRaceResults === 'function') resetRaceResults();
       // Capture session start snapshot for sync
       if (typeof window.captureSessionStart === 'function') {
         window.captureSessionStart(p, _demo);
@@ -1118,6 +1123,11 @@
       const isCheckered = flagState === 'checkered';
       if (isCheckered && !_prevCheckered) {
         showRaceEnd(p, _demo);
+        // Show post-race results after race-end screen auto-dismisses (31s)
+        if (typeof showRaceResults === 'function') {
+          setTimeout(function() {
+            try { showRaceResults(p, _demo); } catch(e) { console.warn('[K10] Race results error:', e); }
+          }, 31000);
         // Capture session end for sync
         if (typeof window.captureSessionEnd === 'function') {
           window.captureSessionEnd(p, _demo);

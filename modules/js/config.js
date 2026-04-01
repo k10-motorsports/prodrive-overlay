@@ -589,7 +589,9 @@ const _defaultSettings = {
   // Y-offset for bottom-positioned modules
   bottomYOffset: 0,
   // Logo subtitle text
-  logoSubtitle: ''
+  logoSubtitle: '',
+  // AI Race Coach
+  agentKey: ''
 };
 
 let _settings = Object.assign({}, _defaultSettings);
