@@ -797,7 +797,7 @@
   window._splitPathIntoSectors = _splitPathIntoSectors;
 
   // Smoothed zoom radius for the local map
-  let _mapZoomRadius = 15;
+  let _mapZoomRadius = 27;
 
   // Smoothed heading for local map rotation
   let _mapSmoothedHeading = 0;
@@ -984,10 +984,15 @@
     const zoomSvg = document.getElementById('zoomMapSvg');
     if (zoomSvg) {
       const spd = typeof speedMph === 'number' ? speedMph : 0;
-      // Dynamic zoom: slow → tight (radius 16) for corner detail,
-      //               fast → wide (radius 38) to see track ahead.
-      // Creates a natural zoom-in effect when braking into corners.
-      const targetZR = 16 + Math.min(spd / 150, 1.0) * 22;
+      // Speed-based zoom bands (zoom% where 100% = dot fills panel, 0% = full map):
+      //   0-30 mph  → 50%    30-75 mph → 35%    75+ mph → 25%
+      // Convert zoom% to SVG viewBox radius: r = 50 - zoom% * 0.46
+      //   (100% ≈ radius 4 = tightest,  0% = radius 50 = full track)
+      var zoomPct;
+      if (spd < 30)       zoomPct = 50;
+      else if (spd < 75)  zoomPct = 50 - (spd - 30) / 45 * 15;   // 50% → 35%
+      else                zoomPct = 35 - Math.min((spd - 75) / 75, 1.0) * 10; // 35% → 25%
+      const targetZR = 50 - zoomPct * 0.46;
       _mapZoomRadius += (targetZR - _mapZoomRadius) * 0.15;
       const zr = _mapZoomRadius;
 
