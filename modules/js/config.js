@@ -585,7 +585,11 @@ const _defaultSettings = {
   dsShowFfb: true,
   dsShowDelta: true,
   dsShowTrackTemp: true,
-  dsShowFps: true
+  dsShowFps: true,
+  // Y-offset for bottom-positioned modules
+  bottomYOffset: 0,
+  // Logo subtitle text
+  logoSubtitle: ''
 };
 
 let _settings = Object.assign({}, _defaultSettings);

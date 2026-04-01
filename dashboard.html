@@ -883,6 +883,10 @@
     <div class="settings-tab-content" id="settingsTabBranding">
       <div class="settings-two-col">
       <div class="settings-row"><span class="settings-label">K10 Logo</span><div class="settings-toggle on" data-section="k10LogoSquare" data-key="showK10Logo" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row" data-pro-feature="branding">
+        <span class="settings-label">Logo Subtitle</span>
+        <input type="text" id="logoSubtitleInput" maxlength="30" placeholder="Your team name" class="settings-input" oninput="updateLogoSubtitle(this.value)">
+      </div>
       <div class="settings-row"><span class="settings-label">Car Manufacturer</span><div class="settings-toggle on" data-section="carLogoSquare" data-key="showCarLogo" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Game Logo</span><div class="settings-toggle on" data-key="showGameLogo" onclick="toggleGameLogo(this)"></div></div>
       </div>
@@ -957,6 +961,15 @@
         <div class="settings-range-row">
           <input class="settings-range" id="settingsZoom" type="range" min="100" max="200" step="5" value="165" oninput="previewZoom(this.value)" onchange="updateZoom(this.value)"/>
           <span class="settings-range-val" id="zoomVal">165%</span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-label">Vertical Offset</div>
+        <div class="settings-row">
+          <span class="settings-label">Bottom Y-Adjust</span>
+          <input type="range" id="settingsBottomYOffset" min="0" max="200" step="10" value="0" class="settings-range" oninput="previewBottomYOffset(this.value)">
+          <span class="settings-value" id="bottomYOffsetVal">0px</span>
         </div>
       </div>
 

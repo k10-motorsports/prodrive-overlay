@@ -70,6 +70,18 @@
     if (zoomLabel) zoomLabel.textContent = zoomVal + '%';
     applyZoom(zoomVal);
 
+    // Bottom Y-Offset
+    var ySlider = document.getElementById('settingsBottomYOffset');
+    if (ySlider) {
+      ySlider.value = _settings.bottomYOffset || 0;
+      document.getElementById('bottomYOffsetVal').textContent = (_settings.bottomYOffset || 0) + 'px';
+    }
+
+    // Logo Subtitle
+    var subInput = document.getElementById('logoSubtitleInput');
+    if (subInput) subInput.value = _settings.logoSubtitle || '';
+    if (typeof applyLogoSubtitle === 'function') applyLogoSubtitle();
+
     // Force flag
     _forceFlagState = _settings.forceFlag || '';
     const flagSelect = document.getElementById('settingsForceFlag');

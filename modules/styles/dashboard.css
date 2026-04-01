@@ -452,6 +452,22 @@
   }
   .car-model-label:empty { display: none; }
 
+  .logo-subtitle {
+    display: block;
+    text-align: center;
+    font-family: var(--ff);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
   /* ═══════════════════════════════════════════════
      TACH — gear top-left, RPM top-right, speed+MPH beneath RPM
      segments fill bottom
