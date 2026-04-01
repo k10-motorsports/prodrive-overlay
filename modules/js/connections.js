@@ -107,6 +107,12 @@
         _settings.k10User = result.user;
         _settings.k10Features = result.user.features || [];
         saveSettings();
+
+        // Apply custom logo if available
+        if (result.user.customLogoUrl && window.setCustomLogoUrl) {
+          window.setCustomLogoUrl(result.user.customLogoUrl);
+        }
+
         updateK10ConnectionCard();
       } else {
         const errMsg = result?.error || 'Connection failed';
@@ -423,6 +429,12 @@
         if (user && user.id) {
           _k10User = user;
           _k10Features = user.features || [];
+
+          // Apply custom logo if available
+          if (user.customLogoUrl && window.setCustomLogoUrl) {
+            window.setCustomLogoUrl(user.customLogoUrl);
+          }
+
           updateK10ConnectionCard();
 
           // Verify token in background
@@ -438,6 +450,10 @@
                 updateK10ConnectionCard();
               } else if (result && result.features) {
                 _k10Features = result.features;
+                // Apply custom logo from verify result
+                if (result.user && result.user.customLogoUrl && window.setCustomLogoUrl) {
+                  window.setCustomLogoUrl(result.user.customLogoUrl);
+                }
                 updateK10ConnectionCard();
               }
             }).catch(() => {});
@@ -450,6 +466,12 @@
     if (_settings.k10User && _settings.k10User.id) {
       _k10User = _settings.k10User;
       _k10Features = _settings.k10Features || [];
+
+      // Apply custom logo if available
+      if (_settings.k10User.customLogoUrl && window.setCustomLogoUrl) {
+        window.setCustomLogoUrl(_settings.k10User.customLogoUrl);
+      }
+
       updateK10ConnectionCard();
     }
   }
