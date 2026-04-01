@@ -72,9 +72,8 @@
       if (info) info.style.display = '';
     }
 
-    // Populate agent key input
-    const akInput = document.getElementById('agentKeyInput');
-    if (akInput) akInput.value = _settings.agentKey || '';
+    // Populate AI Race Coach settings (key, tone, depth)
+    _populateCoachSettings();
 
     // Update pro feature gating across all settings
     updateProFeatureGating();
@@ -89,11 +88,22 @@
     if (typeof applyLogoSubtitle === 'function') applyLogoSubtitle();
   }
 
-  // ── AI Race Coach agent key ──
+  // ── AI Race Coach settings ──
   window.updateAgentKey = function(key) {
     _settings.agentKey = key || '';
     saveSettings();
   };
+
+  function _populateCoachSettings() {
+    var akInput = document.getElementById('agentKeyInput');
+    if (akInput) akInput.value = _settings.agentKey || '';
+
+    var toneSelect = document.getElementById('coachToneSelect');
+    if (toneSelect) toneSelect.value = _settings.coachTone || 'coach';
+
+    var depthSelect = document.getElementById('coachDepthSelect');
+    if (depthSelect) depthSelect.value = _settings.coachDepth || 'standard';
+  }
 
   async function connectK10Pro() {
     if (_k10Connecting) return;

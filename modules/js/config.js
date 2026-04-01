@@ -591,7 +591,9 @@ const _defaultSettings = {
   // Logo subtitle text
   logoSubtitle: '',
   // AI Race Coach
-  agentKey: ''
+  agentKey: '',
+  coachTone: 'coach',    // 'broadcast', 'coach', 'mentor'
+  coachDepth: 'standard' // 'quick', 'standard', 'deep'
 };
 
 let _settings = Object.assign({}, _defaultSettings);

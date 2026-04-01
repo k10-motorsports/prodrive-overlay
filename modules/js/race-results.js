@@ -520,16 +520,23 @@
       tipsEl.innerHTML = tipsHTML;
     }
 
-    // AI Analysis section
+    // AI Analysis section — wire up to race-coach.js
     const aiSection = document.getElementById('rrAISection');
     const aiBtn = document.getElementById('rrAIBtn');
     if (aiSection && _settings.agentKey) {
       aiSection.style.display = '';
       if (aiBtn) {
         aiBtn.onclick = function() {
-          console.log('[RaceResults] AI Analysis not yet implemented');
+          if (typeof generateRaceAnalysis === 'function') {
+            generateRaceAnalysis(_raceData, _commentaryLog, p, isDemo);
+          } else {
+            console.warn('[RaceResults] race-coach.js not loaded');
+          }
         };
       }
+      // Clear previous analysis
+      const resultEl = document.getElementById('rrAIResult');
+      if (resultEl) resultEl.innerHTML = '';
     } else if (aiSection) {
       aiSection.style.display = 'none';
     }
