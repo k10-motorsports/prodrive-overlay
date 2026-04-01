@@ -46,7 +46,7 @@
   // Falls back to the game-provided name if no custom name is set or API is unreachable.
   const _trackDisplayNameCache = {};    // { gameTrackName → displayName }
   const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
-  const K10_DISPLAY_NAME_API = 'https://drive.racecor.io/api/tracks';
+  const K10_DISPLAY_NAME_API = 'https://prodrive.racecor.io/api/tracks';
 
   function resolveTrackDisplayName(gameTrackName) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;

@@ -985,7 +985,7 @@ ipcMain.handle('get-discord-user', async () => {
 // exchanges the auth code for a K10 access token.
 // ═══════════════════════════════════════════════════════════════
 
-const K10_API_BASE = process.env.K10_API_BASE || 'https://drive.racecor.io';
+const K10_API_BASE = process.env.K10_API_BASE || 'https://prodrive.racecor.io';
 
 function getK10Path() {
   return path.join(app.getPath('userData'), 'k10-pro-user.json');
