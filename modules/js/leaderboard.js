@@ -294,12 +294,13 @@
         brandKey = _currentCarLogo || 'generic';
         brandColor = _mfrBrandColors[brandKey] || _defaultLogoBg;
       } else {
+        // Non-player drivers: show neutral dark square for now (car data not available per opponent)
         // Non-player drivers: show generic square for now (car data not available per opponent)
         brandColor = 'hsla(0,0%,20%,1.0)';
       }
 
       // Build brand logo SVG or colored square
-      const logoSvg = (isPlayer && carLogos[brandKey]) ? carLogos[brandKey] : '';
+      const logoSvg = (isPlayer && window.carLogos && window.carLogos[brandKey]) ? window.carLogos[brandKey] : '';
       const brandLogoHtml = '<div class="lb-brand" style="background:' + brandColor + '">'
         + (logoSvg ? '<div class="lb-brand-icon">' + logoSvg + '</div>' : '')
         + '</div>';
