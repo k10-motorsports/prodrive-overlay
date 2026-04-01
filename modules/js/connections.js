@@ -12,7 +12,7 @@
   let _k10Connecting = false;
 
   // Pro features — keys map to setting toggles and sidebar items
-  const PRO_FEATURE_KEYS = ['commentary','incidents','spotter','leaderboard','datastream','webgl','reflections','modules'];
+  const PRO_FEATURE_KEYS = ['commentary','incidents','spotter','leaderboard','datastream','webgl','reflections','modules','minimal','minimal-plus'];
 
   function isProFeature(key) {
     const map = {

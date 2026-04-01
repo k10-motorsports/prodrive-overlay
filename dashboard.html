@@ -46,6 +46,7 @@
 <link rel="stylesheet" href="modules/styles/leaderboard.css">
 <link rel="stylesheet" href="modules/styles/datastream.css">
 <link rel="stylesheet" href="modules/styles/effects.css">
+<link rel="stylesheet" href="modules/styles/modes.css">
 <link rel="stylesheet" href="modules/styles/settings.css">
 <link rel="stylesheet" href="modules/styles/connections.css">
 <link rel="stylesheet" href="modules/styles/rally.css">
@@ -779,6 +780,7 @@
       <div class="settings-sidebar">
         <div class="settings-sidebar-item active" data-tab="sections" onclick="switchSettingsTab(this)">Dashboard</div>
         <div class="settings-sidebar-item" data-tab="branding" onclick="switchSettingsTab(this)">Branding</div>
+        <div class="settings-sidebar-item" data-tab="effects" onclick="switchSettingsTab(this)">Effects</div>
         <div class="settings-sidebar-item" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
         <div class="settings-sidebar-item" data-tab="commentary" data-pro-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
         <div class="settings-sidebar-item" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
@@ -877,12 +879,32 @@
 
     </div>
 
-    <!-- ── Tab: Branding — logos, effects, ambient light ── -->
+    <!-- ── Tab: Branding — logos only ── -->
     <div class="settings-tab-content" id="settingsTabBranding">
       <div class="settings-two-col">
       <div class="settings-row"><span class="settings-label">K10 Logo</span><div class="settings-toggle on" data-section="k10LogoSquare" data-key="showK10Logo" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Car Manufacturer</span><div class="settings-toggle on" data-section="carLogoSquare" data-key="showCarLogo" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Game Logo</span><div class="settings-toggle on" data-key="showGameLogo" onclick="toggleGameLogo(this)"></div></div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Effects — visual styles, lighting, glow, animations ── -->
+    <div class="settings-tab-content" id="settingsTabEffects">
+      <div class="settings-two-col">
+
+      <!-- Visual Style Presets -->
+      <div class="settings-group-label">Visual Style</div>
+      <div class="settings-preset-row">
+        <button class="settings-preset-btn" data-preset="minimal" data-pro-feature="modules" onclick="applyVisualPreset('minimal')">Minimal</button>
+        <button class="settings-preset-btn" data-preset="minimal-plus" data-pro-feature="modules" onclick="applyVisualPreset('minimal-plus')">Minimal+</button>
+        <button class="settings-preset-btn active" data-preset="standard" onclick="applyVisualPreset('standard')">Standard</button>
+      </div>
+      <div class="settings-hint">Minimal and Minimal+ require K10 Pro connection</div>
+
+      <div class="settings-row"><span class="settings-label">Panel Borders</span><div class="settings-toggle on" data-key="showBorders" onclick="toggleSetting(this)"></div></div>
+
+      <!-- Lighting -->
+      <div class="settings-group-label">Lighting</div>
       <div class="settings-row"><span class="settings-label">WebGL Effects</span><div class="settings-toggle on" data-key="showWebGL" data-pro-feature="webgl" onclick="toggleWebGL(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Ambient Light</span>
         <select class="settings-select" id="settingsAmbientMode" data-pro-feature="reflections" onchange="updateAmbientMode(this.value)">
@@ -900,7 +922,20 @@
         <div id="ambientPreviewSwatch" style="width:100%;height:40px;border-radius:4px;background:#111;border:1px solid hsla(0,0%,100%,0.1);"></div>
         <div class="ambient-preview-info" id="ambientPreviewInfo">No capture active</div>
       </div>
-      </div>
+
+      <!-- Glow & Animation -->
+      <div class="settings-group-label">Glow & Animation</div>
+      <div class="settings-row"><span class="settings-label">Sentiment Halo</span><div class="settings-toggle on" data-key="showSentimentHalo" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Commentary Glow</span><div class="settings-toggle on" data-key="showCommentaryGlow" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Race Control Animation</span><div class="settings-toggle on" data-key="showRcAnimation" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Track Map Glow</span><div class="settings-toggle on" data-key="showMapGlow" onclick="toggleSetting(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">Redline Flash</span><div class="settings-toggle on" data-key="showRedlineFlash" onclick="toggleSetting(this)"></div></div>
+
+      <!-- Fun -->
+      <div class="settings-group-label">Fun</div>
+      <div class="settings-row"><span class="settings-label">Pit Limiter Bonkers</span><div class="settings-toggle on" data-key="showBonkers" id="bonkersToggle" onclick="toggleBonkers(this)"></div></div>
+
+      </div><!-- /settings-two-col -->
     </div>
 
     <!-- ── Tab: Layout — positioning and spacing for all module groups ── -->

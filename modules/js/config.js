@@ -567,6 +567,14 @@ const _defaultSettings = {
   discordUser: null,
   rallyMode: false,
   driveMode: false,
+  // Visual modes and effects
+  visualPreset: 'standard',  // 'standard', 'minimal', 'minimal-plus'
+  showBorders: true,
+  showSentimentHalo: true,
+  showCommentaryGlow: true,
+  showRcAnimation: true,
+  showMapGlow: true,
+  showRedlineFlash: true,
   // Leaderboard
   lbFocus: 'me',        // 'me' = center on player, 'lead' = show from P1
   lbMaxRows: 5,         // max visible opponent rows
