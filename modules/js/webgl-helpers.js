@@ -1031,9 +1031,11 @@
     const zoomSvg = document.getElementById('zoomMapSvg');
     if (zoomSvg) {
       const spd = typeof speedMph === 'number' ? speedMph : 0;
-      // 3× zoom: viewBox = 1/3 of full map (radius 16.7 of 50).
-      // Flat across 0-75 mph, clamped above 75.
-      const targetZR = 50 / 3;
+      // Dynamic zoom: tighter when slow (corners), wider when fast (straights).
+      // 0 mph → 3× zoom (radius ~5.6), scales up to 75 mph → radius 16.7.
+      // Clamped at 75 mph — no further zoom-out beyond that.
+      const clampedSpd = Math.min(spd, 75);
+      const targetZR = 5.6 + (clampedSpd / 75) * (50 / 3 - 5.6);
       _mapZoomRadius += (targetZR - _mapZoomRadius) * 0.15;
       const zr = _mapZoomRadius;
 
