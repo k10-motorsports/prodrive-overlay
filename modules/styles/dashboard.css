@@ -1249,21 +1249,20 @@
     justify-content: flex-start;
   }
   .map-panel {
-    flex: 1;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     position: relative;
-    padding-top: 2px;
+    padding: 2px 0;
   }
-  .map-panel:first-child {
-    flex: 2;
+  .map-svg { width: 92%; aspect-ratio: 1; }
+  /* Full map label: flow below SVG instead of absolute-bottom */
+  .map-panel > .map-zoom-label {
+    position: static;
+    margin-top: 4px;
   }
-  .map-panel:last-child {
-    flex: 1;
-  }
-  .map-svg { width: 92%; height: auto; aspect-ratio: 1; max-height: 100%; }
   /* Track outline — three-layer rendering: thick outer edges, dark gap, thin center line */
   .map-track-outer {
     fill: none;
