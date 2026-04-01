@@ -111,8 +111,10 @@
     // Datastream field toggles
     applyDsFieldToggles();
 
-    // Logo-only startup: apply body class so CSS hides everything except logos
-    if (_settings.logoOnlyStart !== false) {
+    // Logo-only startup: apply body class so CSS hides everything except logos.
+    // Only add if we haven't already revealed — otherwise applySettings()
+    // re-applies logo-only every time a mode or setting changes.
+    if (_settings.logoOnlyStart !== false && !_logoOnlyRevealed) {
       document.body.classList.add('logo-only');
     }
 

@@ -670,48 +670,95 @@
   let _trackPathCoords = []; // [{x, y}, ...]
   const _OFF_TRACK_DIST = 4.0; // SVG units — beyond this, player is off-track
 
-  function _ensureTrailElement(parentId, refElId) {
+  // G threshold for "in a turn" — above this, a new trail segment begins
+  const _TURN_G_THRESHOLD = 0.5;
+
+  function _ensureTrailGroup(parentId, refElId) {
     const parent = document.getElementById(parentId);
     if (!parent) return null;
-    let trail = parent.querySelector('.map-gforce-trail');
-    if (trail) return trail;
-    trail = document.createElementNS(_SVG_NS, 'polyline');
-    trail.classList.add('map-gforce-trail');
-    trail.setAttribute('fill', 'none');
-    trail.setAttribute('stroke-linecap', 'round');
-    trail.setAttribute('stroke-linejoin', 'round');
-    // Insert before the player dot (last circle child) so trail draws behind it
+    let grp = parent.querySelector('.map-trail-group');
+    if (grp) return grp;
+    grp = document.createElementNS(_SVG_NS, 'g');
+    grp.classList.add('map-trail-group');
+    // Insert before the player dot so trail draws behind it
     const refEl = document.getElementById(refElId);
-    if (refEl) parent.insertBefore(trail, refEl);
-    else parent.appendChild(trail);
-    return trail;
+    if (refEl) parent.insertBefore(grp, refEl);
+    else parent.appendChild(grp);
+    return grp;
   }
 
-  function _renderMapTrail(trailEl, strokeWidth) {
-    if (!trailEl) return;
+  // Pool of reusable <line> elements per trail group
+  var _trailLinePool = new WeakMap();
+
+  function _renderMapTrail(grp, strokeWidth) {
+    if (!grp) return;
     const count = Math.min(_mapTrailCount, _MAP_TRAIL_LEN);
-    if (count < 2) { trailEl.setAttribute('points', ''); return; }
 
-    // Build points string — newest first (ring buffer)
-    let pts = '';
-    let avgG = 0;
-    for (let i = 0; i < count; i++) {
-      const idx = (_mapTrailIdx - 1 - i + _MAP_TRAIL_LEN) % _MAP_TRAIL_LEN;
-      pts += _mapTrailX[idx].toFixed(1) + ',' + _mapTrailY[idx].toFixed(1) + ' ';
-      avgG += _mapTrailG[idx];
+    // Get or create line pool for this group
+    var lines = _trailLinePool.get(grp);
+    if (!lines) { lines = []; _trailLinePool.set(grp, lines); }
+
+    if (count < 2) {
+      for (var h = 0; h < lines.length; h++) lines[h].setAttribute('visibility', 'hidden');
+      return;
     }
-    avgG /= count;
 
-    // Color: low G → cyan, high G → orange/red, modulated by intensity
-    const gNorm = Math.min(avgG / 2.5, 1.0);
-    const hue = Math.round(185 - gNorm * 155); // 185 (cyan) → 30 (orange)
-    const sat = Math.round(60 + gNorm * 30);
-    const lum = Math.round(50 + gNorm * 10);
-    const alpha = 0.25 + gNorm * 0.35;
+    // Walk samples newest→oldest, detect turn boundaries via G threshold.
+    // "distFromTurn" tracks how far (in samples) we are from the most recent
+    // high-G sample. Opacity starts bright at each turn and fades on straights.
+    var segments = count - 1;
+    var distFromTurn = 0;
+    var inTurn = false;
 
-    trailEl.setAttribute('points', pts);
-    trailEl.setAttribute('stroke', 'hsla(' + hue + ',' + sat + '%,' + lum + '%,' + alpha.toFixed(2) + ')');
-    trailEl.setAttribute('stroke-width', String(strokeWidth));
+    for (var i = 0; i < segments; i++) {
+      var idxA = (_mapTrailIdx - 1 - i     + _MAP_TRAIL_LEN) % _MAP_TRAIL_LEN;
+      var idxB = (_mapTrailIdx - 2 - i     + _MAP_TRAIL_LEN) % _MAP_TRAIL_LEN;
+      var gA = _mapTrailG[idxA];
+
+      // Detect turn boundary
+      if (gA >= _TURN_G_THRESHOLD) {
+        distFromTurn = 0;
+        inTurn = true;
+      } else {
+        distFromTurn++;
+        inTurn = false;
+      }
+
+      // Opacity: bright at turns, fading on straights
+      // At turn (distFromTurn=0): alpha = 0.7
+      // Fading linearly to 0.05 over ~12 samples on straights
+      var fadeAlpha = Math.max(0.05, 0.7 - distFromTurn * 0.055);
+      // Also fade older samples slightly (age-based)
+      var ageFade = 1.0 - (i / segments) * 0.3;
+      var alpha = fadeAlpha * ageFade;
+
+      // Color: in-turn → warm (orange), straight → cool (cyan)
+      var gNorm = Math.min(gA / 2.5, 1.0);
+      var hue = Math.round(185 - gNorm * 155);
+      var sat = Math.round(60 + gNorm * 30);
+      var lum = Math.round(50 + gNorm * 10);
+
+      // Ensure we have a <line> element
+      if (i >= lines.length) {
+        var ln = document.createElementNS(_SVG_NS, 'line');
+        ln.setAttribute('stroke-linecap', 'round');
+        grp.appendChild(ln);
+        lines.push(ln);
+      }
+      var el = lines[i];
+      el.setAttribute('x1', _mapTrailX[idxA].toFixed(1));
+      el.setAttribute('y1', _mapTrailY[idxA].toFixed(1));
+      el.setAttribute('x2', _mapTrailX[idxB].toFixed(1));
+      el.setAttribute('y2', _mapTrailY[idxB].toFixed(1));
+      el.setAttribute('stroke', 'hsla(' + hue + ',' + sat + '%,' + lum + '%,' + alpha.toFixed(2) + ')');
+      el.setAttribute('stroke-width', String(strokeWidth));
+      el.setAttribute('visibility', 'visible');
+    }
+
+    // Hide unused lines
+    for (var j = segments; j < lines.length; j++) {
+      lines[j].setAttribute('visibility', 'hidden');
+    }
   }
 
   // Parse SVG path string into an array of {x, y} coordinates
@@ -797,7 +844,7 @@
   window._splitPathIntoSectors = _splitPathIntoSectors;
 
   // Smoothed zoom radius for the local map
-  let _mapZoomRadius = 27;
+  let _mapZoomRadius = 15.5;
 
   // Smoothed heading for local map rotation
   let _mapSmoothedHeading = 0;
@@ -970,11 +1017,11 @@
     _mapTrailIdx = (_mapTrailIdx + 1) % _MAP_TRAIL_LEN;
     _mapTrailCount++;
 
-    // Ensure trail SVG elements exist and render
+    // Ensure trail SVG groups exist and render
     // Full map: trail as sibling before player dot
-    if (!_fullMapTrailEl)  _fullMapTrailEl  = _ensureTrailElement('fullMapSvg', 'fullMapPlayer');
+    if (!_fullMapTrailEl)  _fullMapTrailEl  = _ensureTrailGroup('fullMapSvg', 'fullMapPlayer');
     // Zoom map: trail INSIDE the rotate group so it rotates with the track
-    if (!_zoomMapTrailEl) _zoomMapTrailEl = _ensureTrailElement('zoomMapRotateGroup', 'zoomMapOpponents');
+    if (!_zoomMapTrailEl) _zoomMapTrailEl = _ensureTrailGroup('zoomMapRotateGroup', 'zoomMapOpponents');
     _renderMapTrail(_fullMapTrailEl, 3);
     _renderMapTrail(_zoomMapTrailEl, 1.8);
 
@@ -985,13 +1032,12 @@
     if (zoomSvg) {
       const spd = typeof speedMph === 'number' ? speedMph : 0;
       // Speed-based zoom bands (zoom% where 100% = dot fills panel, 0% = full map):
-      //   0-30 mph  → 50%    30-75 mph → 35%    75+ mph → 25%
+      //   0-30 mph  → 75%    30-75 mph → 60%    75+ mph → 50%
       // Convert zoom% to SVG viewBox radius: r = 50 - zoom% * 0.46
-      //   (100% ≈ radius 4 = tightest,  0% = radius 50 = full track)
       var zoomPct;
-      if (spd < 30)       zoomPct = 50;
-      else if (spd < 75)  zoomPct = 50 - (spd - 30) / 45 * 15;   // 50% → 35%
-      else                zoomPct = 35 - Math.min((spd - 75) / 75, 1.0) * 10; // 35% → 25%
+      if (spd < 30)       zoomPct = 75;
+      else if (spd < 75)  zoomPct = 75 - (spd - 30) / 45 * 15;   // 75% → 60%
+      else                zoomPct = 60 - Math.min((spd - 75) / 75, 1.0) * 10; // 60% → 50%
       const targetZR = 50 - zoomPct * 0.46;
       _mapZoomRadius += (targetZR - _mapZoomRadius) * 0.15;
       const zr = _mapZoomRadius;

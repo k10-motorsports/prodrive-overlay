@@ -383,10 +383,9 @@
     align-items: center;
     justify-content: center;
     width: var(--row-h);
-    height: var(--row-h);
+    flex: 0 0 var(--row-h);
     border-radius: 0;
     border: 1px solid var(--border);
-    flex-shrink: 0;
     overflow: hidden;
   }
   /* Manufacturer country flag — WebGL cloth ripple behind logo */
