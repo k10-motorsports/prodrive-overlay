@@ -4,12 +4,12 @@
   const CAR_LOGO_KEYS = ['bmw','mclaren','mazda','nissan','dallara','ferrari','porsche','audi',
     'mercedes','lamborghini','chevrolet','ford','toyota','hyundai','cadillac','astonmartin',
     'lotus','honda','honda_white','ligier','fia','radical','generic','none'];
-  const carLogos = {};
+  window.carLogos = {};
   async function loadCarLogos() {
     const results = await Promise.allSettled(
       CAR_LOGO_KEYS.map(async key => {
         const resp = await fetch('images/logos/' + key + '.svg');
-        if (resp.ok) carLogos[key] = await resp.text();
+        if (resp.ok) window.carLogos[key] = await resp.text();
       })
     );
   }
@@ -26,7 +26,7 @@
     const key = carLogoOrder[currentCarLogoIdx];
     console.log('[K10] Logo cycle:', key);
     // Honda special case: use white-fill logo on red bg
-    const svg = (key === 'honda') ? carLogos.honda_white : carLogos[key];
+    const svg = (key === 'honda') ? window.carLogos.honda_white : window.carLogos[key];
     document.getElementById('carLogoIcon').innerHTML = svg;
     document.getElementById('carModelLabel').textContent = _demoModels[key] || '';
     // Apply brand-colored background (or default dark bg)
@@ -58,7 +58,7 @@
     if (key === _currentCarLogo && modelName === undefined) return;
     _currentCarLogo = key;
     // Honda special case: white-fill logo on red background
-    const svg = (key === 'honda') ? (carLogos.honda_white || carLogos.honda) : (carLogos[key] || carLogos.generic);
+    const svg = (key === 'honda') ? (window.carLogos.honda_white || window.carLogos.honda) : (window.carLogos[key] || window.carLogos.generic);
     document.getElementById('carLogoIcon').innerHTML = svg;
     document.getElementById('carModelLabel').textContent = stripBrand(modelName);
     // Apply brand-colored background for white/mono logos, default dark bg otherwise

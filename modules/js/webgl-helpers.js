@@ -982,6 +982,14 @@
       const dx = playerX - _mapSmoothedX;
       const dy = playerY - _mapSmoothedY;
       const jump = Math.sqrt(dx * dx + dy * dy);
+
+      // Detect lap boundary crossing or pit exit: large position jump (>15 SVG units)
+      // indicates S/F line or pit exit. Reset trail to prevent lines crossing the map.
+      if (jump > 15) {
+        _trailStartIdx = -1;  // Reset trail to current position
+        _trailFading = false;
+      }
+
       // If jump is huge (>20 SVG units), blend slowly (glitch recovery)
       const alpha = jump > 20 ? 0.08 : 0.45;
       _mapSmoothedX += dx * alpha;

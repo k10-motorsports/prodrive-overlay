@@ -144,8 +144,19 @@
       console.log('[K10] Session changed:', _prevSessionTypeName, '→', _currSessionTypeName);
       if (typeof resetTimeline === 'function') resetTimeline();
       if (typeof resetRaceResults === 'function') resetRaceResults();
+      // Capture session start snapshot for sync
+      if (typeof window.captureSessionStart === 'function') {
+        window.captureSessionStart(p, _demo);
+      }
+      window._sessionStartCaptured = true;
     }
     if (_currSessionTypeName) _prevSessionTypeName = _currSessionTypeName;
+
+    // First-frame capture: if we haven't captured a start snapshot yet and have session data
+    if (typeof window.captureSessionStart === 'function' && !window._sessionStartCaptured && _currSessionTypeName) {
+      window.captureSessionStart(p, _demo);
+      window._sessionStartCaptured = true;
+    }
 
     // Detect game and apply feature gating
     const rawGameId = v('K10Motorsports.Plugin.GameId') || '';
@@ -637,6 +648,12 @@
     let sr = window._manualSafetyRating > 0 ? window._manualSafetyRating
       : (_demo ? (+v('K10Motorsports.Plugin.Demo.SafetyRating') || 0) : (+v('IRacingExtraProperties.iRacing_DriverInfo_SafetyRating') || 0));
     _hasRatingData = (ir > 0 || sr > 0);
+
+    // Initial rating backfill (one-time on first connection)
+    if (typeof window.initialRatingSync === 'function') {
+      window.initialRatingSync(p, _demo);
+    }
+
     const ratVals = document.querySelectorAll('.rating-value');
     if (ratVals.length >= 2) { ratVals[0].textContent = ir > 0 ? ir : '—'; ratVals[1].textContent = sr > 0 ? sr.toFixed(2) : '—'; }
     updateIRBar(ir);
@@ -1111,6 +1128,9 @@
           setTimeout(function() {
             try { showRaceResults(p, _demo); } catch(e) { console.warn('[K10] Race results error:', e); }
           }, 31000);
+        // Capture session end for sync
+        if (typeof window.captureSessionEnd === 'function') {
+          window.captureSessionEnd(p, _demo);
         }
       } else if (!isCheckered && _prevCheckered && _raceEndVisible) {
         hideRaceEnd();

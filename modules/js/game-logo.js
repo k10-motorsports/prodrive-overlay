@@ -11,6 +11,7 @@
   var _currentSvg = '';
   var _currentGameId = '';
   var _visible = false;
+  var _customLogoUrl = null;
 
   // Map game IDs to SVG filenames
   var GAME_LOGO_FILES = {
@@ -30,11 +31,14 @@
   };
 
   // CSS class map for positioning
+  // When dashboard is at bottom (bottom-left/bottom-right), logo must clear
+  // the 200px dashboard height + 10px gap, so position at bottom:210px.
+  // Otherwise use 10px from top edges.
   var POS_STYLES = {
     'top-left':     'top:10px;left:10px;',
     'top-right':    'top:10px;right:10px;',
-    'bottom-left':  'bottom:10px;left:10px;',
-    'bottom-right': 'bottom:10px;right:10px;'
+    'bottom-left':  'bottom:210px;left:10px;',
+    'bottom-right': 'bottom:210px;right:10px;'
   };
 
   function createLogoElement() {
@@ -69,6 +73,12 @@
   }
 
   function loadSvg(gameId) {
+    // Check if custom logo is set first
+    if (_customLogoUrl) {
+      loadCustomLogo();
+      return;
+    }
+
     var file = GAME_LOGO_FILES[gameId];
     if (!file) {
       // No logo for this game
@@ -112,6 +122,65 @@
       .catch(function() { /* non-critical */ });
   }
 
+  function loadCustomLogo() {
+    if (!_customLogoUrl || !_logoEl) return;
+
+    _currentSvg = '';
+    _logoEl.innerHTML = '';
+
+    // Check if it's an SVG or raster image
+    var isSvg = _customLogoUrl.toLowerCase().endsWith('.svg');
+
+    if (isSvg) {
+      // Fetch and inject SVG
+      fetch(_customLogoUrl)
+        .then(function(r) { return r.ok ? r.text() : ''; })
+        .then(function(svg) {
+          if (!svg || !_customLogoUrl) return;
+          _currentSvg = svg;
+          if (_logoEl) {
+            _logoEl.innerHTML = svg;
+            var svgEl = _logoEl.querySelector('svg');
+            if (svgEl) {
+              svgEl.style.width = '100%';
+              svgEl.style.height = 'auto';
+              svgEl.style.maxHeight = '80px';
+            }
+            if (_visible) _logoEl.style.opacity = '0.5';
+          }
+        })
+        .catch(function() { /* non-critical */ });
+    } else {
+      // Use img tag for raster images
+      var img = document.createElement('img');
+      img.src = _customLogoUrl;
+      img.style.width = '100%';
+      img.style.height = 'auto';
+      img.style.maxHeight = '80px';
+      img.style.borderRadius = '4px';
+      img.onload = function() {
+        if (_logoEl && _customLogoUrl) {
+          _logoEl.innerHTML = '';
+          _logoEl.appendChild(img);
+          if (_visible) _logoEl.style.opacity = '0.5';
+        }
+      };
+      img.onerror = function() { /* non-critical */ };
+      _logoEl.appendChild(img);
+    }
+  }
+
+  /**
+   * Set custom logo URL from Pro user data
+   * @param {string} url — HTTPS URL to custom logo (SVG or PNG/JPG)
+   */
+  window.setCustomLogoUrl = function(url) {
+    _customLogoUrl = url || null;
+    if (_visible && _logoEl) {
+      loadSvg(_currentGameId);
+    }
+  };
+
   /**
    * Called from poll-engine on each telemetry tick.
    * @param {string} gameId — current game ID (e.g. 'iracing', 'lmu')
@@ -121,7 +190,12 @@
     createLogoElement();
     _visible = show;
 
-    if (!show || !gameId || !GAME_LOGO_FILES[gameId]) {
+    if (!show || (!gameId && !_customLogoUrl)) {
+      if (_logoEl) _logoEl.style.opacity = '0';
+      return;
+    }
+
+    if (!show) {
       if (_logoEl) _logoEl.style.opacity = '0';
       return;
     }
