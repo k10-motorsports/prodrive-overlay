@@ -119,7 +119,7 @@
 
           .lb-header {
             display: grid;
-            grid-template-columns: 30px 140px 60px 40px 50px 50px;
+            grid-template-columns: 30px 140px 60px 40px 50px 1fr;
             gap: var(--gap);
             padding: var(--pad);
             background: var(--bg-panel);
@@ -142,7 +142,7 @@
 
           .lb-row {
             display: grid;
-            grid-template-columns: 30px 140px 60px 40px 50px 50px;
+            grid-template-columns: 30px 140px 60px 40px 50px 1fr;
             gap: var(--gap);
             padding: var(--pad);
             background: var(--bg);
