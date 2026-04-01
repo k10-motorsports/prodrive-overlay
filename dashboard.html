@@ -1058,6 +1058,28 @@
         </div>
       </div>
 
+      <!-- ═══ iRacing Data Sync Card ═══ -->
+      <div class="conn-card conn-card-secondary" id="iracingDataSyncCard" style="margin-top:8px;">
+        <div class="conn-card-header" style="margin-bottom:6px;">
+          <div class="conn-card-icon iracing" style="width:24px;height:24px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          </div>
+          <div>
+            <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
+            <div class="conn-card-subtitle" style="font-size:9px;">Session results &amp; rating tracking</div>
+          </div>
+          <div style="margin-left:auto;">
+            <div class="settings-toggle" id="iracingSyncToggle" onclick="toggleIRacingSync(this)"></div>
+          </div>
+        </div>
+        <div class="conn-card-detail" id="iracingSyncDetail" style="font-size:10px;line-height:1.4;color:hsla(0,0%,100%,0.45);padding:0 2px;">
+          When enabled, RaceCor.io Pro Drive records your race results — finish position, incidents, lap times, and rating changes — to build your personal performance dashboard. Data is captured at the start and end of each session and synced to your account. No telemetry is stored, only session summaries.
+        </div>
+        <div class="conn-card-detail" id="iracingSyncActive" style="display:none;font-size:10px;color:hsla(120,60%,60%,0.8);padding:0 2px;">
+          ✓ Session data will sync to your RaceCor.io Pro Drive dashboard
+        </div>
+      </div>
+
       <!-- Remote Dashboard (stream to iPad / any browser on LAN) -->
       <div id="remoteDashSection" style="display:none;">
         <div class="settings-group-label" style="margin-top:12px;">Remote Dashboard</div>
@@ -1375,6 +1397,7 @@
 <script src="modules/js/rating-editor.js"></script>
 <script src="modules/js/driver-profile.js"></script>
 <script src="modules/js/drive-hud.js"></script>
+<script src="modules/js/session-sync.js"></script>
 <script src="modules/js/poll-engine.js"></script>
 
 </body>
