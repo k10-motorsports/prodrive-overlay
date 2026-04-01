@@ -135,6 +135,47 @@
             font-weight: var(--fw-semi);
             color: var(--text-primary);
           }
+
+          /* ── MINIMAL MODE — Tufte-pure: flat bar, hero laps number ── */
+          :host-context(body.mode-minimal) .fg-bar-wrapper {
+            border: none;
+            border-radius: 2px;
+            height: 14px;
+          }
+
+          :host-context(body.mode-minimal) .fg-bar {
+            background: var(--green) !important;
+            background-image: none !important;
+          }
+
+          :host-context(body.mode-minimal) .fg-item {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 3px 0;
+          }
+
+          :host-context(body.mode-minimal) .fg-value {
+            font-size: 14px;
+            font-weight: var(--fw-black);
+          }
+
+          :host-context(body.mode-minimal) .fg-label {
+            font-size: 8px;
+            font-weight: var(--fw-medium);
+            color: var(--text-dim);
+          }
+
+          /* Laps remaining is the hero number — the most actionable data */
+          :host-context(body.mode-minimal) .fg-item:nth-child(3) .fg-value {
+            font-size: 20px;
+            color: var(--text-primary);
+          }
+
+          /* Status is redundant with fuel bar color — hide it */
+          :host-context(body.mode-minimal) .fg-item:nth-child(4) {
+            display: none;
+          }
         </style>
 
         <div class="fg-panel">

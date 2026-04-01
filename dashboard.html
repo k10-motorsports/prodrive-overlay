@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>RaceCor Dashboard</title>
+<title>RaceCor.io Dashboard</title>
 <!--
   SimHub HTML Dashboard — K10 Motorsports
   ════════════════════════════════════════════════════════════════
@@ -324,7 +324,7 @@
     <div class="logo-col">
       <div class="logo-square" id="k10LogoSquare">
         <canvas class="gl-overlay" id="k10LogoGlCanvas" style="z-index:1;"></canvas>
-        <img src="images/branding/logomark.png" alt="RaceCor" style="width:75%;height:auto;opacity:1;position:relative;z-index:2;">
+        <img src="images/branding/logomark.png" alt="RaceCor.io" style="width:75%;height:auto;opacity:1;position:relative;z-index:2;">
       </div>
       <div class="logo-square" id="carLogoSquare">
         <canvas class="mfr-flag-canvas" id="mfrFlagCanvas"></canvas>
@@ -624,7 +624,7 @@
 
 <!-- COMPONENT: Idle State Logo (visible when driver is not in-car) -->
 <div class="idle-logo" id="idleLogo">
-  <img src="images/branding/logomark.png" alt="RaceCor">
+  <img src="images/branding/logomark.png" alt="RaceCor.io">
 </div>
 
 <!-- COMPONENT: Pit Limiter Banner -->
@@ -762,12 +762,12 @@
     <div class="settings-titlebar" id="settingsTitlebar">
       <div class="settings-titlebar-logo" id="settingsTitlebarLogo"></div>
       <div style="flex:1">
-        <div class="settings-title">RaceCor</div>
+        <div class="settings-title">RaceCor.io</div>
         <div class="settings-subtitle">Configure the overlay</div>
       </div>
       <button class="settings-popout-btn" id="settingsPopoutBtn" onclick="popoutSettings()" title="Open on secondary display">⧉</button>
       <button class="settings-titlebar-btn" onclick="toggleSettings()" title="Close settings">✕</button>
-      <button class="settings-titlebar-btn settings-quit-btn" onclick="if(window.k10 &amp;&amp; window.k10.quitApp) window.k10.quitApp(); else window.close();" title="Quit RaceCor">⏻</button>
+      <button class="settings-titlebar-btn settings-quit-btn" onclick="if(window.k10 &amp;&amp; window.k10.quitApp) window.k10.quitApp(); else window.close();" title="Quit RaceCor.io">⏻</button>
     </div>
 
     <div class="settings-conn-warn" id="settingsConnWarn">
@@ -903,7 +903,7 @@
         <button class="settings-preset-btn" data-preset="minimal-plus" data-pro-feature="modules" onclick="applyVisualPreset('minimal-plus')">Minimal+</button>
         <button class="settings-preset-btn active" data-preset="standard" onclick="applyVisualPreset('standard')">Standard</button>
       </div>
-      <div class="settings-hint">Minimal and Minimal+ require K10 Pro connection</div>
+      <div class="settings-hint">Minimal and Minimal+ require RaceCor.io Pro Drive connection</div>
 
       <div class="settings-row"><span class="settings-label">Panel Borders</span><div class="settings-toggle on" data-key="showBorders" onclick="toggleSetting(this)"></div></div>
 
@@ -983,7 +983,7 @@
         <span class="settings-label">Rally Mode</span>
         <div class="settings-toggle disabled" id="layoutRallyToggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
       </div>
-      <div class="settings-hint" id="layoutRallyHint">Connect K10 Pro to enable</div>
+      <div class="settings-hint" id="layoutRallyHint">Connect RaceCor.io Pro Drive to enable</div>
 
       </div><!-- /settings-two-col -->
     </div>
@@ -995,10 +995,10 @@
       <div class="conn-card conn-card-primary" id="k10ProCard">
         <div class="conn-card-header">
           <div class="conn-card-icon k10pro">
-            <img src="images/branding/logomark.png" alt="RaceCor" style="width:20px;height:20px;object-fit:contain;" />
+            <img src="images/branding/logomark.png" alt="RaceCor.io" style="width:20px;height:20px;object-fit:contain;" />
           </div>
           <div>
-            <div class="conn-card-title">K10 Pro Drive</div>
+            <div class="conn-card-title">RaceCor.io Pro Drive</div>
             <div class="conn-card-subtitle">Connect to unlock all Pro features</div>
           </div>
         </div>
@@ -1010,12 +1010,12 @@
             <div class="conn-status-text" id="connK10Text">Not connected</div>
           </div>
           <div class="conn-card-detail">
-            Sign in with your K10 Pro Drive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
+            Sign in with your RaceCor.io Pro Drive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
           </div>
           <div class="conn-card-actions">
             <button class="conn-btn k10-btn" id="k10ConnectBtn" onclick="connectK10Pro()">
               <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
-              Connect to K10 Pro Drive
+              Connect to RaceCor.io Pro Drive
             </button>
           </div>
         </div>
@@ -1045,7 +1045,7 @@
       <!-- Pro features info (shown when not connected) -->
       <div class="conn-pro-info" id="k10ProInfo">
         <div class="conn-pro-info-title">Pro Features</div>
-        <div class="conn-pro-info-text">Connect your K10 Pro Drive account to enable all premium features. Visit <strong>drive.k10motorsports.racing</strong> to create your account.</div>
+        <div class="conn-pro-info-text">Connect your RaceCor.io Pro Drive account to enable all premium features. Visit <strong>drive.racecor.io</strong> to create your account.</div>
         <div class="conn-pro-feature-grid">
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🎙️</span> Commentary</div>
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚠️</span> Incidents</div>
@@ -1055,6 +1055,28 @@
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">✨</span> WebGL Effects</div>
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🔮</span> Reflections</div>
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚙️</span> Module Config</div>
+        </div>
+      </div>
+
+      <!-- ═══ iRacing Data Sync Card ═══ -->
+      <div class="conn-card conn-card-secondary" id="iracingDataSyncCard" style="margin-top:8px;">
+        <div class="conn-card-header" style="margin-bottom:6px;">
+          <div class="conn-card-icon iracing" style="width:24px;height:24px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          </div>
+          <div>
+            <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
+            <div class="conn-card-subtitle" style="font-size:9px;">Session results &amp; rating tracking</div>
+          </div>
+          <div style="margin-left:auto;">
+            <div class="settings-toggle" id="iracingSyncToggle" onclick="toggleIRacingSync(this)"></div>
+          </div>
+        </div>
+        <div class="conn-card-detail" id="iracingSyncDetail" style="font-size:10px;line-height:1.4;color:hsla(0,0%,100%,0.45);padding:0 2px;">
+          When enabled, RaceCor.io Pro Drive records your race results — finish position, incidents, lap times, and rating changes — to build your personal performance dashboard. Data is captured at the start and end of each session and synced to your account. No telemetry is stored, only session summaries.
+        </div>
+        <div class="conn-card-detail" id="iracingSyncActive" style="display:none;font-size:10px;color:hsla(120,60%,60%,0.8);padding:0 2px;">
+          ✓ Session data will sync to your RaceCor.io Pro Drive dashboard
         </div>
       </div>
 
@@ -1376,6 +1398,7 @@
 <script src="modules/js/session-sync.js"></script>
 <script src="modules/js/driver-profile.js"></script>
 <script src="modules/js/drive-hud.js"></script>
+<script src="modules/js/session-sync.js"></script>
 <script src="modules/js/poll-engine.js"></script>
 
 </body>

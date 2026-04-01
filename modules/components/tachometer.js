@@ -273,6 +273,62 @@
             0% { opacity: 0.84; }
             100% { opacity: 1; }
           }
+
+          /* ── MINIMAL MODE — Tufte-pure: flat segments, bigger numbers ── */
+          :host-context(body.mode-minimal) .tacho-gear {
+            font-size: 80px;
+          }
+
+          :host-context(body.mode-minimal) .speed-value {
+            font-size: 28px;
+            font-weight: var(--fw-black);
+          }
+
+          :host-context(body.mode-minimal) .tacho-rpm {
+            font-size: 16px;
+            text-shadow: none !important;
+            transform: none !important;
+          }
+
+          :host-context(body.mode-minimal) .tacho-seg {
+            border: none;
+            box-shadow: none !important;
+            border-radius: 1px 1px 0 0;
+            transition: background 60ms linear, height 60ms linear;
+          }
+
+          :host-context(body.mode-minimal) .tacho-seg.lit-green {
+            background: var(--green);
+            box-shadow: none;
+            border: none;
+          }
+
+          :host-context(body.mode-minimal) .tacho-seg.lit-yellow {
+            background: var(--amber);
+            box-shadow: none;
+            border: none;
+          }
+
+          :host-context(body.mode-minimal) .tacho-seg.lit-red {
+            background: var(--red);
+            box-shadow: none;
+            border: none;
+          }
+
+          :host-context(body.mode-minimal) .tacho-seg.lit-redline {
+            background: var(--red);
+            box-shadow: none;
+            border: none;
+            animation: none;
+            opacity: 1;
+          }
+
+          :host-context(body.mode-minimal) .tacho-rpm.rpm-pulse-green,
+          :host-context(body.mode-minimal) .tacho-rpm.rpm-pulse-yellow,
+          :host-context(body.mode-minimal) .tacho-rpm.rpm-pulse-red {
+            text-shadow: none !important;
+            transform: none !important;
+          }
         </style>
 
         <div class="tacho-container">

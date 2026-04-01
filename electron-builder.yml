@@ -40,7 +40,7 @@ mac:
         - arm64
 
 dmg:
-  title: RaceCor
+  title: RaceCor.io
   artifactName: RaceCor-${version}-${arch}.${ext}
   # Explicit window config avoids electron-builder trying to apply a
   # background image, which triggers the hdiutil APFS race condition

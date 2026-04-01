@@ -362,6 +362,43 @@
             0%   { box-shadow: 0 4px 24px hsla(0, 0%, 0%, 0.6), 0 0 8px hsla(0, 90%, 50%, 0.35); }
             100% { box-shadow: 0 4px 24px hsla(0, 0%, 0%, 0.6), 0 0 20px hsla(0, 90%, 50%, 0.70); }
           }
+
+          /* ── MINIMAL MODE — Tufte-pure: solid color, big text, zero chartjunk ── */
+          :host-context(body.mode-minimal) .rc-inner {
+            background: hsla(0, 0%, 3%, 0.95);
+            padding: 12px 24px 14px 20px;
+            box-shadow: none !important;
+            animation: none !important;
+          }
+
+          /* Remove animated stripes — first species of chartjunk (moiré) */
+          :host-context(body.mode-minimal) .rc-inner::after {
+            display: none !important;
+          }
+
+          /* Remove accent bar — decoration, not data */
+          :host-context(body.mode-minimal) .rc-inner::before {
+            display: none !important;
+          }
+
+          /* Remove icon — text + color communicate the flag state */
+          :host-context(body.mode-minimal) .rc-icon {
+            display: none;
+          }
+
+          /* The message IS the data — make it large and unmissable */
+          :host-context(body.mode-minimal) .rc-title {
+            font-size: 36px;
+            letter-spacing: 0.15em;
+          }
+
+          :host-context(body.mode-minimal) .rc-detail {
+            font-size: 14px;
+          }
+
+          :host-context(body.mode-minimal) .rc-banner.rc-visible .rc-inner {
+            animation: none !important;
+          }
         </style>
 
         <div class="rc-banner" id="rcBanner">

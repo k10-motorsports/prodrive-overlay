@@ -144,6 +144,30 @@
           .pc-label-value.throttle { color: hsl(120, 60%, 55%); }
           .pc-label-value.brake { color: hsl(0, 80%, 55%); }
           .pc-label-value.clutch { color: hsl(210, 60%, 55%); }
+
+          /* ── MINIMAL MODE — Tufte-pure: trace + big numbers, no chrome ── */
+          :host-context(body.mode-minimal) .pc-canvas-wrapper {
+            border: none;
+            border-radius: 0;
+          }
+
+          :host-context(body.mode-minimal) .pc-label {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 2px 0;
+          }
+
+          /* Color IS the label — remove redundant text labels */
+          :host-context(body.mode-minimal) .pc-label-name {
+            display: none;
+          }
+
+          /* Make the numbers count — they're all you've got now */
+          :host-context(body.mode-minimal) .pc-label-value {
+            font-size: 18px;
+            font-weight: var(--fw-black);
+          }
         </style>
 
         <div class="pc-panel">

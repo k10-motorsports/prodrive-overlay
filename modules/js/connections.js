@@ -90,7 +90,7 @@
     if (!window.k10 || !window.k10.k10Connect) {
       // Fallback: open website in browser
       if (window.k10 && window.k10.openExternal) {
-        window.k10.openExternal('https://drive.racecor.io');
+        window.k10.openExternal('https://prodrive.racecor.io');
       }
       return;
     }
@@ -107,6 +107,12 @@
         _settings.k10User = result.user;
         _settings.k10Features = result.user.features || [];
         saveSettings();
+
+        // Apply custom logo if available
+        if (result.user.customLogoUrl && window.setCustomLogoUrl) {
+          window.setCustomLogoUrl(result.user.customLogoUrl);
+        }
+
         updateK10ConnectionCard();
       } else {
         const errMsg = result?.error || 'Connection failed';
@@ -123,7 +129,7 @@
       _k10Connecting = false;
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" /> Connect to K10 Pro Drive';
+        btn.innerHTML = '<img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" /> Connect to RaceCor.io Pro Drive';
       }
     }
   }
@@ -163,7 +169,7 @@
           badge = document.createElement('span');
           badge.className = 'pro-badge';
           badge.innerHTML = '<img src="images/branding/logomark.png" alt="Pro" />';
-          badge.title = 'K10 Pro feature — connect to enable';
+          badge.title = 'RaceCor.io Pro Drive feature — connect to enable';
           badge.onclick = function(e) { e.stopPropagation(); navigateToConnections(); };
           el.parentElement.appendChild(badge);
         }
@@ -176,7 +182,7 @@
       const featureKey = tab.dataset.proTab;
       const enabled = isPro && _k10Features.includes(featureKey);
       tab.classList.toggle('disabled', !enabled);
-      tab.title = enabled ? '' : 'K10 Pro feature — connect to enable';
+      tab.title = enabled ? '' : 'RaceCor.io Pro Drive feature — connect to enable';
     });
 
     // Update layout rally toggle (now based on K10 Pro, not Discord)
@@ -423,6 +429,12 @@
         if (user && user.id) {
           _k10User = user;
           _k10Features = user.features || [];
+
+          // Apply custom logo if available
+          if (user.customLogoUrl && window.setCustomLogoUrl) {
+            window.setCustomLogoUrl(user.customLogoUrl);
+          }
+
           updateK10ConnectionCard();
 
           // Verify token in background
@@ -438,6 +450,10 @@
                 updateK10ConnectionCard();
               } else if (result && result.features) {
                 _k10Features = result.features;
+                // Apply custom logo from verify result
+                if (result.user && result.user.customLogoUrl && window.setCustomLogoUrl) {
+                  window.setCustomLogoUrl(result.user.customLogoUrl);
+                }
                 updateK10ConnectionCard();
               }
             }).catch(() => {});
@@ -450,6 +466,12 @@
     if (_settings.k10User && _settings.k10User.id) {
       _k10User = _settings.k10User;
       _k10Features = _settings.k10Features || [];
+
+      // Apply custom logo if available
+      if (_settings.k10User.customLogoUrl && window.setCustomLogoUrl) {
+        window.setCustomLogoUrl(_settings.k10User.customLogoUrl);
+      }
+
       updateK10ConnectionCard();
     }
   }
@@ -549,6 +571,23 @@
     if (window.updateGameLogo) window.updateGameLogo(window._currentGameId || 'iracing', !isOn);
   }
 
+  // ─── iRacing Data Sync toggle ───
+  function toggleIRacingSync(el) {
+    var isOn = el.classList.contains('on');
+    var newVal = !isOn;
+    el.classList.toggle('on', newVal);
+    _settings.iracingDataSync = newVal;
+    if (window.setSessionSyncEnabled) window.setSessionSyncEnabled(newVal);
+
+    var detail = document.getElementById('iracingSyncDetail');
+    var active = document.getElementById('iracingSyncActive');
+    if (detail) detail.style.display = newVal ? 'none' : '';
+    if (active) active.style.display = newVal ? '' : 'none';
+
+    saveSettings();
+  }
+  window.toggleIRacingSync = toggleIRacingSync;
+
   // ─── Logo subtitle ───
   function updateLogoSubtitle(value) {
     _settings.logoSubtitle = value;
@@ -567,7 +606,7 @@
       label = document.createElement('span');
       label.id = 'k10SubtitleLabel';
       label.className = 'logo-subtitle';
-      logo.parentNode.insertBefore(label, logo.nextSibling);
+      logo.appendChild(label);
     }
 
     var text = _settings.logoSubtitle || '';
@@ -870,5 +909,16 @@
   initDiscordState();
   initK10State();
   initRemoteDashState();
+
+  // Restore iRacing sync toggle state
+  var syncToggle = document.getElementById('iracingSyncToggle');
+  if (syncToggle && _settings.iracingDataSync) {
+    syncToggle.classList.add('on');
+    if (window.setSessionSyncEnabled) window.setSessionSyncEnabled(true);
+    var detail = document.getElementById('iracingSyncDetail');
+    var active = document.getElementById('iracingSyncActive');
+    if (detail) detail.style.display = 'none';
+    if (active) active.style.display = '';
+  }
 
   // ═══════════════════════════════════════════════════════════════
