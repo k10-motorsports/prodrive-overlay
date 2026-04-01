@@ -41,6 +41,31 @@
     return 0;
   }
 
+  // ─── Track display name resolver ───
+  // Fetches user-customized display names from the K10 API.
+  // Falls back to the game-provided name if no custom name is set or API is unreachable.
+  const _trackDisplayNameCache = {};    // { gameTrackName → displayName }
+  const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
+  const K10_DISPLAY_NAME_API = 'https://drive.racecor.io/api/tracks';
+
+  function resolveTrackDisplayName(gameTrackName) {
+    if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
+    _trackDisplayNamePending[gameTrackName] = true;
+    fetch(K10_DISPLAY_NAME_API + '?trackName=' + encodeURIComponent(gameTrackName))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        // displayName from API already falls back to trackName server-side
+        _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
+      })
+      .catch(function() {
+        // API unreachable — use the game name
+        _trackDisplayNameCache[gameTrackName] = gameTrackName;
+      })
+      .finally(function() {
+        delete _trackDisplayNamePending[gameTrackName];
+      });
+  }
+
   // ─── Data fetch loop (runs on setInterval — decoupled from display) ───
   async function pollUpdate() {
     if (_pollActive) return;
@@ -1038,13 +1063,22 @@
     const mapHeading = +v('K10Motorsports.Plugin.TrackMap.PlayerHeading') || 0;
     // Use plugin path if available; show no track when map isn't ready
     updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading);
-    // Full map label: show track name instead of "Full"
+    // Full map label: show display name (from K10 API) or fall back to game name
     const fullMapLbl = document.getElementById('fullMapLabel');
     if (fullMapLbl) {
       const trackName = vs('K10Motorsports.Plugin.TrackMap.TrackName')
                      || vs('DataCorePlugin.GameData.TrackName')
                      || '';
-      if (trackName && trackName !== fullMapLbl.textContent) fullMapLbl.textContent = trackName;
+      if (trackName) {
+        const resolved = _trackDisplayNameCache[trackName];
+        if (resolved) {
+          if (resolved !== fullMapLbl.textContent) fullMapLbl.textContent = resolved;
+        } else {
+          // Show game name immediately, then upgrade if K10 returns a display name
+          if (trackName !== fullMapLbl.textContent) fullMapLbl.textContent = trackName;
+          resolveTrackDisplayName(trackName);
+        }
+      }
     }
 
     // ─── Datastream ───

@@ -373,10 +373,15 @@
       }
     }
 
-    // Track name
+    // Track name — prefer K10 display name, fall back to game name
     var nameEl = document.getElementById('dhMapName');
-    var trackName = p['DataCorePlugin.GameData.TrackName'] || '';
-    if (nameEl && trackName) nameEl.textContent = trackName;
+    var trackName = p['K10Motorsports.Plugin.TrackMap.TrackName']
+                 || p['DataCorePlugin.GameData.TrackName'] || '';
+    if (nameEl && trackName) {
+      var resolved = typeof _trackDisplayNameCache !== 'undefined' && _trackDisplayNameCache[trackName];
+      nameEl.textContent = resolved || trackName;
+      if (!resolved && typeof resolveTrackDisplayName === 'function') resolveTrackDisplayName(trackName);
+    }
   }
   window.updateDriveHud = updateDriveHud;
 
