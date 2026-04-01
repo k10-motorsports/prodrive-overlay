@@ -577,7 +577,7 @@ const _defaultSettings = {
   showRedlineFlash: true,
   // Leaderboard
   lbFocus: 'me',        // 'me' = center on player, 'lead' = show from P1
-  lbMaxRows: 5,         // max visible opponent rows
+  lbMaxRows: 10,        // max visible opponent rows (increased from 5 to show more of full field)
   lbExpandToFill: false, // override lbMaxRows to fill available screen space
   // Datastream field toggles
   dsShowGforce: true,
