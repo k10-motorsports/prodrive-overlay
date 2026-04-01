@@ -72,6 +72,10 @@
       if (info) info.style.display = '';
     }
 
+    // Populate agent key input
+    const akInput = document.getElementById('agentKeyInput');
+    if (akInput) akInput.value = _settings.agentKey || '';
+
     // Update pro feature gating across all settings
     updateProFeatureGating();
 
@@ -85,12 +89,18 @@
     if (typeof applyLogoSubtitle === 'function') applyLogoSubtitle();
   }
 
+  // ── AI Race Coach agent key ──
+  window.updateAgentKey = function(key) {
+    _settings.agentKey = key || '';
+    saveSettings();
+  };
+
   async function connectK10Pro() {
     if (_k10Connecting) return;
     if (!window.k10 || !window.k10.k10Connect) {
       // Fallback: open website in browser
       if (window.k10 && window.k10.openExternal) {
-        window.k10.openExternal('https://prodrive.racecor.io');
+        window.k10.openExternal('https://drive.racecor.io');
       }
       return;
     }
@@ -123,7 +133,7 @@
       _k10Connecting = false;
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" /> Connect to RaceCor.io Pro Drive';
+        btn.innerHTML = '<img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" /> Connect to K10 Pro Drive';
       }
     }
   }
@@ -163,7 +173,7 @@
           badge = document.createElement('span');
           badge.className = 'pro-badge';
           badge.innerHTML = '<img src="images/branding/logomark.png" alt="Pro" />';
-          badge.title = 'RaceCor.io Pro Drive feature — connect to enable';
+          badge.title = 'K10 Pro feature — connect to enable';
           badge.onclick = function(e) { e.stopPropagation(); navigateToConnections(); };
           el.parentElement.appendChild(badge);
         }
@@ -176,7 +186,7 @@
       const featureKey = tab.dataset.proTab;
       const enabled = isPro && _k10Features.includes(featureKey);
       tab.classList.toggle('disabled', !enabled);
-      tab.title = enabled ? '' : 'RaceCor.io Pro Drive feature — connect to enable';
+      tab.title = enabled ? '' : 'K10 Pro feature — connect to enable';
     });
 
     // Update layout rally toggle (now based on K10 Pro, not Discord)

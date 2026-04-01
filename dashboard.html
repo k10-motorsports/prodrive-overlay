@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>RaceCor.io Dashboard</title>
+<title>RaceCor Dashboard</title>
 <!--
   SimHub HTML Dashboard — K10 Motorsports
   ════════════════════════════════════════════════════════════════
@@ -52,6 +52,7 @@
 <link rel="stylesheet" href="modules/styles/rally.css">
 <link rel="stylesheet" href="modules/styles/ambient.css">
 <link rel="stylesheet" href="modules/styles/pitbox.css">
+<link rel="stylesheet" href="modules/styles/race-results.css">
 <!-- drive-mode.css removed — iPad drive mode no longer active -->
 
 </head>
@@ -324,7 +325,7 @@
     <div class="logo-col">
       <div class="logo-square" id="k10LogoSquare">
         <canvas class="gl-overlay" id="k10LogoGlCanvas" style="z-index:1;"></canvas>
-        <img src="images/branding/logomark.png" alt="RaceCor.io" style="width:75%;height:auto;opacity:1;position:relative;z-index:2;">
+        <img src="images/branding/logomark.png" alt="RaceCor" style="width:75%;height:auto;opacity:1;position:relative;z-index:2;">
       </div>
       <div class="logo-square" id="carLogoSquare">
         <canvas class="mfr-flag-canvas" id="mfrFlagCanvas"></canvas>
@@ -624,7 +625,7 @@
 
 <!-- COMPONENT: Idle State Logo (visible when driver is not in-car) -->
 <div class="idle-logo" id="idleLogo">
-  <img src="images/branding/logomark.png" alt="RaceCor.io">
+  <img src="images/branding/logomark.png" alt="RaceCor">
 </div>
 
 <!-- COMPONENT: Pit Limiter Banner -->
@@ -654,6 +655,64 @@
       <div class="re-stat"><div class="re-stat-label">INCIDENTS</div><div class="re-stat-val" id="reStatInc">0</div></div>
       <div class="re-stat"><div class="re-stat-label">BEST LAP</div><div class="re-stat-val" id="reStatLap">—</div></div>
       <div class="re-stat"><div class="re-stat-label">iRATING</div><div class="re-stat-val" id="reStatIR">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPONENT: Post-Race Results Screen -->
+<div id="raceResultsScreen">
+  <button class="rr-close" onclick="hideRaceResults()" title="Close results">✕</button>
+  <div class="rr-content">
+    <!-- Header: Position, track, metadata -->
+    <div class="rr-header">
+      <div id="rrPosition">—</div>
+      <div class="rr-header-text">
+        <h2 id="rrTrack">Track Name</h2>
+        <div id="rrMeta">Car • 0/0 laps • 0:00.000</div>
+      </div>
+      <div class="rr-rating">
+        <div class="rr-rating-label">iR Delta</div>
+        <div id="rrIRDelta">—</div>
+      </div>
+      <div class="rr-rating">
+        <div class="rr-rating-label">SR Delta</div>
+        <div id="rrSRDelta">—</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="rr-charts">
+      <div class="rr-chart">
+        <div class="rr-chart-title">Lap Times</div>
+        <canvas id="rrLapChart" class="rr-chart-canvas"></canvas>
+      </div>
+      <div class="rr-chart">
+        <div class="rr-chart-title">Position Over Race</div>
+        <canvas id="rrPosChart" class="rr-chart-canvas"></canvas>
+      </div>
+      <div class="rr-chart">
+        <div class="rr-chart-title">Performance Delta</div>
+        <canvas id="rrPerfChart" class="rr-chart-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Key Moments Timeline -->
+    <div>
+      <h3 class="rr-section-title">Key Moments</h3>
+      <div id="rrMoments"></div>
+    </div>
+
+    <!-- Coaching Tips -->
+    <div>
+      <h3 class="rr-section-title">Coaching Tips</h3>
+      <div id="rrTips"></div>
+    </div>
+
+    <!-- AI Analysis Section -->
+    <div id="rrAISection">
+      <h3 class="rr-section-title">AI Race Coach</h3>
+      <button id="rrAIBtn">Generate AI Analysis</button>
+      <div id="rrAIResult"></div>
     </div>
   </div>
 </div>
@@ -762,12 +821,12 @@
     <div class="settings-titlebar" id="settingsTitlebar">
       <div class="settings-titlebar-logo" id="settingsTitlebarLogo"></div>
       <div style="flex:1">
-        <div class="settings-title">RaceCor.io</div>
+        <div class="settings-title">RaceCor</div>
         <div class="settings-subtitle">Configure the overlay</div>
       </div>
       <button class="settings-popout-btn" id="settingsPopoutBtn" onclick="popoutSettings()" title="Open on secondary display">⧉</button>
       <button class="settings-titlebar-btn" onclick="toggleSettings()" title="Close settings">✕</button>
-      <button class="settings-titlebar-btn settings-quit-btn" onclick="if(window.k10 &amp;&amp; window.k10.quitApp) window.k10.quitApp(); else window.close();" title="Quit RaceCor.io">⏻</button>
+      <button class="settings-titlebar-btn settings-quit-btn" onclick="if(window.k10 &amp;&amp; window.k10.quitApp) window.k10.quitApp(); else window.close();" title="Quit RaceCor">⏻</button>
     </div>
 
     <div class="settings-conn-warn" id="settingsConnWarn">
@@ -903,7 +962,7 @@
         <button class="settings-preset-btn" data-preset="minimal-plus" data-pro-feature="modules" onclick="applyVisualPreset('minimal-plus')">Minimal+</button>
         <button class="settings-preset-btn active" data-preset="standard" onclick="applyVisualPreset('standard')">Standard</button>
       </div>
-      <div class="settings-hint">Minimal and Minimal+ require RaceCor.io Pro Drive connection</div>
+      <div class="settings-hint">Minimal and Minimal+ require K10 Pro connection</div>
 
       <div class="settings-row"><span class="settings-label">Panel Borders</span><div class="settings-toggle on" data-key="showBorders" onclick="toggleSetting(this)"></div></div>
 
@@ -983,7 +1042,7 @@
         <span class="settings-label">Rally Mode</span>
         <div class="settings-toggle disabled" id="layoutRallyToggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
       </div>
-      <div class="settings-hint" id="layoutRallyHint">Connect RaceCor.io Pro Drive to enable</div>
+      <div class="settings-hint" id="layoutRallyHint">Connect K10 Pro to enable</div>
 
       </div><!-- /settings-two-col -->
     </div>
@@ -995,10 +1054,10 @@
       <div class="conn-card conn-card-primary" id="k10ProCard">
         <div class="conn-card-header">
           <div class="conn-card-icon k10pro">
-            <img src="images/branding/logomark.png" alt="RaceCor.io" style="width:20px;height:20px;object-fit:contain;" />
+            <img src="images/branding/logomark.png" alt="RaceCor" style="width:20px;height:20px;object-fit:contain;" />
           </div>
           <div>
-            <div class="conn-card-title">RaceCor.io Pro Drive</div>
+            <div class="conn-card-title">K10 Pro Drive</div>
             <div class="conn-card-subtitle">Connect to unlock all Pro features</div>
           </div>
         </div>
@@ -1010,12 +1069,12 @@
             <div class="conn-status-text" id="connK10Text">Not connected</div>
           </div>
           <div class="conn-card-detail">
-            Sign in with your RaceCor.io Pro Drive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
+            Sign in with your K10 Pro Drive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
           </div>
           <div class="conn-card-actions">
             <button class="conn-btn k10-btn" id="k10ConnectBtn" onclick="connectK10Pro()">
               <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
-              Connect to RaceCor.io Pro Drive
+              Connect to K10 Pro Drive
             </button>
           </div>
         </div>
@@ -1036,6 +1095,17 @@
             </div>
           </div>
           <div class="conn-pro-features" id="k10FeatureList"></div>
+          <div class="conn-agent-key" id="connAgentKey" style="margin-top:12px;">
+            <div class="conn-card-detail" style="margin-bottom:6px;">
+              <strong>AI Race Coach</strong> — paste your API key to enable AI-powered post-race analysis
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="settings-input" id="agentKeyInput" type="password"
+                     placeholder="sk-..."
+                     style="flex:1;font-size:10px;padding:6px 8px;font-family:var(--ff-mono);"
+                     onchange="updateAgentKey(this.value)" />
+            </div>
+          </div>
           <div class="conn-card-actions">
             <button class="conn-btn disconnect-btn" onclick="disconnectK10Pro()">Disconnect</button>
           </div>
@@ -1045,7 +1115,7 @@
       <!-- Pro features info (shown when not connected) -->
       <div class="conn-pro-info" id="k10ProInfo">
         <div class="conn-pro-info-title">Pro Features</div>
-        <div class="conn-pro-info-text">Connect your RaceCor.io Pro Drive account to enable all premium features. Visit <strong>drive.racecor.io</strong> to create your account.</div>
+        <div class="conn-pro-info-text">Connect your K10 Pro Drive account to enable all premium features. Visit <strong>drive.k10motorsports.racing</strong> to create your account.</div>
         <div class="conn-pro-feature-grid">
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🎙️</span> Commentary</div>
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚠️</span> Incidents</div>
@@ -1363,6 +1433,7 @@
 <script src="modules/js/incidents.js"></script>
 <script src="modules/js/pit-limiter.js"></script>
 <script src="modules/js/race-end.js"></script>
+<script src="modules/js/race-results.js"></script>
 <script src="modules/js/formation.js"></script>
 <script src="modules/js/spotter.js"></script>
 <script src="modules/js/fps.js"></script>
