@@ -12,7 +12,7 @@
   let _k10Connecting = false;
 
   // Pro features — keys map to setting toggles and sidebar items
-  const PRO_FEATURE_KEYS = ['commentary','incidents','spotter','leaderboard','datastream','webgl','reflections','modules','minimal','minimal-plus'];
+  const PRO_FEATURE_KEYS = ['commentary','incidents','spotter','leaderboard','datastream','webgl','reflections','modules','minimal','minimal-plus','branding'];
 
   function isProFeature(key) {
     const map = {
@@ -80,6 +80,9 @@
 
     // iRacing tab — enabled when K10 connected (was Discord)
     if (typeof updateIRacingTabState === 'function') updateIRacingTabState();
+
+    // Apply logo subtitle (updates when K10 connection state changes)
+    if (typeof applyLogoSubtitle === 'function') applyLogoSubtitle();
   }
 
   async function connectK10Pro() {
@@ -546,6 +549,48 @@
     if (window.updateGameLogo) window.updateGameLogo(window._currentGameId || 'iracing', !isOn);
   }
 
+  // ─── Logo subtitle ───
+  function updateLogoSubtitle(value) {
+    _settings.logoSubtitle = value;
+    applyLogoSubtitle();
+    saveSettings();
+  }
+  window.updateLogoSubtitle = updateLogoSubtitle;
+
+  function applyLogoSubtitle() {
+    var label = document.getElementById('k10SubtitleLabel');
+    var logo = document.getElementById('k10LogoSquare');
+    if (!logo) return;
+
+    // Create label element if it doesn't exist
+    if (!label) {
+      label = document.createElement('span');
+      label.id = 'k10SubtitleLabel';
+      label.className = 'logo-subtitle';
+      logo.parentNode.insertBefore(label, logo.nextSibling);
+    }
+
+    var text = _settings.logoSubtitle || '';
+    // Show subtitle only when K10 Pro is connected and text is set
+    if (text && _k10User) {
+      label.textContent = text;
+      label.style.display = 'block';
+      label.style.opacity = '1';
+    } else if (!_k10User && !text) {
+      // Teaser: show placeholder for logged-out users
+      label.textContent = 'K10 Motorsports';
+      label.style.display = 'block';
+      label.style.opacity = '0.3';
+    } else if (text && !_k10User) {
+      label.textContent = text;
+      label.style.display = 'block';
+      label.style.opacity = '0.3';
+    } else {
+      label.style.display = 'none';
+    }
+  }
+  window.applyLogoSubtitle = applyLogoSubtitle;
+
   // ─── Green screen mode ───
   async function toggleGreenScreen(el) {
     const isOn = el.classList.contains('on');
@@ -668,6 +713,20 @@
     // ── 6. Spotter: co-located with race control at top center ──
     // Positioning is handled entirely by CSS (top: 8px, left: 50%, transform).
     // No layout-dependent positioning needed.
+
+    // ── 7. Apply bottom Y-offset ──
+    // When layout is bottom-oriented, apply margin-bottom offset to relevant panels
+    var yOff = (_settings.bottomYOffset || 0) + 'px';
+    var secContainer = document.getElementById('secContainer');
+    var incPanel = document.getElementById('incidentsPanel');
+    var cmtCol = document.getElementById('commentaryCol');
+    var gameLogo = document.getElementById('gameLogoOverlay');
+    // Only apply when layout is bottom-oriented
+    var isBottomLayout = pos.startsWith('bottom');
+    if (secContainer) secContainer.style.marginBottom = isBottomLayout ? yOff : '';
+    if (incPanel) incPanel.style.marginBottom = isBottomLayout ? yOff : '';
+    if (cmtCol) cmtCol.style.marginBottom = isBottomLayout ? yOff : '';
+    if (gameLogo) gameLogo.style.marginBottom = isBottomLayout ? yOff : '';
   }
 
   function updateLayoutPosition(value) {
@@ -724,6 +783,14 @@
       if (settingsOverlay) settingsOverlay.style.zoom = scale;
     }
   }
+
+  function previewBottomYOffset(val) {
+    document.getElementById('bottomYOffsetVal').textContent = val + 'px';
+    _settings.bottomYOffset = parseInt(val, 10);
+    applyLayout();
+    saveSettings();
+  }
+  window.previewBottomYOffset = previewBottomYOffset;
 
   function updateForceFlag(val) {
     _forceFlagState = val;
