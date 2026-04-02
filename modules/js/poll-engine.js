@@ -1128,6 +1128,7 @@
           setTimeout(function() {
             try { showRaceResults(p, _demo); } catch(e) { console.warn('[K10] Race results error:', e); }
           }, 31000);
+        }
         // Capture session end for sync
         if (typeof window.captureSessionEnd === 'function') {
           window.captureSessionEnd(p, _demo);

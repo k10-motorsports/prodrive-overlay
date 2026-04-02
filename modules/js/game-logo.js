@@ -12,6 +12,7 @@
   var _currentGameId = '';
   var _visible = false;
   var _customLogoUrl = null;
+  var _loadAttempted = {};  // { gameId: true } — prevents retry spam on 404
 
   // Map game IDs to SVG filenames
   var GAME_LOGO_FILES = {
@@ -87,9 +88,9 @@
       _currentSvg = '';
       return;
     }
-    if (gameId === _currentGameId && _currentSvg) {
-      // Already loaded
-      if (_visible && _logoEl) _logoEl.style.opacity = '0.5';
+    if (gameId === _currentGameId && (_currentSvg || _loadAttempted[gameId])) {
+      // Already loaded or already failed — don't retry
+      if (_visible && _logoEl && _currentSvg) _logoEl.style.opacity = '0.5';
       return;
     }
     _currentGameId = gameId;
@@ -119,7 +120,7 @@
           if (_visible) _logoEl.style.opacity = '0.5';
         }
       })
-      .catch(function() { /* non-critical */ });
+      .catch(function() { _loadAttempted[gameId] = true; });
   }
 
   function loadCustomLogo() {
