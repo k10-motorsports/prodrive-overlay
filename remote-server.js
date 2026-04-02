@@ -95,7 +95,7 @@ function serveFile(filePath, res) {
 // and adds a floating touch menu for settings/fullscreen.
 function injectRemoteOverrides(html, req) {
   const host = req.headers.host || `${getLanAddress()}:${_port}`;
-  const proxyUrl = `http://${host}/k10mediabroadcaster/`;
+  const proxyUrl = `http://${host}/racecor-io-pro-drive/`;
 
   const injection = `<script>
 // ── K10 Remote Server Injection ──
@@ -234,8 +234,8 @@ function handleRequest(req, res) {
     return;
   }
 
-  // ── Telemetry proxy: /k10mediabroadcaster/*
-  if (urlPath.startsWith('/k10mediabroadcaster')) {
+  // ── Telemetry proxy: /racecor-io-pro-drive/*
+  if (urlPath.startsWith('/racecor-io-pro-drive')) {
     proxyToSimhub(req, res);
     return;
   }

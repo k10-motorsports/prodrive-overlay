@@ -6,7 +6,7 @@
 // SIMHUB HTTP API CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
-const SIMHUB_URL = 'http://localhost:8889/k10mediabroadcaster/';
+const SIMHUB_URL = 'http://localhost:8889/racecor-io-pro-drive/';
 const POLL_MS = 33; // ~30fps
 
 // All properties we need, batched into a single request
@@ -559,7 +559,7 @@ const _defaultSettings = {
   logoOnlyStart: true, // Start in logo-only mode; HUD reveals when session goes active
   showFuel: true, showTyres: true, showControls: true, showPedals: true,
   showMaps: true, showPosition: true, showTacho: true, showCommentary: true,
-  showK10Logo: true, showCarLogo: true, showGameLogo: true, simhubUrl: 'http://localhost:8889/k10mediabroadcaster/',
+  showK10Logo: true, showCarLogo: true, showGameLogo: true, simhubUrl: 'http://localhost:8889/racecor-io-pro-drive/',
   layoutPosition: 'top-right',
   greenScreen: false, showWebGL: true, showBonkers: true, ambientMode: 'reflective',
   zoom: 165, forceFlag: '', showLeaderboard: true, showDatastream: true, showPitBox: true, showIncidents: true, showSpotter: true,

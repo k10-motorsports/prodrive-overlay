@@ -25,7 +25,7 @@
 
     // SimHub URL
     const urlInput = document.getElementById('settingsSimhubUrl');
-    if (urlInput) urlInput.value = _settings.simhubUrl || 'http://localhost:8889/k10mediabroadcaster/';
+    if (urlInput) urlInput.value = _settings.simhubUrl || 'http://localhost:8889/racecor-io-pro-drive/';
     // Restore saved URL override so polling uses the persisted URL
     if (_settings.simhubUrl && _settings.simhubUrl !== SIMHUB_URL) {
       window._simhubUrlOverride = _settings.simhubUrl;

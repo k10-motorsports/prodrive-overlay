@@ -260,7 +260,7 @@ Commentary data visualization engine with multiple renderer types.
 ### config.js (~330+ lines)
 
 Central configuration file. Defines:
-- `SIMHUB_URL` -- plugin HTTP endpoint (`http://localhost:8889/k10mediabroadcaster/`)
+- `SIMHUB_URL` -- plugin HTTP endpoint (`http://localhost:8889/racecor-io-pro-drive/`)
 - `POLL_MS` -- polling interval (33ms ~ 30fps)
 - `PROP_KEYS` -- array of telemetry property keys to request
 - `DEMO_PROP_KEYS` -- array of demo mode property keys
@@ -420,7 +420,7 @@ When `K10Motorsports.Plugin.DemoMode` is 1, the dashboard reads from `K10Motorsp
 ### SimHub Telemetry Flow
 
 ```
-SimHub -> Plugin.cs (C#) -> TelemetrySnapshot -> HTTP JSON at :8889/k10mediabroadcaster/
+SimHub -> Plugin.cs (C#) -> TelemetrySnapshot -> HTTP JSON at :8889/racecor-io-pro-drive/
   -> fetchProps() (JS) -> pollUpdate() -> update DOM elements
 ```
 

@@ -124,7 +124,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 │  SimHub + K10 Motorsports Plugin         │
 │  ┌─────────────────────────────────────┐ │
 │  │ HTTP Server (port 8889)             │ │
-│  │ GET /k10mediabroadcaster/           │ │
+│  │ GET /racecor-io-pro-drive/           │ │
 │  │ → flat JSON: 100+ properties        │ │
 │  │   (telemetry, commentary, strategy) │ │
 │  └─────────────────────────────────────┘ │
@@ -159,7 +159,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 
 ### Data Flow
 
-1. The SimHub plugin serves all telemetry, commentary, and strategy state as a flat JSON object at `/k10mediabroadcaster/` over HTTP on port 8889.
+1. The SimHub plugin serves all telemetry, commentary, and strategy state as a flat JSON object at `/racecor-io-pro-drive/` over HTTP on port 8889.
 
 2. The dashboard's `fetchProps()` function issues a single HTTP GET every 33ms (~30fps). In demo mode, the dashboard reads from `K10Motorsports.Plugin.Demo.*` properties instead — the switching is transparent.
 
@@ -198,7 +198,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 
 Press `Ctrl+Shift+S` to enter settings mode, then click the gear icon to open the settings panel. Toggle individual dashboard sections on or off: fuel, tyres, controls, pedal traces, track map, position/gaps, tachometer, commentary, K10 logo, car logo, leaderboard, datastream, incidents, and spotter.
 
-You can also change the SimHub API URL for remote setups (e.g., `http://playbox.local:8889/k10mediabroadcaster`).
+You can also change the SimHub API URL for remote setups (e.g., `http://playbox.local:8889/racecor-io-pro-drive`).
 
 Settings persist between sessions via Electron IPC to a JSON file, with localStorage fallback in browser mode.
 
@@ -228,7 +228,7 @@ On x64 systems, native transparency composites directly — no OBS filter needed
 
 ## Troubleshooting
 
-**Dashboard shows no data:** Open `http://localhost:8889/k10mediabroadcaster/` in a browser. You should see a JSON blob with 100+ properties. If not, verify the K10 Motorsports plugin is enabled in SimHub.
+**Dashboard shows no data:** Open `http://localhost:8889/racecor-io-pro-drive/` in a browser. You should see a JSON blob with 100+ properties. If not, verify the K10 Motorsports plugin is enabled in SimHub.
 
 **Overlay crashes on launch (ARM):** Use `npm run start:safe` for software rendering. Requires Electron 33+.
 
