@@ -127,7 +127,7 @@
     if (!host) return;
     // Strip protocol/path if user pasted a full URL
     host = host.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:.*$/, '');
-    const newUrl = `http://${host}:8889/k10mediabroadcaster/`;
+    const newUrl = `http://${host}:8889/racecor-io-pro-drive/`;
     window._simhubUrlOverride = newUrl;
     _settings.simhubUrl = newUrl;
     saveSettings();

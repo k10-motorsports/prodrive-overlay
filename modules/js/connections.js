@@ -4,7 +4,7 @@
   //  CONNECTIONS TAB — K10 Pro, SimHub, Discord
   // ═══════════════════════════════════════════════════════════════
 
-  const DISCORD_GUILD_INVITE = 'https://discord.gg/k10mediabroadcaster';
+  const DISCORD_GUILD_INVITE = 'https://discord.gg/racecor';
   // _discordUser declared in config.js
   let _discordConnecting = false;
 

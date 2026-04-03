@@ -753,7 +753,7 @@ test.describe('Settings panel', () => {
 test.describe('Connection backoff', () => {
   test('backoff counter increments on fetch failure', async ({ page }) => {
     // Route to fail
-    await page.route(/k10mediabroadcaster/, (route) => route.abort());
+    await page.route(/racecor-io-pro-drive/, (route) => route.abort());
     await page.goto(dashboardPath, { waitUntil: 'load' });
     await page.waitForTimeout(300);
 
@@ -763,13 +763,13 @@ test.describe('Connection backoff', () => {
 
   test('backoff resets on successful fetch', async ({ page }) => {
     // Start with failures
-    await page.route(/k10mediabroadcaster/, (route) => route.abort());
+    await page.route(/racecor-io-pro-drive/, (route) => route.abort());
     await page.goto(dashboardPath, { waitUntil: 'load' });
     await page.waitForTimeout(200);
 
     // Now succeed
-    await page.unroute(/k10mediabroadcaster/);
-    await page.route(/k10mediabroadcaster/, async (route) => {
+    await page.unroute(/racecor-io-pro-drive/);
+    await page.route(/racecor-io-pro-drive/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
