@@ -4,7 +4,7 @@
 // that renders the HTML dashboard over the sim
 // ═══════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, dialog } = require('electron');
 const path   = require('path');
 const fs     = require('fs');
 const os     = require('os');
@@ -308,7 +308,7 @@ async function maybeStartRemoteServer() {
   if (settings.remoteServer !== true) return;
   try {
     const simhubUrl = settings.simhubUrl
-      ? settings.simhubUrl.replace(/\/k10mediabroadcaster\/?$/, '')
+      ? settings.simhubUrl.replace(/\/racecor-io-pro-drive\/?$/, '')
       : 'http://localhost:8889';
     const info = await remoteServer.start({
       port: settings.remoteServerPort || remoteServer.DEFAULT_PORT,
@@ -684,6 +684,17 @@ ipcMain.handle('quit-app', () => {
   app.quit();
 });
 
+// ── IPC: Native folder picker for Moza Pithouse location ──
+ipcMain.handle('dialog:openDirectory', async (event, opts = {}) => {
+  const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+  const result = await dialog.showOpenDialog(win, {
+    title: opts.title || 'Select Folder',
+    message: opts.message || '',
+    properties: ['openDirectory']
+  });
+  return result; // { canceled: bool, filePaths: string[] }
+});
+
 // ── IPC: Open external URL in user's default browser ──
 ipcMain.handle('open-external', async (event, urlStr) => {
   try {
@@ -727,7 +738,7 @@ const DISCORD_REDIRECT_PORT = 18492;
 const DISCORD_REDIRECT_URI  = `http://localhost:${DISCORD_REDIRECT_PORT}/callback`;
 const DISCORD_SCOPES        = 'identify guilds.join';
 const DISCORD_GUILD_ID      = '1310050023326121994';  // K10 Motorsports server
-const DISCORD_GUILD_INVITE  = 'https://discord.gg/k10mediabroadcaster';
+const DISCORD_GUILD_INVITE  = 'https://discord.gg/racecor-io-pro-drive';
 
 let _discordCallbackServer = null;
 let _discordCodeVerifier   = null;  // PKCE code_verifier for current auth flow
@@ -1203,8 +1214,8 @@ ipcMain.handle('get-remote-server-info', async () => {
 ipcMain.handle('start-remote-server', async (event, opts = {}) => {
   try {
     const settings = loadSettingsSync();
-    const simhubUrl = (settings.simhubUrl || 'http://localhost:8889/k10mediabroadcaster/')
-      .replace(/\/k10mediabroadcaster\/?$/, '');
+    const simhubUrl = (settings.simhubUrl || 'http://localhost:8889/racecor-io-pro-drive/')
+      .replace(/\/racecor-io-pro-drive\/?$/, '');
     const info = await remoteServer.start({
       port: opts.port || settings.remoteServerPort || remoteServer.DEFAULT_PORT,
       appDir: __dirname,

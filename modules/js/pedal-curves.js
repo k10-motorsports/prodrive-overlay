@@ -457,13 +457,102 @@ function bindPedalProfileToCar() {
 
 function importMozaPedals() {
   var url = (window._simhubUrlOverride || SIMHUB_URL) + '?action=importMozaPedals';
+  var btn = document.getElementById('mozaImportBtn');
+  if (btn) btn.textContent = 'Importing...';
+
   fetch(url).then(function (r) { return r.json(); }).then(function (result) {
     if (result.ok) {
       loadPedalProfiles(); // refresh the dropdown
-      var btn = document.getElementById('mozaImportBtn');
       if (btn) { btn.textContent = 'Imported!'; setTimeout(function () { btn.textContent = 'Import from Moza'; }, 3000); }
+    } else {
+      if (btn) { btn.textContent = 'Import failed'; setTimeout(function () { btn.textContent = 'Import from Moza'; }, 3000); }
     }
-  }).catch(function () {});
+  }).catch(function () {
+    if (btn) { btn.textContent = 'Error'; setTimeout(function () { btn.textContent = 'Import from Moza'; }, 3000); }
+  });
+}
+
+/**
+ * Open a native folder picker dialog so the user can locate their Moza Pithouse folder.
+ * Uses Electron's dialog module (available in the overlay's Node context).
+ */
+function browseMozaFolder() {
+  // Use Electron dialog if available (we're running in Electron)
+  try {
+    var electron = require('electron');
+    var remote = electron.remote || (electron.ipcRenderer ? null : null);
+
+    // In newer Electron, use ipcRenderer to ask main process
+    if (electron.ipcRenderer) {
+      // Send to main process to show dialog
+      electron.ipcRenderer.invoke('dialog:openDirectory', {
+        title: 'Locate Moza Pithouse Folder',
+        message: 'Select the Moza Pithouse installation or data folder',
+        properties: ['openDirectory']
+      }).then(function (result) {
+        if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
+          _setMozaPath(result.filePaths[0]);
+        }
+      });
+      return;
+    }
+
+    // Legacy: use remote.dialog
+    if (remote && remote.dialog) {
+      var result = remote.dialog.showOpenDialogSync({
+        title: 'Locate Moza Pithouse Folder',
+        properties: ['openDirectory']
+      });
+      if (result && result.length > 0) {
+        _setMozaPath(result[0]);
+      }
+      return;
+    }
+  } catch (e) {
+    // Not in Electron or require unavailable
+  }
+
+  // Fallback: prompt for path manually
+  var path = prompt(
+    'Enter the path to your Moza Pithouse folder:\n\n'
+    + 'Common locations:\n'
+    + '• C:\\Program Files\\MOZA Pit House\n'
+    + '• C:\\Program Files (x86)\\MOZA Pit House\n'
+    + '• %LocalAppData%\\MOZA Pit House'
+  );
+  if (path) {
+    _setMozaPath(path.trim());
+  }
+}
+
+/**
+ * Send the user-selected Moza path to the plugin and update the UI.
+ */
+function _setMozaPath(path) {
+  if (!path) return;
+  var url = (window._simhubUrlOverride || SIMHUB_URL) + '?action=setMozaPath&path=' + encodeURIComponent(path);
+  var locateBtn = document.getElementById('mozaLocateBtn');
+  if (locateBtn) locateBtn.textContent = 'Checking...';
+
+  fetch(url).then(function (r) { return r.json(); }).then(function (result) {
+    if (result.ok) {
+      // Path accepted — Moza is now detected, update UI
+      var statusLabel = document.getElementById('mozaStatusLabel');
+      var importBtn = document.getElementById('mozaImportBtn');
+      if (statusLabel) statusLabel.textContent = 'Moza Pithouse found at: ' + path;
+      if (importBtn) importBtn.disabled = false;
+      if (locateBtn) locateBtn.style.display = 'none';
+
+      // Auto-import was triggered by the plugin, refresh profiles
+      loadPedalProfiles();
+    } else {
+      var statusLabel = document.getElementById('mozaStatusLabel');
+      if (statusLabel) statusLabel.textContent = result.error || 'Not a valid Pithouse folder';
+      if (locateBtn) { locateBtn.textContent = 'Locate Folder'; }
+    }
+  }).catch(function () {
+    if (locateBtn) { locateBtn.textContent = 'Locate Folder'; }
+  });
 }
 
 // Detect Moza status and update UI when the Pedals tab loads
@@ -471,18 +560,14 @@ function updatePedalSettingsUI() {
   var profile = window.getCurrentPedalProfile ? window.getCurrentPedalProfile() : null;
   var statusLabel = document.getElementById('mozaStatusLabel');
   var importBtn = document.getElementById('mozaImportBtn');
+  var locateBtn = document.getElementById('mozaLocateBtn');
 
   if (profile) {
-    if (profile.mozaDetected) {
-      if (statusLabel) statusLabel.textContent = 'Moza Pithouse detected';
-      if (importBtn) importBtn.disabled = false;
-    } else {
-      if (statusLabel) statusLabel.textContent = 'Moza not detected';
-      if (importBtn) importBtn.disabled = true;
-    }
+    _applyMozaStatus(profile.mozaDetected, statusLabel, importBtn, locateBtn);
   } else {
-    if (statusLabel) statusLabel.textContent = 'No profile data from plugin';
-    if (importBtn) importBtn.disabled = true;
+    // No live profile data yet — query plugin directly for Moza status
+    if (statusLabel) statusLabel.textContent = 'Checking Moza status...';
+    _fetchMozaInfo();
   }
 
   // Load profile list if not yet loaded
@@ -493,6 +578,46 @@ function updatePedalSettingsUI() {
 
   // Update debug panel
   _updateMozaDebug(profile);
+}
+
+function _applyMozaStatus(detected, statusLabel, importBtn, locateBtn) {
+  if (detected) {
+    if (statusLabel) statusLabel.textContent = 'Moza Pithouse detected';
+    if (importBtn) importBtn.disabled = false;
+    if (locateBtn) locateBtn.style.display = 'none';
+  } else {
+    if (statusLabel) statusLabel.textContent = 'Moza not detected — locate your Pithouse folder';
+    if (importBtn) importBtn.disabled = true;
+    if (locateBtn) locateBtn.style.display = '';
+  }
+}
+
+/**
+ * Query the plugin's mozaInfo endpoint directly so we can show Moza status
+ * even when no sim is running (no live poll data).
+ */
+function _fetchMozaInfo() {
+  var url = (window._simhubUrlOverride || SIMHUB_URL) + '?action=mozaInfo';
+  fetch(url).then(function (r) { return r.json(); }).then(function (info) {
+    var statusLabel = document.getElementById('mozaStatusLabel');
+    var importBtn = document.getElementById('mozaImportBtn');
+    var locateBtn = document.getElementById('mozaLocateBtn');
+
+    if (info && info.detected) {
+      _applyMozaStatus(true, statusLabel, importBtn, locateBtn);
+      if (statusLabel && info.path) statusLabel.textContent = 'Moza Pithouse found at: ' + info.path;
+    } else {
+      _applyMozaStatus(false, statusLabel, importBtn, locateBtn);
+    }
+  }).catch(function () {
+    // Plugin not running
+    var statusLabel = document.getElementById('mozaStatusLabel');
+    var importBtn = document.getElementById('mozaImportBtn');
+    var locateBtn = document.getElementById('mozaLocateBtn');
+    if (statusLabel) statusLabel.textContent = 'Plugin not connected';
+    if (importBtn) importBtn.disabled = true;
+    if (locateBtn) locateBtn.style.display = '';
+  });
 }
 
 function _updateMozaDebug(profile) {
@@ -530,11 +655,13 @@ function _updateMozaDebug(profile) {
   }
 }
 
-// Hook into tab switch to refresh pedal settings
-var _origSwitchSettingsTab = typeof switchSettingsTab === 'function' ? switchSettingsTab : null;
+// Hook into tab switch to refresh pedal settings.
+// NOTE: pedal-curves.js loads before settings.js, so switchSettingsTab
+// does not exist at script-load time. We must check at DOMContentLoaded
+// when all scripts have been parsed.
 document.addEventListener('DOMContentLoaded', function () {
-  // Override switchSettingsTab to detect when Pedals tab is shown
-  if (_origSwitchSettingsTab) {
+  // By now settings.js has loaded and switchSettingsTab is global
+  if (typeof switchSettingsTab === 'function') {
     var orig = switchSettingsTab;
     window.switchSettingsTab = function (tab) {
       orig(tab);
