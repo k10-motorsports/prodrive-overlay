@@ -1068,12 +1068,12 @@
     const dfn = vs('K10Motorsports.Plugin.DriverFirstName') || '';
     const dln = vs('K10Motorsports.Plugin.DriverLastName') || '';
     if (dfn || dln) {
-      _driverDisplayName = (dfn && dln) ? dfn.charAt(0) + '. ' + dln : (dfn || dln);
+      _driverDisplayName = (dfn && dln) ? dfn + ' ' + dln : (dfn || dln);
     }
     // Zoom map label: first initial + last name, fallback "Local"
     const _zoomLbl = document.getElementById('zoomMapLabel');
     if (_zoomLbl) {
-      _zoomLbl.textContent = (dfn && dln) ? dfn.charAt(0) + '. ' + dln : (dln || 'Local');
+      _zoomLbl.textContent = (dfn && dln) ? dfn + ' ' + dln : (dln || 'Local');
     }
 
     // ─── Track map ───
