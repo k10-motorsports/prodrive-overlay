@@ -83,7 +83,7 @@
     let playerIdx = -1;
     let sessionBest = Infinity;
     for (let i = 0; i < raw.length; i++) {
-      if (raw[i][7]) {
+      if (raw[i][7] === 1) {
         playerIdx = i;
         playerLastLap = +raw[i][4]; // capture player's last lap
       }
@@ -115,8 +115,9 @@
     let html = '';
     for (const entry of visible) {
       const [pos, name, ir, best, last, gap, pit, isPlayer] = entry;
+      const isSelf = isPlayer === 1;
       const classes = ['lb-row'];
-      if (isPlayer) {
+      if (isSelf) {
         classes.push('lb-player');
         if (pos === 1) classes.push('lb-p1');
         else if (_startPosition > 0 && pos < _startPosition) classes.push('lb-ahead');
@@ -124,14 +125,14 @@
         else classes.push('lb-same');
       }
       // Mark the starting position row when player has moved away from it
-      if (!isPlayer && _startPosition > 0 && pos === _startPosition && _lastPosition !== _startPosition) {
+      if (!isSelf && _startPosition > 0 && pos === _startPosition && _lastPosition !== _startPosition) {
         classes.push('lb-start-pos');
       }
       if (pit) classes.push('lb-pit');
 
       // Gap display based on focus mode
       let gapStr = '', gapClass = 'gap-player';
-      if (isPlayer) {
+      if (isSelf) {
         gapStr = '';
       } else if (focusMode === 'lead') {
         // In 'lead' mode, show either lap time (P1) or gap to leader
@@ -181,7 +182,7 @@
 
       // ── Sparkline data collection ──
       // Non-player: track lap times. Player: track position (seeded from grid).
-      if (isPlayer) {
+      if (isSelf) {
         // Seed position history with grid position on first sight
         if (!_posHistorySeeded && _startPosition > 0) {
           _posHistory.push(_startPosition);
@@ -209,7 +210,7 @@
       // ── Build sparkline SVG ──
       let sparkSvg = '';
 
-      if (isPlayer && _posHistory.length >= 2) {
+      if (isSelf && _posHistory.length >= 2) {
         // Player: position sparkline (lower = better → invert Y axis)
         const mn = Math.min(..._posHistory), mx = Math.max(..._posHistory);
         const range = mx - mn || 1;
@@ -234,7 +235,7 @@
         else if (_startPosition > 0 && pos > _startPosition) col = 'hsla(0,75%,50%,1)';
         else col = 'hsla(210,75%,55%,1)';
         sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + (w).toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.5" fill="' + col + '"/></svg>';
-      } else if (isPlayer) {
+      } else if (isSelf) {
         // Player: flat baseline during rolling start / waiting for green flag
         const w = 44, h2 = 14;
         const midY = (h2 / 2).toFixed(1);
@@ -290,7 +291,7 @@
       // Get brand logo for driver (player uses current car, others use generic)
       let brandKey = 'generic';
       let brandColor = _defaultLogoBg;
-      if (isPlayer) {
+      if (isSelf) {
         brandKey = _currentCarLogo || 'generic';
         brandColor = _mfrBrandColors[brandKey] || _defaultLogoBg;
       } else {
@@ -300,7 +301,7 @@
       }
 
       // Build brand logo SVG or colored square
-      const logoSvg = (isPlayer && window.carLogos && window.carLogos[brandKey]) ? window.carLogos[brandKey] : '';
+      const logoSvg = (isSelf && window.carLogos && window.carLogos[brandKey]) ? window.carLogos[brandKey] : '';
       const brandLogoHtml = '<div class="lb-brand" style="background:' + brandColor + '">'
         + (logoSvg ? '<div class="lb-brand-icon">' + logoSvg + '</div>' : '')
         + '</div>';
@@ -308,7 +309,7 @@
       html += '<div class="' + classes.join(' ') + '">'
         + '<div class="lb-pos">' + pos + '</div>'
         + brandLogoHtml
-        + '<div class="lb-name">' + escHtml(isPlayer ? _driverDisplayName : name) + '</div>'
+        + '<div class="lb-name">' + escHtml(isSelf ? _driverDisplayName : name) + '</div>'
         + '<div class="lb-lap ' + lapClass + '">' + lapStr + '</div>'
         + '<div class="lb-ir">' + irStr + '</div>'
         + '<div class="lb-gap ' + gapClass + '">' + gapStr + '</div>'

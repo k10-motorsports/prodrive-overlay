@@ -265,7 +265,7 @@
       let playerIdx = -1;
       let playerLastLap = 0;
       for (let i = 0; i < this._drivers.length; i++) {
-        if (this._drivers[i][7]) {
+        if (this._drivers[i][7] === 1) {
           playerIdx = i;
           playerLastLap = +this._drivers[i][4]; // capture player's last lap
           break;
@@ -291,15 +291,16 @@
       let html = '';
       for (const entry of visible) {
         const [pos, name, ir, best, last, gap, pit, isPlayer] = entry;
+        const isSelf = isPlayer === 1;
 
         // Classes
         const classes = ['lb-row'];
-        if (isPlayer) classes.push('lb-player');
+        if (isSelf) classes.push('lb-player');
         if (pit) classes.push('lb-pit');
 
         // Gap display based on focus mode
         let gapStr = '', gapClass = 'gap-player';
-        if (!isPlayer) {
+        if (!isSelf) {
           if (this._focusMode === 'lead') {
             // In 'lead' mode, show either lap time (P1) or gap to leader
             if (pos === 1) {
@@ -374,7 +375,7 @@
             }
           }
           let col = 'hsla(0,0%,100%,0.3)';
-          if (isPlayer) {
+          if (isSelf) {
             if (pos === 1) col = 'hsla(42,80%,55%,1)';
             else col = 'hsla(210,75%,55%,1)';
           }
@@ -399,7 +400,7 @@
 
         html += '<div class="' + classes.join(' ') + '">'
           + '<div class="lb-pos">' + pos + '</div>'
-          + '<div class="lb-name">' + (isPlayer ? this._playerName : this._escHtml(name)) + '</div>'
+          + '<div class="lb-name">' + (isSelf ? this._playerName : this._escHtml(name)) + '</div>'
           + '<div class="lb-lap ' + lapClass + '">' + lapStr + '</div>'
           + '<div class="lb-ir">' + irStr + '</div>'
           + '<div class="lb-gap ' + gapClass + '">' + gapStr + '</div>'
