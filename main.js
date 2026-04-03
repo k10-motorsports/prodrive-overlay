@@ -4,7 +4,7 @@
 // that renders the HTML dashboard over the sim
 // ═══════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, dialog } = require('electron');
 const path   = require('path');
 const fs     = require('fs');
 const os     = require('os');
@@ -682,6 +682,17 @@ ipcMain.handle('restart-app', async () => {
 // ── IPC: Quit app ──
 ipcMain.handle('quit-app', () => {
   app.quit();
+});
+
+// ── IPC: Native folder picker for Moza Pithouse location ──
+ipcMain.handle('dialog:openDirectory', async (event, opts = {}) => {
+  const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+  const result = await dialog.showOpenDialog(win, {
+    title: opts.title || 'Select Folder',
+    message: opts.message || '',
+    properties: ['openDirectory']
+  });
+  return result; // { canceled: bool, filePaths: string[] }
 });
 
 // ── IPC: Open external URL in user's default browser ──
