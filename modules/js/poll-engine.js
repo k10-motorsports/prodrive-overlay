@@ -45,6 +45,7 @@
   // Fetches user-customized display names from the K10 API.
   // Falls back to the game-provided name if no custom name is set or API is unreachable.
   const _trackDisplayNameCache = {};    // { gameTrackName → displayName }
+  const _trackSectorCountCache = {};   // { gameTrackName → sectorCount (3 or 7) }
   const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
   const K10_DISPLAY_NAME_API = 'https://drive.racecor.io/api/tracks';
 
@@ -56,10 +57,13 @@
       .then(function(data) {
         // displayName from API already falls back to trackName server-side
         _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
+        // Cache sector count from API (default 3 if not present)
+        _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 3;
       })
       .catch(function() {
-        // API unreachable — use the game name
+        // API unreachable — use the game name and default sectors
         _trackDisplayNameCache[gameTrackName] = gameTrackName;
+        _trackSectorCountCache[gameTrackName] = 3;
       })
       .finally(function() {
         delete _trackDisplayNamePending[gameTrackName];
@@ -717,19 +721,29 @@
 
       const curSector = +(p[dsPre + 'CurrentSector']) || 1;
       const lapDelta = +(p[dsPre + 'LapDelta']) || 0;
-      const sectorCount = 3; // Always 3 sectors, equal thirds — matches CrewChief
 
-      // Build sector arrays from plugin data
-      const splits = [+(p[dsPre + 'SectorSplitS1']) || 0, +(p[dsPre + 'SectorSplitS2']) || 0, +(p[dsPre + 'SectorSplitS3']) || 0];
-      const deltas = [+(p[dsPre + 'SectorDeltaS1']) || 0, +(p[dsPre + 'SectorDeltaS2']) || 0, +(p[dsPre + 'SectorDeltaS3']) || 0];
-      const states = [+(p[dsPre + 'SectorStateS1']) || 0, +(p[dsPre + 'SectorStateS2']) || 0, +(p[dsPre + 'SectorStateS3']) || 0];
+      // Sector count: use cloud-configured value from K10 API, fall back to 3
+      const _gameTrack = p['RaceCorProDrive.Plugin.TrackMap.TrackName']
+                      || p['DataCorePlugin.GameData.TrackName'] || '';
+      if (_gameTrack) resolveTrackDisplayName(_gameTrack); // ensure API call fires
+      const sectorCount = (_gameTrack && _trackSectorCountCache[_gameTrack]) || 3;
+
+      // Build sector arrays from plugin data (pad to sectorCount)
+      const splits = [], deltas = [], states = [];
+      for (let si = 1; si <= sectorCount; si++) {
+        splits.push(+(p[dsPre + 'SectorSplitS' + si]) || 0);
+        deltas.push(+(p[dsPre + 'SectorDeltaS' + si]) || 0);
+        states.push(+(p[dsPre + 'SectorStateS' + si]) || 0);
+      }
       // state: 0=none, 1=pb (session best / purple), 2=faster (green), 3=slower (yellow)
       const stateClass = ['', 'sector-pb', 'sector-faster', 'sector-slower'];
 
       // Store for track map sector coloring + boundaries for path splitting
       window._sectorData = { curSector, splits, deltas, states, sectorCount };
-      // Equal thirds boundaries for track map
-      window._sectorBoundaries = [1/3, 2/3];
+      // Equal-fraction boundaries for track map (N-1 boundaries for N sectors)
+      const boundaries = [];
+      for (let bi = 1; bi < sectorCount; bi++) boundaries.push(bi / sectorCount);
+      window._sectorBoundaries = boundaries;
 
       // Read current lap time for live sector elapsed
       const currentLapTime = _demo

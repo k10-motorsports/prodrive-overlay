@@ -93,9 +93,10 @@
       liveDeltaEl.textContent = '';
     }
 
-    // Sectors (from plugin — N-sector support)
+    // Sectors — prefer cloud-configured count (from poll-engine _sectorData), fall back to plugin prop
     var curSector = +(p[dsPre + 'CurrentSector']) || 1;
-    var sectorCount = +(p[dsPre + 'SectorCount']) || 3;
+    var cloudSectors = window._sectorData && window._sectorData.sectorCount;
+    var sectorCount = cloudSectors || +(p[dsPre + 'SectorCount']) || 3;
     var splitsStr = p[dsPre + 'SectorSplits'] || '';
     var splits, deltas, states;
     if (splitsStr) {
@@ -103,9 +104,12 @@
       deltas = (p[dsPre + 'SectorDeltas'] || '').split(',').map(Number);
       states = (p[dsPre + 'SectorStates'] || '').split(',').map(Number);
     } else {
-      splits = [+(p[dsPre + 'SectorSplitS1']) || 0, +(p[dsPre + 'SectorSplitS2']) || 0, +(p[dsPre + 'SectorSplitS3']) || 0];
-      deltas = [+(p[dsPre + 'SectorDeltaS1']) || 0, +(p[dsPre + 'SectorDeltaS2']) || 0, +(p[dsPre + 'SectorDeltaS3']) || 0];
-      states = [+(p[dsPre + 'SectorStateS1']) || 0, +(p[dsPre + 'SectorStateS2']) || 0, +(p[dsPre + 'SectorStateS3']) || 0];
+      splits = []; deltas = []; states = [];
+      for (var si = 1; si <= sectorCount; si++) {
+        splits.push(+(p[dsPre + 'SectorSplitS' + si]) || 0);
+        deltas.push(+(p[dsPre + 'SectorDeltaS' + si]) || 0);
+        states.push(+(p[dsPre + 'SectorStateS' + si]) || 0);
+      }
     }
     var stateClass = ['', 'dh-s-pb', 'dh-s-faster', 'dh-s-slower'];
     var currentLapTime = isDemo
