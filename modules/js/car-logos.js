@@ -1,12 +1,40 @@
 // CAR MANUFACTURER LOGOS
 
-  // ═══ CAR MANUFACTURER LOGOS (loaded from images/logos/) ═══
+  // ═══ CAR MANUFACTURER LOGOS (fetched from cloud API, local fallback) ═══
   const CAR_LOGO_KEYS = ['bmw','mclaren','mazda','nissan','dallara','ferrari','porsche','audi',
     'mercedes','lamborghini','chevrolet','ford','toyota','hyundai','cadillac','astonmartin',
     'lotus','honda','honda_white','ligier','fia','radical','generic','none'];
   window.carLogos = {};
+  window.carBrandColors = {};
   async function loadCarLogos() {
-    const results = await Promise.allSettled(
+    // Try cloud API first (prodrive.racecor.io)
+    try {
+      const apiBase = (window._settings && window._settings.prodriveUrl) || 'https://prodrive.racecor.io';
+      const resp = await fetch(apiBase + '/api/logos');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.logos && data.logos.length > 0) {
+          for (const logo of data.logos) {
+            if (logo.logoSvg) window.carLogos[logo.brandKey] = logo.logoSvg;
+            if (logo.brandColorHex) window.carBrandColors[logo.brandKey] = logo.brandColorHex;
+          }
+          console.log('[RaceCor] Loaded', data.logos.length, 'logos from cloud');
+          // Still load special local-only logos (generic, none, honda_white, iracing, le-mans-ultimate)
+          const localOnly = ['generic', 'none', 'honda_white', 'iracing', 'le-mans-ultimate'];
+          await Promise.allSettled(localOnly.map(async key => {
+            if (!window.carLogos[key]) {
+              const r = await fetch('images/logos/' + key + '.svg');
+              if (r.ok) window.carLogos[key] = await r.text();
+            }
+          }));
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[RaceCor] Cloud logo fetch failed, using local fallback:', e.message);
+    }
+    // Fallback: load all from local files
+    await Promise.allSettled(
       CAR_LOGO_KEYS.map(async key => {
         const resp = await fetch('images/logos/' + key + '.svg');
         if (resp.ok) window.carLogos[key] = await resp.text();
@@ -62,8 +90,10 @@
     document.getElementById('carLogoIcon').innerHTML = svg;
     document.getElementById('carModelLabel').textContent = stripBrand(modelName);
     // Apply brand-colored background for white/mono logos, default dark bg otherwise
+    // Prefer cloud-sourced hex colors, fall back to local HSLA colors
     const sq = document.getElementById('carLogoSquare');
-    sq.style.background = _mfrBrandColors[key] || _defaultLogoBg;
+    const cloudColor = window.carBrandColors && window.carBrandColors[key];
+    sq.style.background = cloudColor || _mfrBrandColors[key] || _defaultLogoBg;
     // Expose full-opacity brand color for map player dot
     const brandHsl = _mfrBrandColors[key];
     if (brandHsl) {
