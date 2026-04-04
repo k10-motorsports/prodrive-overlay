@@ -99,8 +99,8 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const _demo = snapshot._demo || +(snapshot['K10Motorsports.Plugin.DemoMode'] || 0);
-      const dsPre = _demo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+      const _demo = snapshot._demo || +(snapshot['RaceCorProDrive.Plugin.DemoMode'] || 0);
+      const dsPre = _demo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
       this._count = +(snapshot[dsPre + 'IncidentCount'] || 0);
       this._penaltyThreshold = +(snapshot[dsPre + 'IncidentLimitPenalty'] || 0);

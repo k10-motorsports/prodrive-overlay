@@ -131,7 +131,7 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const dsPre = 'K10Motorsports.Plugin.DS.';
+      const dsPre = 'RaceCorProDrive.Plugin.DS.';
       const gameDataPre = 'DataCorePlugin.GameData.';
 
       this._telemetryData = {

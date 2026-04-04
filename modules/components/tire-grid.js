@@ -86,22 +86,22 @@
     updateData(snapshot, isImperial = false) {
       if (!snapshot) return;
 
-      const _demo = snapshot._demo || +(snapshot['K10Motorsports.Plugin.DemoMode'] || 0);
+      const _demo = snapshot._demo || +(snapshot['RaceCorProDrive.Plugin.DemoMode'] || 0);
       this._unit = isImperial ? 'F' : 'C';
 
       // Extract tire temps and wear
       if (_demo) {
         this._temps = {
-          fl: +(snapshot['K10Motorsports.Plugin.Demo.TyreTempFL'] || 0),
-          fr: +(snapshot['K10Motorsports.Plugin.Demo.TyreTempFR'] || 0),
-          rl: +(snapshot['K10Motorsports.Plugin.Demo.TyreTempRL'] || 0),
-          rr: +(snapshot['K10Motorsports.Plugin.Demo.TyreTempRR'] || 0)
+          fl: +(snapshot['RaceCorProDrive.Plugin.Demo.TyreTempFL'] || 0),
+          fr: +(snapshot['RaceCorProDrive.Plugin.Demo.TyreTempFR'] || 0),
+          rl: +(snapshot['RaceCorProDrive.Plugin.Demo.TyreTempRL'] || 0),
+          rr: +(snapshot['RaceCorProDrive.Plugin.Demo.TyreTempRR'] || 0)
         };
         this._wear = {
-          fl: (1 - +(snapshot['K10Motorsports.Plugin.Demo.TyreWearFL'] || 0)) * 100,
-          fr: (1 - +(snapshot['K10Motorsports.Plugin.Demo.TyreWearFR'] || 0)) * 100,
-          rl: (1 - +(snapshot['K10Motorsports.Plugin.Demo.TyreWearRL'] || 0)) * 100,
-          rr: (1 - +(snapshot['K10Motorsports.Plugin.Demo.TyreWearRR'] || 0)) * 100
+          fl: (1 - +(snapshot['RaceCorProDrive.Plugin.Demo.TyreWearFL'] || 0)) * 100,
+          fr: (1 - +(snapshot['RaceCorProDrive.Plugin.Demo.TyreWearFR'] || 0)) * 100,
+          rl: (1 - +(snapshot['RaceCorProDrive.Plugin.Demo.TyreWearRL'] || 0)) * 100,
+          rr: (1 - +(snapshot['RaceCorProDrive.Plugin.Demo.TyreWearRR'] || 0)) * 100
         };
       } else {
         this._temps = {

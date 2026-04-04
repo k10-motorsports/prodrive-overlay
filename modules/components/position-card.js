@@ -109,15 +109,15 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const _demo = snapshot._demo || +(snapshot['K10Motorsports.Plugin.DemoMode'] || 0);
+      const _demo = snapshot._demo || +(snapshot['RaceCorProDrive.Plugin.DemoMode'] || 0);
 
       // Extract position and ratings
       if (_demo) {
-        this._position = +(snapshot['K10Motorsports.Plugin.Demo.Position'] || 0);
-        this._totalCars = +(snapshot['K10Motorsports.Plugin.Demo.TotalCars'] || 0);
-        this._irating = +(snapshot['K10Motorsports.Plugin.Demo.IRating'] || 0);
-        this._safetyRating = +(snapshot['K10Motorsports.Plugin.Demo.SafetyRating'] || 0);
-        this._licenseClass = String(snapshot['K10Motorsports.Plugin.Demo.LicenseClass'] || '—');
+        this._position = +(snapshot['RaceCorProDrive.Plugin.Demo.Position'] || 0);
+        this._totalCars = +(snapshot['RaceCorProDrive.Plugin.Demo.TotalCars'] || 0);
+        this._irating = +(snapshot['RaceCorProDrive.Plugin.Demo.IRating'] || 0);
+        this._safetyRating = +(snapshot['RaceCorProDrive.Plugin.Demo.SafetyRating'] || 0);
+        this._licenseClass = String(snapshot['RaceCorProDrive.Plugin.Demo.LicenseClass'] || '—');
       } else {
         this._position = +(snapshot['DataCorePlugin.GameData.Position'] || 0);
         this._totalCars = +(snapshot['DataCorePlugin.GameData.TotalCars'] || 0);

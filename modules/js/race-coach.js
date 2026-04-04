@@ -119,8 +119,8 @@
   // ═══════════════════════════════════════════════════════════════
 
   function _packageRaceData(raceData, commentaryLog, p, isDemo) {
-    var pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : '';
-    var dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : '';
+    var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
     return {
       position: isDemo ? +(p[pre + 'Position']) || 0 : +(p['DataCorePlugin.GameData.Position']) || 0,

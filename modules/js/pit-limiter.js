@@ -11,7 +11,7 @@
   let _bonkersHoldUntil = 0;
 
   function updatePitLimiter(p, isDemo) {
-    const pre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    const pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
     // Fallback to SimHub's built-in DataCore if plugin property is not set
     const inPitLane = +(p[pre + 'IsInPitLane']) > 0 || +(p['DataCorePlugin.GameData.IsInPitLane']) > 0;
     const speedKmh = +(p[pre + 'SpeedKmh']) || +(p['DataCorePlugin.GameData.SpeedKph']) || 0;

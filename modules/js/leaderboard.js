@@ -17,7 +17,7 @@
     const lbPanel = document.getElementById('leaderboardPanel');
     if (!lbPanel || lbPanel.classList.contains('section-hidden')) return;
     // Leaderboard comes as raw JSON array from the plugin
-    let raw = p['K10Motorsports.Plugin.Leaderboard'];
+    let raw = p['RaceCorProDrive.Plugin.Leaderboard'];
     // If plugin sends leaderboard as a JSON string, parse it
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch(e) { console.warn('[K10 LB] Failed to parse leaderboard string:', e); return; }

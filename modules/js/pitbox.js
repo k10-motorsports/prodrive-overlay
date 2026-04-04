@@ -171,9 +171,9 @@
     }
     if (!isIRacing) return;
 
-    var pb = function(key) { return d['K10Motorsports.Plugin.PitBox.' + key]; };
+    var pb = function(key) { return d['RaceCorProDrive.Plugin.PitBox.' + key]; };
     var dc = function(key) { return d['DataCorePlugin.GameRawData.Telemetry.' + key]; };
-    var ds = function(key) { return d['K10Motorsports.Plugin.DS.' + key]; };
+    var ds = function(key) { return d['RaceCorProDrive.Plugin.DS.' + key]; };
     var gd = function(key) { return d['DataCorePlugin.GameData.' + key]; };
 
     // 0=imperial, 1=metric. Cannot use `|| 1` fallback here because 0 is a

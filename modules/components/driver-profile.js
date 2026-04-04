@@ -96,7 +96,7 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const dsPre = 'K10Motorsports.Plugin.DS.';
+      const dsPre = 'RaceCorProDrive.Plugin.DS.';
       const gameDataPre = 'DataCorePlugin.GameData.';
 
       this._irating = +snapshot[dsPre + 'iRating'] || window._manualIRating || 0;

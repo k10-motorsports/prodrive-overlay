@@ -75,7 +75,7 @@
       if (!snapshot) return;
 
       // Parse leaderboard from plugin (raw JSON array)
-      let raw = snapshot['K10Motorsports.Plugin.Leaderboard'];
+      let raw = snapshot['RaceCorProDrive.Plugin.Leaderboard'];
       if (typeof raw === 'string') {
         try { raw = JSON.parse(raw); } catch(e) { return; }
       }

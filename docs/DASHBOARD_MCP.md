@@ -1,4 +1,4 @@
-# K10 Motorsports — Dashboard Architecture MCP
+# RaceCorProDrive — Dashboard Architecture MCP
 
 ## Quick Reference
 
@@ -273,11 +273,11 @@ Central configuration file. Defines:
 - `DataCorePlugin.GameData.*` -- standard SimHub properties
 - `DataCorePlugin.GameRawData.Telemetry.*` -- raw game telemetry
 - `IRacingExtraProperties.iRacing_*` -- iRacing-specific
-- `K10Motorsports.Plugin.*` -- custom plugin properties
-- `K10Motorsports.Plugin.Demo.*` -- demo mode equivalents
-- `K10Motorsports.Plugin.DS.*` -- derived/computed values (speed, pit limiter, physics, etc.)
-- `K10Motorsports.Plugin.Demo.DS.*` -- demo derived values
-- `K10Motorsports.Plugin.SessionTypeName` -- session type (Race/Practice/Qualifying/Test)
+- `RaceCorProDrive.Plugin.*` -- custom plugin properties
+- `RaceCorProDrive.Plugin.Demo.*` -- demo mode equivalents
+- `RaceCorProDrive.Plugin.DS.*` -- derived/computed values (speed, pit limiter, physics, etc.)
+- `RaceCorProDrive.Plugin.Demo.DS.*` -- demo derived values
+- `RaceCorProDrive.Plugin.SessionTypeName` -- session type (Race/Practice/Qualifying/Test)
 
 ### Server-Computed DS.* Properties (added to reduce client-side JS overhead)
 - `DS.ThrottleNorm` / `DS.BrakeNorm` / `DS.ClutchNorm` -- pedals normalized 0–1
@@ -413,9 +413,9 @@ window.setGridGL(active)           // grid border glow
 
 ### Demo Mode
 
-When `K10Motorsports.Plugin.DemoMode` is 1, the dashboard reads from `K10Motorsports.Plugin.Demo.*` keys. The demo prefix pattern:
-- Live: `K10Motorsports.Plugin.DS.SpeedKmh`
-- Demo: `K10Motorsports.Plugin.Demo.DS.SpeedKmh`
+When `RaceCorProDrive.Plugin.DemoMode` is 1, the dashboard reads from `RaceCorProDrive.Plugin.Demo.*` keys. The demo prefix pattern:
+- Live: `RaceCorProDrive.Plugin.DS.SpeedKmh`
+- Demo: `RaceCorProDrive.Plugin.Demo.DS.SpeedKmh`
 
 ### SimHub Telemetry Flow
 
@@ -443,7 +443,7 @@ Applied to `<body>` by `applyGameMode()`:
 ### Key Files
 
 ```
-racecor-plugin/simhub-plugin/plugin/K10Motorsports.Plugin/
+racecor-plugin/simhub-plugin/plugin/RaceCorProDrive.Plugin/
 +-- Plugin.cs                    <- Main plugin, HTTP server, JSON output
 +-- Engine/
 |   +-- TelemetrySnapshot.cs     <- Data model for all telemetry values
@@ -455,10 +455,10 @@ racecor-plugin/simhub-plugin/plugin/K10Motorsports.Plugin/
 
 The plugin serves a flat JSON map. Key output sections:
 - Standard telemetry (position, laps, fuel, tires, etc.)
-- `K10Motorsports.Plugin.SessionTypeName` -- session type string
-- `K10Motorsports.Plugin.DS.*` -- derived values (speed, pit limiter, etc.)
-- `K10Motorsports.Plugin.Demo.*` -- demo mode equivalents
-- `K10Motorsports.Plugin.Grid.*` -- grid/formation data
+- `RaceCorProDrive.Plugin.SessionTypeName` -- session type string
+- `RaceCorProDrive.Plugin.DS.*` -- derived values (speed, pit limiter, etc.)
+- `RaceCorProDrive.Plugin.Demo.*` -- demo mode equivalents
+- `RaceCorProDrive.Plugin.Grid.*` -- grid/formation data
 
 ### DemoTelemetryProvider.cs
 

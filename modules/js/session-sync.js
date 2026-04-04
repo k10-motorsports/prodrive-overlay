@@ -66,8 +66,8 @@
   window.captureSessionStart = function(p, isDemo) {
     if (!_syncEnabled || !window._k10User) return;
 
-    var pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : 'K10Motorsports.Plugin.';
-    var dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
+    var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
     // iRating / SR — prefer manual entry, then telemetry
     var ir = window._manualIRating > 0 ? window._manualIRating
@@ -85,7 +85,7 @@
       preRaceSR: sr,
       preRaceLicense: license || 'R',
       carModel: _vs(p, 'DataCorePlugin.GameData.CarModel') || _vs(p, pre + 'CarModel') || 'Unknown',
-      trackName: _vs(p, 'K10Motorsports.Plugin.TrackMap.TrackName')
+      trackName: _vs(p, 'RaceCorProDrive.Plugin.TrackMap.TrackName')
         || _vs(p, 'DataCorePlugin.GameData.TrackName') || 'Unknown',
       sessionType: _vs(p, pre + 'SessionTypeName') || 'road',
       gameId: _vs(p, 'IRacingExtraProperties.iRacing_SessionInfo_SessionID') || '',
@@ -117,8 +117,8 @@
       return;
     }
 
-    var pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : 'K10Motorsports.Plugin.';
-    var dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
+    var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
     // Collect finish data from current telemetry
     var finishPosition = +_v(p, 'DataCorePlugin.GameData.Position') || 0;
@@ -199,7 +199,7 @@
     var token = _getToken();
     if (!token) return;
 
-    var pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : 'K10Motorsports.Plugin.';
+    var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
 
     // Current ratings are the post-race ratings of the previous session
     var postIR = window._manualIRating > 0 ? window._manualIRating
@@ -273,12 +273,12 @@
 
     // Extract iRating from either manual entry or telemetry
     var ir = window._manualIRating > 0 ? window._manualIRating
-      : (isDemo ? +_v(p, 'K10Motorsports.Plugin.Demo.IRating') || 0
+      : (isDemo ? +_v(p, 'RaceCorProDrive.Plugin.Demo.IRating') || 0
                 : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_IRating') || 0);
 
     // Extract SafetyRating from either manual entry or telemetry
     var sr = window._manualSafetyRating > 0 ? window._manualSafetyRating
-      : (isDemo ? +_v(p, 'K10Motorsports.Plugin.Demo.SafetyRating') || 0
+      : (isDemo ? +_v(p, 'RaceCorProDrive.Plugin.Demo.SafetyRating') || 0
                 : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_SafetyRating') || 0);
 
     // Only sync if we actually have rating data

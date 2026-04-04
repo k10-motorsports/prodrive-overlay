@@ -575,8 +575,8 @@
     // Helper extractors
     const v = (k) => props[k] != null ? props[k] : 0;
     const vs = (k) => props[k] != null ? '' + props[k] : '';
-    const pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : '';
-    const dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    const pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : '';
+    const dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
     // ─── GEAR & SPEED ───
     const gear = v(pre + 'Gear') || 0;

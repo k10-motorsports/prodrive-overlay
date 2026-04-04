@@ -131,10 +131,10 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const _demo = snapshot._demo || +(snapshot['K10Motorsports.Plugin.DemoMode'] || 0);
-      const dsPre = _demo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+      const _demo = snapshot._demo || +(snapshot['RaceCorProDrive.Plugin.DemoMode'] || 0);
+      const dsPre = _demo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
-      const position = _demo ? +(snapshot['K10Motorsports.Plugin.Demo.Position'] || 0) : +(snapshot['DataCorePlugin.GameData.Position'] || 0);
+      const position = _demo ? +(snapshot['RaceCorProDrive.Plugin.Demo.Position'] || 0) : +(snapshot['DataCorePlugin.GameData.Position'] || 0);
       const currentLap = +(snapshot[dsPre + 'CompletedLaps'] || 0);
       const flagState = String(snapshot[dsPre + 'FlagState'] || '');
       const incidentCount = +(snapshot[dsPre + 'IncidentCount'] || 0);

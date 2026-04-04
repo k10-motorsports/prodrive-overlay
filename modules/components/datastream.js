@@ -107,7 +107,7 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const pre = snapshot._demo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+      const pre = snapshot._demo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
       const v = (key) => +snapshot[pre + key] || 0;
 
       this._lateralG = v('LatG');

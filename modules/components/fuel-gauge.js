@@ -56,7 +56,7 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const pre = 'K10Motorsports.Plugin.DS.';
+      const pre = 'RaceCorProDrive.Plugin.DS.';
       this._fuelLevel = +snapshot[pre + 'FuelPct'] || 0;
       this._fuelPerLap = +snapshot[pre + 'FuelPerLapFormatted'] || 0;
       this._fuelLapsRemaining = +snapshot[pre + 'FuelLapsRemaining'] || 0;

@@ -4,7 +4,7 @@
 // pedal profile onto the full pedal histogram area.
 // Curve-following dots show current pedal position on each curve.
 // Data flows from C# PedalProfileManager via HTTP bridge
-// as K10Motorsports.Plugin.DS.PedalProfile (JSON object).
+// as RaceCorProDrive.Plugin.DS.PedalProfile (JSON object).
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
@@ -50,8 +50,8 @@
   window.updatePedalCurves = function (p) {
     if (!_curveCtx) return;
 
-    var pre = p._demo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
-    var profileData = p[pre + 'PedalProfile'] || p['K10Motorsports.Plugin.DS.PedalProfile'];
+    var pre = p._demo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
+    var profileData = p[pre + 'PedalProfile'] || p['RaceCorProDrive.Plugin.DS.PedalProfile'];
     if (!profileData || typeof profileData !== 'object') {
       // No profile data — hide canvases
       _setProfileVisibility(false);

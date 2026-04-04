@@ -37,12 +37,12 @@
   function updateDriveHud(p, isDemo) {
     if (!_active) return;
 
-    const dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    const dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
     const v = function(k) { return p[k] != null ? p[k] : 0; };
 
     // Position
     const pos = isDemo
-      ? (+v('K10Motorsports.Plugin.Demo.Position') || 0)
+      ? (+v('RaceCorProDrive.Plugin.Demo.Position') || 0)
       : (+v('DataCorePlugin.GameData.Position') || 0);
     const posEl = document.getElementById('dhPosition');
     if (posEl) posEl.textContent = pos > 0 ? 'P' + pos : 'P—';
@@ -59,9 +59,9 @@
     }
 
     // Last / Current lap number
-    var bestLap = isDemo ? (+v('K10Motorsports.Plugin.Demo.BestLapTime') || 0) : (+v('DataCorePlugin.GameData.BestLapTime') || 0);
-    var lastLap = isDemo ? (+v('K10Motorsports.Plugin.Demo.LastLapTime') || 0) : (+v('DataCorePlugin.GameData.LastLapTime') || 0);
-    var curLap = isDemo ? (+v('K10Motorsports.Plugin.Demo.CurrentLap') || 0) : (+v('DataCorePlugin.GameData.CurrentLap') || 0);
+    var bestLap = isDemo ? (+v('RaceCorProDrive.Plugin.Demo.BestLapTime') || 0) : (+v('DataCorePlugin.GameData.BestLapTime') || 0);
+    var lastLap = isDemo ? (+v('RaceCorProDrive.Plugin.Demo.LastLapTime') || 0) : (+v('DataCorePlugin.GameData.LastLapTime') || 0);
+    var curLap = isDemo ? (+v('RaceCorProDrive.Plugin.Demo.CurrentLap') || 0) : (+v('DataCorePlugin.GameData.CurrentLap') || 0);
     var lastEl = document.getElementById('dhLastLap');
     var lapEl = document.getElementById('dhCurrentLap');
     if (lastEl) lastEl.textContent = lastLap > 0 ? _fmtLapTime(lastLap) : '—';
@@ -69,7 +69,7 @@
 
     // Live lap time + delta to best (absolutely positioned, centered)
     var liveCurrentTime = isDemo
-      ? (+(p['K10Motorsports.Plugin.Demo.CurrentLapTime']) || 0)
+      ? (+(p['RaceCorProDrive.Plugin.Demo.CurrentLapTime']) || 0)
       : (+(p['DataCorePlugin.GameData.CurrentLapTime']) || 0);
     var liveTimeEl = document.getElementById('dhLiveTime');
     var liveDeltaEl = document.getElementById('dhLiveDelta');
@@ -109,7 +109,7 @@
     }
     var stateClass = ['', 'dh-s-pb', 'dh-s-faster', 'dh-s-slower'];
     var currentLapTime = isDemo
-      ? (+(p['K10Motorsports.Plugin.Demo.CurrentLapTime']) || 0)
+      ? (+(p['RaceCorProDrive.Plugin.Demo.CurrentLapTime']) || 0)
       : (+(p['DataCorePlugin.GameData.CurrentLapTime']) || 0);
 
     // Dynamically create/update drive HUD sector cells
@@ -249,9 +249,9 @@
     }
 
     // Track map — local zoom view centered on player + opponents
-    var mapReady = +v('K10Motorsports.Plugin.TrackMap.Ready') || 0;
+    var mapReady = +v('RaceCorProDrive.Plugin.TrackMap.Ready') || 0;
     if (mapReady) {
-      var svgPath = (p['K10Motorsports.Plugin.TrackMap.SvgPath'] || '');
+      var svgPath = (p['RaceCorProDrive.Plugin.TrackMap.SvgPath'] || '');
       var dhTrack = document.getElementById('dhMapTrack');
       if (dhTrack && svgPath && dhTrack.getAttribute('d') !== svgPath) {
         dhTrack.setAttribute('d', svgPath);
@@ -275,8 +275,8 @@
         }
       }
 
-      var px = Math.max(0, Math.min(100, +v('K10Motorsports.Plugin.TrackMap.PlayerX') || 50));
-      var py = Math.max(0, Math.min(100, +v('K10Motorsports.Plugin.TrackMap.PlayerY') || 50));
+      var px = Math.max(0, Math.min(100, +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50));
+      var py = Math.max(0, Math.min(100, +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50));
 
       // Update player dot
       var dhPlayer = document.getElementById('dhMapPlayer');
@@ -299,7 +299,7 @@
         // Rotate map so driving direction always points up.
         // Time-based LERP smoothing eliminates heading judder regardless
         // of poll rate. Dead-zone ignores sub-degree noise.
-        var rawHeading = +(p['K10Motorsports.Plugin.TrackMap.PlayerHeading']) || 0;
+        var rawHeading = +(p['RaceCorProDrive.Plugin.TrackMap.PlayerHeading']) || 0;
         var diff = rawHeading - _dhHeadingSmooth;
         // Normalise diff to [-180, 180] to pick the shortest rotation arc
         while (diff > 180) diff -= 360;
@@ -328,7 +328,7 @@
       }
 
       // Opponents
-      var opponentStr = p['K10Motorsports.Plugin.TrackMap.Opponents'] || '';
+      var opponentStr = p['RaceCorProDrive.Plugin.TrackMap.Opponents'] || '';
       var dhOppG = document.getElementById('dhMapOpponents');
       if (dhOppG) {
         var parts = opponentStr ? opponentStr.split(';').filter(function(s) { return s.length > 0; }) : [];
@@ -375,7 +375,7 @@
 
     // Track name — prefer K10 display name, fall back to game name
     var nameEl = document.getElementById('dhMapName');
-    var trackName = p['K10Motorsports.Plugin.TrackMap.TrackName']
+    var trackName = p['RaceCorProDrive.Plugin.TrackMap.TrackName']
                  || p['DataCorePlugin.GameData.TrackName'] || '';
     if (nameEl && trackName) {
       var resolved = typeof _trackDisplayNameCache !== 'undefined' && _trackDisplayNameCache[trackName];

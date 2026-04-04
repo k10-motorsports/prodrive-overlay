@@ -60,7 +60,7 @@
 
     updateData(snapshot) {
       if (!snapshot) return;
-      const pre = 'K10Motorsports.Plugin.';
+      const pre = 'RaceCorProDrive.Plugin.';
       const v = (key) => snapshot[pre + key];
 
       this._fuelData = {

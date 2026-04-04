@@ -44,7 +44,7 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const pre = 'K10Motorsports.Plugin.DS.';
+      const pre = 'RaceCorProDrive.Plugin.DS.';
       const s1 = +snapshot[pre + 'Sector1'] || 0;
       const s2 = +snapshot[pre + 'Sector2'] || 0;
       const s3 = +snapshot[pre + 'Sector3'] || 0;

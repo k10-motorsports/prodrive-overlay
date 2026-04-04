@@ -87,7 +87,7 @@
     updateData(snapshot) {
       if (!snapshot) return;
 
-      const dsPre = 'K10Motorsports.Plugin.DS.';
+      const dsPre = 'RaceCorProDrive.Plugin.DS.';
       const gameDataPre = 'DataCorePlugin.GameData.';
 
       const maxRpm = +snapshot[gameDataPre + 'CarSettings_MaxRPM'] || 1;

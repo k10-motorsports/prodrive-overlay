@@ -82,14 +82,14 @@
     show(snapshot, isDemo = false) {
       if (!snapshot) return;
 
-      const pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : '';
-      const dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+      const pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : '';
+      const dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
       // Extract data
-      const pos = isDemo ? +(snapshot['K10Motorsports.Plugin.Demo.Position'] || 0) : +(snapshot['DataCorePlugin.GameData.Position'] || 0);
+      const pos = isDemo ? +(snapshot['RaceCorProDrive.Plugin.Demo.Position'] || 0) : +(snapshot['DataCorePlugin.GameData.Position'] || 0);
       const completedLaps = +(snapshot[dsPre + 'CompletedLaps'] || 0);
-      const totalLaps = isDemo ? +(snapshot['K10Motorsports.Plugin.Demo.TotalLaps'] || 0) : +(snapshot['DataCorePlugin.GameData.TotalLaps'] || 0);
-      const bestLap = isDemo ? +(snapshot['K10Motorsports.Plugin.Demo.BestLapTime'] || 0) : +(snapshot['DataCorePlugin.GameData.BestLapTime'] || 0);
+      const totalLaps = isDemo ? +(snapshot['RaceCorProDrive.Plugin.Demo.TotalLaps'] || 0) : +(snapshot['DataCorePlugin.GameData.TotalLaps'] || 0);
+      const bestLap = isDemo ? +(snapshot['RaceCorProDrive.Plugin.Demo.BestLapTime'] || 0) : +(snapshot['DataCorePlugin.GameData.BestLapTime'] || 0);
       const incidents = +(snapshot[dsPre + 'IncidentCount'] || 0);
 
       this._position = pos;

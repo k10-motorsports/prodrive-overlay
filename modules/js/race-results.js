@@ -50,8 +50,8 @@
   window.accumulateRaceData = function(p, isDemo) {
     if (!_raceData) return; // Only accumulate if race is active
 
-    const pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : '';
-    const dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    const pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : '';
+    const dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
     const currentLap = isDemo ? +(p[pre + 'CurrentLap']) || 0 : +(p['DataCorePlugin.GameData.CurrentLap']) || 0;
     const position = isDemo ? +(p[pre + 'Position']) || 0 : +(p['DataCorePlugin.GameData.Position']) || 0;
@@ -78,12 +78,12 @@
     }
 
     // Commentary capture (when visibility goes 0→1)
-    const commentaryVis = +(p['K10Motorsports.Plugin.CommentaryVisible']) || 0;
+    const commentaryVis = +(p['RaceCorProDrive.Plugin.CommentaryVisible']) || 0;
     if (commentaryVis === 1 && _prevCommentaryVis === 0) {
-      const title = p['K10Motorsports.Plugin.CommentaryTopicTitle'] || '';
-      const text = p['K10Motorsports.Plugin.CommentaryText'] || '';
-      const topicId = p['K10Motorsports.Plugin.CommentaryTopicId'] || '';
-      const sentiment = p['K10Motorsports.Plugin.CommentarySentimentColor'] || '';
+      const title = p['RaceCorProDrive.Plugin.CommentaryTopicTitle'] || '';
+      const text = p['RaceCorProDrive.Plugin.CommentaryText'] || '';
+      const topicId = p['RaceCorProDrive.Plugin.CommentaryTopicId'] || '';
+      const sentiment = p['RaceCorProDrive.Plugin.CommentarySentimentColor'] || '';
       if (title && topicId) {
         _commentaryLog.push({
           lap: currentLap,
@@ -440,8 +440,8 @@
     }
 
     // Gather final data
-    const pre = isDemo ? 'K10Motorsports.Plugin.Demo.' : '';
-    const dsPre = isDemo ? 'K10Motorsports.Plugin.Demo.DS.' : 'K10Motorsports.Plugin.DS.';
+    const pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : '';
+    const dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
     const position = isDemo ? +(p[pre + 'Position']) || 0 : +(p['DataCorePlugin.GameData.Position']) || 0;
     const trackName = isDemo ? (p[pre + 'TrackName'] || 'Track') : (p['DataCorePlugin.GameData.TrackName'] || 'Track');

@@ -1,4 +1,4 @@
-# K10 Motorsports — Dashboard Overlay
+# RaceCorProDrive — Dashboard Overlay
 
 A standalone Electron overlay that renders real-time sim racing telemetry as a transparent HUD on top of your sim. Designed for stream overlays and broadcast production — it composites directly over the game window with no capture card or secondary monitor required. Also functions as a dedicated driving display in fullscreen Drive HUD mode.
 
@@ -6,7 +6,7 @@ A standalone Electron overlay that renders real-time sim racing telemetry as a t
 
 ## Overview
 
-The dashboard connects to the K10 Motorsports SimHub plugin's HTTP API and renders telemetry data at ~30fps. It runs as a frameless, always-on-top, click-through window so the game receives all mouse and keyboard input normally. On systems that support native transparency (x64 Windows), the window background is fully transparent. On ARM devices (Surface Pro, Snapdragon laptops), it uses a green chroma key background for OBS Color Key compositing.
+The dashboard connects to the RaceCorProDrive SimHub plugin's HTTP API and renders telemetry data at ~30fps. It runs as a frameless, always-on-top, click-through window so the game receives all mouse and keyboard input normally. On systems that support native transparency (x64 Windows), the window background is fully transparent. On ARM devices (Surface Pro, Snapdragon laptops), it uses a green chroma key background for OBS Color Key compositing.
 
 The `dashboard.html` file powers three deployment modes: the Electron overlay (this app), the SimHub built-in dashboard template, and direct browser access via the plugin's HTTP server.
 
@@ -15,7 +15,7 @@ The `dashboard.html` file powers three deployment modes: the Electron overlay (t
 ### Prerequisites
 
 - Node.js 18+
-- SimHub running with the K10 Motorsports plugin enabled
+- SimHub running with the RaceCorProDrive plugin enabled
 - The plugin's HTTP server active on port 8889 (starts automatically with the plugin)
 - **iRacing users:** The [iRacing Extra Properties](https://drive.google.com/drive/folders/1AiIWHviD4j-_D-zgRrjJU1AFhJ_xmass) plugin by RomainRob (required for iRating and Safety Rating display)
 
@@ -29,7 +29,7 @@ npm start
 
 **Platform launchers** (double-click to run — auto-install dependencies):
 
-- **macOS:** `scripts/mac/K10 Motorsports.command`
+- **macOS:** `scripts/mac/RaceCorProDrive.command`
 - **Windows:** `scripts/windows/start.bat`
 
 The overlay appears in the top-right corner of your primary display. For ARM hardware, use safe mode: `npm run start:safe`
@@ -68,7 +68,7 @@ The overlay appears in the top-right corner of your primary display. For ARM har
 
 **Tyres** — 2×2 grid of tyre temperatures in °F with heat-map background coloring (blue → green → red). Wear percentage drives cell opacity — worn tyres appear muted.
 
-**Logo Column** — K10 logomark (top) and auto-detected manufacturer logo (bottom). Supports Porsche, BMW, Ferrari, McLaren, Mazda, Nissan, Dallara, and more. The game logo is placed in the diagonally opposite corner from the dashboard to avoid overlapping secondary panels.
+**Logo Column** — RaceCorProDrive logomark (top) and auto-detected manufacturer logo (bottom). Supports Porsche, BMW, Ferrari, McLaren, Mazda, Nissan, Dallara, and more. The game logo is placed in the diagonally opposite corner from the dashboard to avoid overlapping secondary panels.
 
 ### Secondary Panels
 
@@ -121,7 +121,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 
 ```
 ┌──────────────────────────────────────────┐
-│  SimHub + K10 Motorsports Plugin         │
+│  SimHub + RaceCorProDrive Plugin         │
 │  ┌─────────────────────────────────────┐ │
 │  │ HTTP Server (port 8889)             │ │
 │  │ GET /racecor-io-pro-drive/           │ │
@@ -131,7 +131,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 └───────────────────┬──────────────────────┘
                     │ HTTP GET (~30fps)
 ┌───────────────────▼──────────────────────┐
-│  K10 Motorsports (Electron)              │
+│  RaceCorProDrive (Electron)              │
 │  ┌─────────────────────────────────────┐ │
 │  │ main.js         (main process)      │ │
 │  │ • Window management + transparency  │ │
@@ -161,7 +161,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 
 1. The SimHub plugin serves all telemetry, commentary, and strategy state as a flat JSON object at `/racecor-io-pro-drive/` over HTTP on port 8889.
 
-2. The dashboard's `fetchProps()` function issues a single HTTP GET every 33ms (~30fps). In demo mode, the dashboard reads from `K10Motorsports.Plugin.Demo.*` properties instead — the switching is transparent.
+2. The dashboard's `fetchProps()` function issues a single HTTP GET every 33ms (~30fps). In demo mode, the dashboard reads from `RaceCorProDrive.Plugin.Demo.*` properties instead — the switching is transparent.
 
 3. Each poll cycle, `pollUpdate()` routes JSON values to the appropriate module: updating DOM elements, CSS custom properties, SVG transforms, class toggles, and WebGL shader uniforms. Animations are driven by CSS transitions triggered by class changes.
 
@@ -196,7 +196,7 @@ The Electron main process captures a configurable screen region at ~4fps using `
 
 ### In-App Settings
 
-Press `Ctrl+Shift+S` to enter settings mode, then click the gear icon to open the settings panel. Toggle individual dashboard sections on or off: fuel, tyres, controls, pedal traces, track map, position/gaps, tachometer, commentary, K10 logo, car logo, leaderboard, datastream, incidents, and spotter.
+Press `Ctrl+Shift+S` to enter settings mode, then click the gear icon to open the settings panel. Toggle individual dashboard sections on or off: fuel, tyres, controls, pedal traces, track map, position/gaps, tachometer, commentary, RaceCorProDrive logo, car logo, leaderboard, datastream, incidents, and spotter.
 
 You can also change the SimHub API URL for remote setups (e.g., `http://playbox.local:8889/racecor-io-pro-drive`).
 
@@ -228,7 +228,7 @@ On x64 systems, native transparency composites directly — no OBS filter needed
 
 ## Troubleshooting
 
-**Dashboard shows no data:** Open `http://localhost:8889/racecor-io-pro-drive/` in a browser. You should see a JSON blob with 100+ properties. If not, verify the K10 Motorsports plugin is enabled in SimHub.
+**Dashboard shows no data:** Open `http://localhost:8889/racecor-io-pro-drive/` in a browser. You should see a JSON blob with 100+ properties. If not, verify the RaceCorProDrive plugin is enabled in SimHub.
 
 **Overlay crashes on launch (ARM):** Use `npm run start:safe` for software rendering. Requires Electron 33+.
 
