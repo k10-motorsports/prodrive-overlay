@@ -168,45 +168,6 @@
       </div>
     </div>
 
-    <!-- COL: Maps stacked — rendered dynamically from TrackMapProvider -->
-    <div class="maps-col">
-      <div class="panel map-panel">
-        <svg class="map-svg" id="fullMapSvg" viewBox="0 0 100 100">
-          <path class="map-track-outer" id="fullMapTrackOuter" d="" />
-          <path class="map-track" id="fullMapTrack" d="" />
-          <path class="map-track-inner on-track" id="fullMapTrackInner" d="" />
-          <path class="map-sector" id="mapSector1" d="" />
-          <path class="map-sector" id="mapSector2" d="" />
-          <path class="map-sector" id="mapSector3" d="" />
-          <g id="fullMapSF" class="map-sf" style="display:none;">
-            <line x1="0" y1="-3.5" x2="0" y2="3.5" stroke="hsla(0,0%,100%,0.6)" stroke-width="1.5" stroke-linecap="round"/>
-          </g>
-          <g id="fullMapOpponents"></g>
-          <circle class="map-player" id="fullMapPlayer" cx="50" cy="50" r="4" />
-        </svg>
-        <div class="map-zoom-label" id="fullMapLabel">Full</div>
-      </div>
-      <div class="panel map-zoom-panel">
-        <svg class="map-zoom-svg" id="zoomMapSvg" viewBox="0 0 100 100" overflow="visible">
-          <!-- Rotate group: track + opponents rotate around the player so
-               driving direction always points up. Player dot is OUTSIDE
-               this group so it stays upright and visually centered. -->
-          <g id="zoomMapRotateGroup">
-            <path class="map-track-outer" id="zoomMapTrackOuter" d="" />
-            <path class="map-track" id="zoomMapTrack" d="" />
-            <path class="map-track-inner on-track" id="zoomMapTrackInner" d="" />
-            <g id="zoomMapSF" class="map-sf" style="display:none;">
-              <line x1="0" y1="-2" x2="0" y2="2" stroke="hsla(0,0%,100%,0.6)" stroke-width="0.8" stroke-linecap="round"/>
-            </g>
-            <g id="zoomMapOpponents"></g>
-          </g>
-          <!-- Player dot outside rotate group — always upright at center -->
-          <circle class="map-player" id="zoomMapPlayer" cx="50" cy="50" r="2" />
-        </svg>
-        <div class="map-zoom-label" id="zoomMapLabel">Local</div>
-      </div>
-    </div>
-
     <!-- COL: Position/Rating + Gaps -->
     <div class="pos-gaps-col">
       <div class="panel cycle-container rating-pos-block" id="cycleRatingPos">
@@ -874,7 +835,6 @@
         <div class="settings-two-col">
         <div class="settings-row"><span class="settings-label">Tachometer</span><div class="settings-toggle on" data-section="tacho-block" data-key="showTacho" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Position &amp; Gaps</span><div class="settings-toggle on" data-section="pos-gaps-col" data-key="showPosition" onclick="toggleSetting(this)"></div></div>
-        <div class="settings-row"><span class="settings-label">Track Maps</span><div class="settings-toggle on" data-section="maps-col" data-key="showMaps" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Controls (BB/TC/ABS)</span><div class="settings-toggle on" data-section="car-controls" data-key="showControls" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Pedals</span><div class="settings-toggle on" data-section="pedals-area" data-key="showPedals" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Commentary</span><div class="settings-toggle on" data-section="commentary-col" data-key="showCommentary" data-pro-feature="commentary" onclick="toggleSetting(this)"></div></div>
@@ -989,7 +949,6 @@
       <div class="settings-row"><span class="settings-label">Sentiment Halo</span><div class="settings-toggle on" data-key="showSentimentHalo" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Commentary Glow</span><div class="settings-toggle on" data-key="showCommentaryGlow" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Race Control Animation</span><div class="settings-toggle on" data-key="showRcAnimation" onclick="toggleSetting(this)"></div></div>
-      <div class="settings-row"><span class="settings-label">Track Map Glow</span><div class="settings-toggle on" data-key="showMapGlow" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Redline Flash</span><div class="settings-toggle on" data-key="showRedlineFlash" onclick="toggleSetting(this)"></div></div>
 
       <!-- Fun -->
