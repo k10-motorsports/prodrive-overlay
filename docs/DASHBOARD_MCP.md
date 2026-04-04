@@ -57,7 +57,7 @@ RaceCor Overlay/
 |       +-- poll-engine.js  <- (632 lines) Main orchestrator: polling loop, game detection, applyGameMode(), session-aware gaps
 +-- scripts/
 |   +-- mac/
-|   |   +-- K10 Motorsports.command  <- macOS launcher (double-click to run)
+|   |   +-- RaceCor.command  <- macOS launcher (double-click to run)
 |   |   +-- install.command                <- Install dependencies
 |   |   +-- launch.sh                      <- Silent launcher (no terminal window)
 |   +-- windows/
@@ -228,7 +228,7 @@ All WebGL2 shader programs in a single IIFE. Each shader section follows the pat
 3. **flagFX** -- flag overlay animation (canvas: `flagGlCanvas`)
 4. **lbFX** -- leaderboard effects (canvas: `lbGlCanvas`)
 5. **lbEvtFX** -- leaderboard event effects
-6. **k10LogoFX** -- K10 logo glow
+6. **raceCorLogoFX** -- K10 logo glow
 7. **spotterFX** -- spotter panel edge glow (canvas: `spotterGlCanvas`)
    - Colors: warn=amber, danger=red, clear=green
 8. **bonkersFX** -- pit limiter fire effect (canvas: `bonkersGlCanvas`)
@@ -239,7 +239,7 @@ All WebGL2 shader programs in a single IIFE. Each shader section follows the pat
 
 **Master FX loop** (requestAnimationFrame):
 ```javascript
-tachoFX -> flagFX -> lbFX -> lbEvtFX -> k10LogoFX -> spotterFX -> bonkersFX -> commTrailFX -> gridFlagFX
+tachoFX -> flagFX -> lbFX -> lbEvtFX -> raceCorLogoFX -> spotterFX -> bonkersFX -> commTrailFX -> gridFlagFX
 ```
 
 ### incidents.js (~73 lines)
