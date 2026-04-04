@@ -578,6 +578,9 @@
       // Can't reassign const, but we can update the fetch function
       window._simhubUrlOverride = url;
     }
+    // Reset connection failure counter to retry immediately with new URL
+    window._connFails = 0;
+    window._backoffUntil = 0;
     saveSettings();
   }
 
