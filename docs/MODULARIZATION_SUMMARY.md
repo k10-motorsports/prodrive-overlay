@@ -1,4 +1,4 @@
-# K10 Motorsports Dashboard Modularization
+# RaceCor Dashboard Modularization
 
 ## Overview
 
@@ -83,7 +83,7 @@ All modules load via `<script src>` and `<link rel="stylesheet" href>` tags with
 
 | File | Lines | Dependencies | Purpose |
 |------|-------|--------------|---------|
-| `webgl.js` | 1,739 | webgl-helpers.js, poll-engine.js | **WebGL FX engine** — 10 shader programs (tachoFX, pedalsFX, flagFX, lbFX, spotterFX, bonkersFX, commTrailFX, gridFlagFX, k10LogoFX); requires WebGL2 canvas contexts |
+| `webgl.js` | 1,739 | webgl-helpers.js, poll-engine.js | **WebGL FX engine** — 10 shader programs (tachoFX, pedalsFX, flagFX, lbFX, spotterFX, bonkersFX, commTrailFX, gridFlagFX, raceCorLogoFX); requires WebGL2 canvas contexts |
 
 **Total JS:** 6,600+ lines, 240KB
 
@@ -182,7 +182,7 @@ All original functionality is preserved:
 ## File System Layout
 
 ```
-K10 Motorsports/
+RaceCor/
 ├── dashboard.html                    (435 lines, thin assembly)
 ├── modules/
 │   ├── styles/                       (95 KB, 8 files)
