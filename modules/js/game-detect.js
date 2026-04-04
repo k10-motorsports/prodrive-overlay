@@ -102,6 +102,16 @@
         settingsWarn.classList.add('warn-visible');
         if (settingsWarnUrl) settingsWarnUrl.textContent = window._simhubUrlOverride || SIMHUB_URL;
       }
+      // Show connection banner when disconnected (useful for Mac/Parallels users)
+      // Banner allows quick IP entry without opening full settings
+      if (!_connBannerDismissed && !_connBannerShown && _connFails >= 2) {
+        const banner = document.getElementById('connBanner');
+        if (banner) {
+          banner.classList.add('visible');
+          _connBannerShown = true;
+          if (window.k10?.requestInteractive) window.k10.requestInteractive();
+        }
+      }
     }
 
     // Force settings mode open when disconnected (after a few retries)
@@ -130,7 +140,17 @@
     const newUrl = `http://${host}:8889/racecor-io-pro-drive/`;
     window._simhubUrlOverride = newUrl;
     _settings.simhubUrl = newUrl;
-    saveSettings();
+    // saveSettings() is defined in connections.js which loads after game-detect.js
+    // Ensure it's available before calling
+    const _trySaveSettings = () => {
+      if (typeof saveSettings === 'function') {
+        saveSettings();
+      } else {
+        // Retry after a short delay when saveSettings becomes available
+        setTimeout(_trySaveSettings, 100);
+      }
+    };
+    _trySaveSettings();
     // Update the settings panel input too
     const urlInput = document.getElementById('settingsSimhubUrl');
     if (urlInput) urlInput.value = newUrl;

@@ -558,7 +558,7 @@ function getCarAdjustability(model) {
 const _defaultSettings = {
   logoOnlyStart: true, // Start in logo-only mode; HUD reveals when session goes active
   showFuel: true, showTyres: true, showControls: true, showPedals: true,
-  showMaps: true, showPosition: true, showTacho: true, showCommentary: true,
+  showPosition: true, showTacho: true, showCommentary: true,
   showK10Logo: true, showCarLogo: true, showGameLogo: true, simhubUrl: 'http://localhost:8889/racecor-io-pro-drive/',
   layoutPosition: 'top-right',
   greenScreen: false, showWebGL: true, showBonkers: true, ambientMode: 'reflective',
@@ -573,7 +573,6 @@ const _defaultSettings = {
   showSentimentHalo: true,
   showCommentaryGlow: true,
   showRcAnimation: true,
-  showMapGlow: true,
   showRedlineFlash: true,
   // Leaderboard
   lbFocus: 'me',        // 'me' = center on player, 'lead' = show from P1

@@ -109,6 +109,7 @@
     if (_k10Connecting) return;
     if (!window.k10 || !window.k10.k10Connect) {
       // Fallback: open website in browser
+      if (window.debugConsole) window.debugConsole.logNetwork('info', 'K10 connection not available, opening browser');
       if (window.k10 && window.k10.openExternal) {
         window.k10.openExternal('https://drive.racecor.io');
       }
@@ -118,6 +119,8 @@
     _k10Connecting = true;
     const btn = document.getElementById('k10ConnectBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Connecting...'; }
+
+    if (window.debugConsole) window.debugConsole.logNetwork('request', 'K10 Pro Drive connection attempt');
 
     try {
       const result = await window.k10.k10Connect();
@@ -133,10 +136,13 @@
           window.setCustomLogoUrl(result.user.customLogoUrl);
         }
 
+        if (window.debugConsole) window.debugConsole.logNetwork('success', 'K10 Pro Drive connected - ' + (result.user.discordUsername || result.user.discordDisplayName || 'User'));
+
         updateK10ConnectionCard();
       } else {
         const errMsg = result?.error || 'Connection failed';
         console.warn('[K10] Pro connect failed:', errMsg);
+        if (window.debugConsole) window.debugConsole.logNetwork('error', 'K10 connection failed - ' + errMsg);
         const text = document.getElementById('connK10Text');
         if (text) text.innerHTML = '<strong style="color:hsl(0,75%,60%)">Failed</strong> — ' + errMsg;
         setTimeout(() => {
@@ -145,6 +151,7 @@
       }
     } catch (err) {
       console.error('[K10] Pro connect error:', err);
+      if (window.debugConsole) window.debugConsole.logNetwork('error', 'K10 connection error - ' + (err.message || String(err)));
     } finally {
       _k10Connecting = false;
       if (btn) {
@@ -578,6 +585,9 @@
       // Can't reassign const, but we can update the fetch function
       window._simhubUrlOverride = url;
     }
+    // Reset connection failure counter to retry immediately with new URL
+    window._connFails = 0;
+    window._backoffUntil = 0;
     saveSettings();
   }
 

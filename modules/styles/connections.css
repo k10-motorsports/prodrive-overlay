@@ -262,4 +262,173 @@
     vertical-align: -1px;
   }
 
+
+  /* ── Debug Consoles ─────────────────────────────────────────────── */
+  .debug-console-wrapper {
+    margin-top: 12px;
+    background: #0a0a0a;
+    border: 1px solid hsla(0,0%,100%,0.08);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .debug-console-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: hsla(0,0%,100%,0.03);
+    border-bottom: 1px solid hsla(0,0%,100%,0.05);
+    gap: 10px;
+  }
+
+  .debug-console-title {
+    font-family: 'JetBrains Mono', 'Monaco', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: hsla(120,100%,70%,0.9);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 1;
+  }
+
+  .debug-console-clear-btn {
+    padding: 4px 10px;
+    background: hsla(0,0%,100%,0.06);
+    border: 1px solid hsla(0,0%,100%,0.1);
+    border-radius: 4px;
+    color: hsla(0,0%,100%,0.5);
+    font-family: 'JetBrains Mono', 'Monaco', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .debug-console-clear-btn:hover {
+    background: hsla(0,0%,100%,0.1);
+    color: hsla(0,0%,100%,0.7);
+  }
+
+  .debug-console-clear-btn:active {
+    transform: scale(0.95);
+  }
+
+  .debug-console-body {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0;
+    background: #0a0a0a;
+    font-family: 'JetBrains Mono', 'Monaco', monospace;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .debug-log-entry {
+    padding: 4px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: hsla(0,0%,100%,0.6);
+    border-bottom: 1px solid hsla(0,0%,100%,0.02);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .debug-log-entry:last-child {
+    border-bottom: none;
+  }
+
+  .log-timestamp {
+    color: hsla(240,100%,70%,0.7);
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: fit-content;
+  }
+
+  .log-icon {
+    color: hsla(0,0%,100%,0.4);
+    flex-shrink: 0;
+    font-weight: bold;
+    width: 12px;
+  }
+
+  .log-message {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .log-status {
+    color: hsla(0,0%,100%,0.5);
+    padding: 2px 6px;
+    background: hsla(0,0%,100%,0.05);
+    border-radius: 3px;
+    font-weight: 600;
+    flex-shrink: 0;
+    font-size: 9px;
+  }
+
+  .log-status.status-ok {
+    color: hsla(120,100%,70%,0.8);
+    background: hsla(120,100%,70%,0.1);
+  }
+
+  .log-status.status-error {
+    color: hsla(0,100%,70%,0.8);
+    background: hsla(0,100%,70%,0.1);
+  }
+
+  .debug-log-entry.log-success {
+    color: hsla(120,100%,70%,0.8);
+  }
+
+  .debug-log-entry.log-success .log-icon {
+    color: hsla(120,100%,70%,0.8);
+  }
+
+  .debug-log-entry.log-error {
+    color: hsla(0,100%,70%,0.8);
+  }
+
+  .debug-log-entry.log-error .log-icon {
+    color: hsla(0,100%,70%,0.8);
+  }
+
+  .debug-log-entry.log-request {
+    color: hsla(240,100%,70%,0.8);
+  }
+
+  .debug-log-entry.log-request .log-icon {
+    color: hsla(240,100%,70%,0.8);
+  }
+
+  .debug-log-entry.log-response {
+    color: hsla(120,100%,70%,0.7);
+  }
+
+  .debug-log-entry.log-response .log-icon {
+    color: hsla(120,100%,70%,0.7);
+  }
+
+  /* Scrollbar styling for debug consoles */
+  .debug-console-body::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .debug-console-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .debug-console-body::-webkit-scrollbar-thumb {
+    background: hsla(0,0%,100%,0.15);
+    border-radius: 3px;
+  }
+
+  .debug-console-body::-webkit-scrollbar-thumb:hover {
+    background: hsla(0,0%,100%,0.25);
+  }
+
   /* ── Rally Mode ─────────────────────────────────────────────── */
