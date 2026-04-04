@@ -732,15 +732,27 @@
     var maxLen = _trailMaxLen();
     var n = _trackPathCoords.length;
 
+    // After S/F or pit-exit reset (_trailStartIdx === -1), anchor the trail
+    // start to the player's current position so it grows from here — never
+    // wrapping backward across the start/finish line.
+    if (_trailStartIdx < 0) {
+      _trailStartIdx = playerIdx;
+    }
+
     // Walk backward from player along track path, up to maxLen points
-    // or until we hit the trail start (turn entry)
-    var startIdx = _trailStartIdx >= 0 ? _trailStartIdx : playerIdx;
+    // or until we hit the trail start (turn entry / lap boundary)
+    var startIdx = _trailStartIdx;
     // How many points back from player to the trail start?
     var backDist = (playerIdx - startIdx + n) % n;
-    // Clamp to max trail length
-    if (backDist > maxLen || backDist === 0) {
+    // Clamp to max trail length (but never wrap past the trail start)
+    if (backDist > maxLen) {
       startIdx = (playerIdx - maxLen + n) % n;
       backDist = maxLen;
+    }
+    // Nothing to draw yet (player hasn't moved from start)
+    if (backDist === 0) {
+      trailEl.setAttribute('points', '');
+      return;
     }
 
     // Build points from tail (startIdx) → head (playerIdx) along the track path
