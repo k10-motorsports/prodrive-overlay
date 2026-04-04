@@ -162,6 +162,10 @@
       completedLaps + '/' + totalLaps + ' laps',
       incidentDelta + 'x', 'ΔiR:', estimatedDelta);
 
+    if (window.debugConsole) {
+      window.debugConsole.logIRacingSync('info', 'Session submission: P' + finishPosition + ' - ' + completedLaps + '/' + totalLaps + ' laps, ' + incidentDelta + 'x incidents');
+    }
+
     fetch(API_BASE + '/api/sessions', {
       method: 'POST',
       headers: {
@@ -174,16 +178,25 @@
       if (r.ok) {
         return r.json().then(function(data) {
           console.log('[Session Sync] Session submitted successfully:', data.sessionId);
+          if (window.debugConsole) {
+            window.debugConsole.logIRacingSync('success', 'Session recorded with ID: ' + data.sessionId);
+          }
           // Store for backfill when next session starts
           window._lastSubmittedSessionId = data.sessionId;
         });
       } else {
         console.warn('[Session Sync] Session submit failed:', r.status);
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('error', 'Session submit failed: ' + r.status, { statusCode: r.status });
+        }
         _sessionSubmitted = false; // Allow retry
       }
     })
     .catch(function(e) {
       console.error('[Session Sync] Session submit error:', e);
+      if (window.debugConsole) {
+        window.debugConsole.logIRacingSync('error', 'Session submit error: ' + (e.message || String(e)));
+      }
       _sessionSubmitted = false; // Allow retry
     });
   };
@@ -221,6 +234,10 @@
     console.log('[Session Sync] Backfilling previous session with actual deltas:',
       'ΔiR:', actualIRDelta, 'ΔSR:', actualSRDelta);
 
+    if (window.debugConsole) {
+      window.debugConsole.logIRacingSync('info', 'Backfill: ΔiR=' + actualIRDelta + ', ΔSR=' + actualSRDelta);
+    }
+
     fetch(API_BASE + '/api/sessions/backfill', {
       method: 'POST',
       headers: {
@@ -237,11 +254,17 @@
     .then(function(r) {
       if (r.ok) {
         console.log('[Session Sync] Backfill successful');
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('success', 'Backfill completed with actual rating deltas');
+        }
         window._lastSubmittedSessionId = null; // Clear after backfill
       }
     })
     .catch(function(e) {
       console.error('[Session Sync] Backfill error:', e);
+      if (window.debugConsole) {
+        window.debugConsole.logIRacingSync('error', 'Backfill error: ' + (e.message || String(e)));
+      }
     });
   }
 
@@ -290,6 +313,10 @@
 
     _initialSyncDone = true;
 
+    if (window.debugConsole) {
+      window.debugConsole.logIRacingSync('info', 'Initial rating sync - iR: ' + ir + ', SR: ' + sr + ', License: ' + (license || 'R'));
+    }
+
     fetch(API_BASE + '/api/ratings', {
       method: 'POST',
       headers: {
@@ -306,13 +333,22 @@
     .then(function(r) {
       if (r.ok) {
         console.log('[Session Sync] Initial rating baseline synced:', ir, sr);
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('success', 'Initial rating baseline recorded');
+        }
       } else {
         console.warn('[Session Sync] Initial sync failed:', r.status);
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('error', 'Initial sync failed: ' + r.status, { statusCode: r.status });
+        }
       }
     })
     .catch(function(e) {
       _initialSyncDone = false; // Allow retry on error
       console.error('[Session Sync] Initial sync error:', e);
+      if (window.debugConsole) {
+        window.debugConsole.logIRacingSync('error', 'Initial sync error: ' + (e.message || String(e)));
+      }
     });
   };
 

@@ -1167,6 +1167,15 @@
         <div class="conn-card-detail" id="iracingSyncDetail" style="font-size:10px;line-height:1.4;color:hsla(0,0%,100%,0.45);padding:0 2px;">
           When enabled, RaceCor.io Pro Drive records your race results — finish position, incidents, lap times, and rating changes — to build your personal performance dashboard. Data is captured at the start and end of each session and synced to your account. No telemetry is stored, only session summaries.
         </div>
+      <!-- iRacing Data Sync Debug Console -->
+      <div class="debug-console-wrapper">
+        <div class="debug-console-header">
+          <div class="debug-console-title">iRacing Sync Console</div>
+          <button class="debug-console-clear-btn" onclick="window.debugConsole.clearIRacingSync()">Clear</button>
+        </div>
+        <div class="debug-console-body" id="iRacingSyncConsole"></div>
+      </div>
+
         <div class="conn-card-detail" id="iracingSyncActive" style="display:none;font-size:10px;color:hsla(120,60%,60%,0.8);padding:0 2px;">
           ✓ Session data will sync to your RaceCor.io Pro Drive dashboard
         </div>
@@ -1256,6 +1265,15 @@
             </div>
           </div>
         </div>
+      </div>
+
+            <!-- Network Connection Debug Console -->
+      <div class="debug-console-wrapper" style="margin-top:16px;">
+        <div class="debug-console-header">
+          <div class="debug-console-title">Network Connection Console</div>
+          <button class="debug-console-clear-btn" onclick="window.debugConsole.clearNetwork()">Clear</button>
+        </div>
+        <div class="debug-console-body" id="networkConnectionConsole"></div>
       </div>
 
     </div>
@@ -1468,6 +1486,7 @@
 <script src="modules/js/pedal-curves.js"></script>
 <script src="modules/js/settings.js"></script>
 <script src="modules/js/qr-code.js"></script>
+<script src="modules/js/debug-console.js"></script>
 <script src="modules/js/connections.js"></script>
 <script src="modules/js/leaderboard.js"></script>
 <script src="modules/js/datastream.js"></script>
