@@ -168,45 +168,6 @@
       </div>
     </div>
 
-    <!-- COL: Maps stacked — rendered dynamically from TrackMapProvider -->
-    <div class="maps-col">
-      <div class="panel map-panel">
-        <svg class="map-svg" id="fullMapSvg" viewBox="0 0 100 100">
-          <path class="map-track-outer" id="fullMapTrackOuter" d="" />
-          <path class="map-track" id="fullMapTrack" d="" />
-          <path class="map-track-inner on-track" id="fullMapTrackInner" d="" />
-          <path class="map-sector" id="mapSector1" d="" />
-          <path class="map-sector" id="mapSector2" d="" />
-          <path class="map-sector" id="mapSector3" d="" />
-          <g id="fullMapSF" class="map-sf" style="display:none;">
-            <line x1="0" y1="-3.5" x2="0" y2="3.5" stroke="hsla(0,0%,100%,0.6)" stroke-width="1.5" stroke-linecap="round"/>
-          </g>
-          <g id="fullMapOpponents"></g>
-          <circle class="map-player" id="fullMapPlayer" cx="50" cy="50" r="4" />
-        </svg>
-        <div class="map-zoom-label" id="fullMapLabel">Full</div>
-      </div>
-      <div class="panel map-zoom-panel">
-        <svg class="map-zoom-svg" id="zoomMapSvg" viewBox="0 0 100 100" overflow="visible">
-          <!-- Rotate group: track + opponents rotate around the player so
-               driving direction always points up. Player dot is OUTSIDE
-               this group so it stays upright and visually centered. -->
-          <g id="zoomMapRotateGroup">
-            <path class="map-track-outer" id="zoomMapTrackOuter" d="" />
-            <path class="map-track" id="zoomMapTrack" d="" />
-            <path class="map-track-inner on-track" id="zoomMapTrackInner" d="" />
-            <g id="zoomMapSF" class="map-sf" style="display:none;">
-              <line x1="0" y1="-2" x2="0" y2="2" stroke="hsla(0,0%,100%,0.6)" stroke-width="0.8" stroke-linecap="round"/>
-            </g>
-            <g id="zoomMapOpponents"></g>
-          </g>
-          <!-- Player dot outside rotate group — always upright at center -->
-          <circle class="map-player" id="zoomMapPlayer" cx="50" cy="50" r="2" />
-        </svg>
-        <div class="map-zoom-label" id="zoomMapLabel">Local</div>
-      </div>
-    </div>
-
     <!-- COL: Position/Rating + Gaps -->
     <div class="pos-gaps-col">
       <div class="panel cycle-container rating-pos-block" id="cycleRatingPos">
@@ -843,7 +804,6 @@
         <div class="settings-sidebar-item" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
         <div class="settings-sidebar-item" data-tab="commentary" data-pro-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
         <div class="settings-sidebar-item" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
-        <div class="settings-sidebar-item disabled" data-tab="iracing" id="iracingTab" data-pro-tab="modules" onclick="switchSettingsTab(this)">iRacing</div>
         <div class="settings-sidebar-item" data-tab="pedals" onclick="switchSettingsTab(this)">Pedals</div>
         <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
         <div class="settings-sidebar-item" data-tab="system" onclick="switchSettingsTab(this)">System</div>
@@ -856,7 +816,6 @@
       <div class="settings-tab" data-tab="branding" onclick="switchSettingsTab(this)">Branding</div>
       <div class="settings-tab" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
       <div class="settings-tab" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
-      <div class="settings-tab disabled" data-tab="iracing" id="iracingTab" onclick="switchSettingsTab(this)">iRacing</div>
       <div class="settings-tab" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
       <div class="settings-tab" data-tab="system" onclick="switchSettingsTab(this)">System</div>
     </div>
@@ -876,7 +835,6 @@
         <div class="settings-two-col">
         <div class="settings-row"><span class="settings-label">Tachometer</span><div class="settings-toggle on" data-section="tacho-block" data-key="showTacho" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Position &amp; Gaps</span><div class="settings-toggle on" data-section="pos-gaps-col" data-key="showPosition" onclick="toggleSetting(this)"></div></div>
-        <div class="settings-row"><span class="settings-label">Track Maps</span><div class="settings-toggle on" data-section="maps-col" data-key="showMaps" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Controls (BB/TC/ABS)</span><div class="settings-toggle on" data-section="car-controls" data-key="showControls" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Pedals</span><div class="settings-toggle on" data-section="pedals-area" data-key="showPedals" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Commentary</span><div class="settings-toggle on" data-section="commentary-col" data-key="showCommentary" data-pro-feature="commentary" onclick="toggleSetting(this)"></div></div>
@@ -991,7 +949,6 @@
       <div class="settings-row"><span class="settings-label">Sentiment Halo</span><div class="settings-toggle on" data-key="showSentimentHalo" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Commentary Glow</span><div class="settings-toggle on" data-key="showCommentaryGlow" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Race Control Animation</span><div class="settings-toggle on" data-key="showRcAnimation" onclick="toggleSetting(this)"></div></div>
-      <div class="settings-row"><span class="settings-label">Track Map Glow</span><div class="settings-toggle on" data-key="showMapGlow" onclick="toggleSetting(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Redline Flash</span><div class="settings-toggle on" data-key="showRedlineFlash" onclick="toggleSetting(this)"></div></div>
 
       <!-- Fun -->
@@ -1275,45 +1232,6 @@
         </div>
         <div class="debug-console-body" id="networkConnectionConsole"></div>
       </div>
-
-    </div>
-
-    <!-- ── Tab: iRacing (requires Discord) ── -->
-    <div class="settings-tab-content" id="settingsTabIracing">
-
-      <div class="settings-group-label">iRating</div>
-      <div class="re-field">
-        <div class="re-field-row">
-          <input class="re-input" id="reIRatingInput" type="number" step="0.01" min="0" max="15000" value="0" />
-          <input class="re-slider" id="reIRatingSlider" type="range" min="0" max="10000" step="1" value="0" />
-        </div>
-        <div class="re-field-hint">Typical range: 500 – 8000</div>
-      </div>
-
-      <div class="settings-group-label">License &amp; Safety Rating</div>
-      <div class="re-field">
-        <div class="re-field-row">
-          <select class="settings-select" id="reLicenseSelect" style="width:90px;">
-            <option value="R">Rookie</option>
-            <option value="D">D</option>
-            <option value="C">C</option>
-            <option value="B">B</option>
-            <option value="A">A</option>
-            <option value="P">Pro</option>
-          </select>
-          <input class="re-input" id="reSRInput" type="number" step="0.01" min="0" max="4.99" value="0" style="width:70px;" />
-          <input class="re-slider" id="reSRSlider" type="range" min="0" max="4.99" step="0.01" value="0" />
-        </div>
-        <div class="re-field-hint">e.g. B 2.84 — license sets the letter, SR is the number within that license</div>
-      </div>
-
-      <div class="re-actions">
-        <button class="re-btn re-btn-save" onclick="saveRatingValues()">Save</button>
-        <button class="re-btn re-btn-reset" onclick="resetRatingEditor()">Reset</button>
-      </div>
-
-      <div class="settings-group-label" style="margin-top:16px;">History</div>
-      <div class="re-history" id="reHistory"></div>
 
     </div>
 
