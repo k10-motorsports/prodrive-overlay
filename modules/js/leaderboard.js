@@ -35,6 +35,12 @@
     const container = document.getElementById('lbRows');
     if (!container) return;
 
+    // Update header title based on focus mode
+    const headerEl = document.querySelector('.lb-header');
+    if (headerEl) {
+      headerEl.textContent = focusMode === 'lead' ? 'LEADERBOARD' : 'RELATIVE';
+    }
+
     // ── Focus + row limit logic ──
     const focusMode = _settings.lbFocus || 'me';
     let maxRows = _settings.lbMaxRows || 5;
@@ -288,31 +294,14 @@
         }
       }
 
-      // Get brand logo for driver (player uses current car, others use generic)
-      let brandKey = 'generic';
-      let brandColor = _defaultLogoBg;
-      if (isSelf) {
-        brandKey = _currentCarLogo || 'generic';
-        brandColor = _mfrBrandColors[brandKey] || _defaultLogoBg;
-      } else {
-        // Non-player drivers: show neutral dark square for now (car data not available per opponent)
-        // Non-player drivers: show generic square for now (car data not available per opponent)
-        brandColor = 'hsla(0,0%,20%,1.0)';
-      }
-
-      // Build brand logo SVG or colored square
-      const logoSvg = (isSelf && window.carLogos && window.carLogos[brandKey]) ? window.carLogos[brandKey] : '';
-      const brandLogoHtml = '<div class="lb-brand" style="background:' + brandColor + '">'
-        + (logoSvg ? '<div class="lb-brand-icon">' + logoSvg + '</div>' : '')
-        + '</div>';
+      // Format driver name as "F. LastName"
+      const displayName = isSelf ? _driverDisplayName : formatName(name);
 
       html += '<div class="' + classes.join(' ') + '">'
         + '<div class="lb-pos">' + pos + '</div>'
-        + brandLogoHtml
-        + '<div class="lb-name">' + escHtml(isSelf ? _driverDisplayName : name) + '</div>'
-        + '<div class="lb-lap ' + lapClass + '">' + lapStr + '</div>'
-        + '<div class="lb-ir">' + irStr + '</div>'
+        + '<div class="lb-name">' + escHtml(displayName) + (pit ? ' <span style="font-size:10px;color:hsla(0,70%,55%,1);">IN PIT</span>' : '') + '</div>'
         + '<div class="lb-gap ' + gapClass + '">' + gapStr + '</div>'
+        + '<div class="lb-lap ' + lapClass + '">' + lapStr + '</div>'
         + sparkSvg
         + '</div>';
     }
@@ -324,3 +313,13 @@
   }
 
   function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function formatName(fullName) {
+    // Format: "F. LastName" where F is first initial
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 0) return fullName;
+    if (parts.length === 1) return fullName;
+    const firstName = parts[0];
+    const lastName = parts[parts.length - 1];
+    return firstName.charAt(0).toUpperCase() + '. ' + lastName;
+  }
