@@ -51,6 +51,25 @@
     --sentiment-alpha: 0;
   }
 
+  /* Light theme fallback — overridden by remote token CSS when available */
+  [data-theme="light"] {
+    --bg: hsla(240, 10%, 96%, 0.92);
+    --bg-panel: hsla(240, 10%, 94%, 0.92);
+    --bg-logo: hsla(240, 5%, 92%, 0.92);
+    --border: rgba(0, 0, 0, 0.12);
+    --text-primary: hsla(0, 0%, 10%, 1.0);
+    --text-secondary: rgba(0, 0, 0, 0.65);
+    --text-dim: rgba(0, 0, 0, 0.50);
+
+    --red: #d32f2f;
+    --green: #2e7d32;
+    --blue: #1565c0;
+    --amber: #f57f17;
+    --orange: #e65100;
+    --cyan: #00838f;
+    --purple: #6a1b9a;
+  }
+
   body {
     font-family: var(--ff);
     color: var(--text-primary);
