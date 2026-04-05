@@ -118,9 +118,11 @@
       document.body.classList.add('logo-only');
     }
 
-    // Theme — sync body attribute for CSS variable theming
+    // Theme — sync body attribute and dropdown for CSS variable theming
     const theme = _settings.theme || 'dark';
     document.body.setAttribute('data-theme', theme);
+    const themeSel = document.getElementById('settingsTheme');
+    if (themeSel) themeSel.value = theme;
 
     // Visual mode classes
     const preset = _settings.visualPreset || 'standard';
@@ -308,6 +310,17 @@
     document.querySelectorAll('.settings-preset-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.preset === preset);
     });
+  }
+
+  // ── Theme switching ──
+  function updateTheme(value) {
+    _settings.theme = value || 'dark';
+    document.body.setAttribute('data-theme', _settings.theme);
+    // Notify token loader to update (if loaded)
+    if (window.tokenLoader && typeof window.tokenLoader.setTheme === 'function') {
+      window.tokenLoader.setTheme(_settings.theme);
+    }
+    saveSettings();
   }
 
   // ── Draggable settings panel ──
