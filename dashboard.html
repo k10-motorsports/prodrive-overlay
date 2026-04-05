@@ -922,6 +922,16 @@
       </div>
       <div class="settings-hint">Minimal and Minimal+ require K10 Pro connection</div>
 
+      <!-- Theme -->
+      <div class="settings-group-label">Theme</div>
+      <div class="settings-row"><span class="settings-label">Color Theme</span>
+        <select class="settings-select" id="settingsTheme" onchange="updateTheme(this.value)">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+      <div class="settings-hint">Light theme uses lighter panels — best for daytime broadcasts</div>
+
       <div class="settings-row"><span class="settings-label">Panel Borders</span><div class="settings-toggle on" data-key="showBorders" onclick="toggleSetting(this)"></div></div>
 
       <!-- Lighting -->
