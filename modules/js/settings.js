@@ -118,6 +118,10 @@
       document.body.classList.add('logo-only');
     }
 
+    // Theme — sync body attribute for CSS variable theming
+    const theme = _settings.theme || 'dark';
+    document.body.setAttribute('data-theme', theme);
+
     // Visual mode classes
     const preset = _settings.visualPreset || 'standard';
     document.body.classList.remove('mode-minimal', 'mode-minimal-plus');
