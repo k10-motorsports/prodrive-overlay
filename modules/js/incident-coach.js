@@ -1,0 +1,321 @@
+// Incident Coach — overlay module
+// Parses threat data from plugin HTTP API, manages leaderboard/map highlights,
+// composure indicator, cool-down vignette, and voice coaching triggers.
+
+  // ═══════════════════════════════════════════════════════════════
+  //  INCIDENT COACH — OVERLAY INTEGRATION
+  // ═══════════════════════════════════════════════════════════════
+
+  // ── State ──────────────────────────────────────────────────────
+  const _ic = {
+    active: false,
+    threats: [],           // parsed DriverThreatEntry[]
+    alert: null,           // parsed IncidentAlert
+    rageScore: 0,
+    cooldownActive: false,
+    behavior: null,        // parsed BehaviorMetrics
+
+    // Tracking for voice coaching triggers
+    lastVoicePromptAt: 0,
+    lastContactVoiceAt: 0,
+    lastIncidentLap: 0,
+    prevIncidentLap: 0,
+    cleanLapCounter: 0,
+    prevCooldownActive: false,
+    prevRageScore: 0,
+    prevAlertKey: '',
+
+    // Composure indicator state
+    composureEl: null,
+    composureVisible: false
+  };
+
+  // ── Threat level constants (match C# ThreatLevel enum) ────────
+  const THREAT_NONE    = 0;
+  const THREAT_WATCH   = 1;
+  const THREAT_CAUTION = 2;
+  const THREAT_DANGER  = 3;
+
+  const THREAT_CLASSES = {
+    [THREAT_WATCH]:   'ic-watch',
+    [THREAT_CAUTION]: 'ic-caution',
+    [THREAT_DANGER]:  'ic-danger'
+  };
+
+  const THREAT_LABELS = {
+    [THREAT_WATCH]:   'WATCH',
+    [THREAT_CAUTION]: 'CAUTION',
+    [THREAT_DANGER]:  'DANGER'
+  };
+
+  // ── Composure indicator setup ──────────────────────────────────
+
+  function _ensureComposureIndicator() {
+    if (_ic.composureEl) return _ic.composureEl;
+
+    const el = document.createElement('div');
+    el.id = 'composureIndicator';
+    el.className = 'ic-composure ic-composure-calm';
+    el.innerHTML = '<div class="ic-composure-dot"></div><div class="ic-composure-label">COMPOSURE</div>';
+    document.body.appendChild(el);
+    _ic.composureEl = el;
+    return el;
+  }
+
+  function _updateComposureIndicator(rageScore) {
+    const el = _ensureComposureIndicator();
+
+    // Remove all state classes
+    el.classList.remove('ic-composure-calm', 'ic-composure-elevated',
+                        'ic-composure-active', 'ic-composure-critical');
+
+    if (rageScore <= 30) {
+      el.classList.add('ic-composure-calm');
+    } else if (rageScore <= 50) {
+      el.classList.add('ic-composure-elevated');
+    } else if (rageScore <= 70) {
+      el.classList.add('ic-composure-active');
+    } else {
+      el.classList.add('ic-composure-critical');
+    }
+
+    // Only show when there's something to show (after first incident)
+    if (rageScore > 0 || _ic.threats.length > 0) {
+      el.style.display = '';
+      _ic.composureVisible = true;
+    }
+  }
+
+  // ── Cool-down vignette ─────────────────────────────────────────
+
+  function _ensureCooldownVignette() {
+    let el = document.getElementById('cooldownVignette');
+    if (el) return el;
+
+    el = document.createElement('div');
+    el.id = 'cooldownVignette';
+    el.className = 'ic-cooldown-vignette';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function _updateCooldownVignette(active, rageScore) {
+    const el = _ensureCooldownVignette();
+
+    if (active) {
+      el.classList.add('ic-cooldown-active');
+      // Intensify based on rage score
+      if (rageScore > 85) {
+        el.classList.add('ic-cooldown-intense');
+      } else {
+        el.classList.remove('ic-cooldown-intense');
+      }
+    } else {
+      el.classList.remove('ic-cooldown-active', 'ic-cooldown-intense');
+    }
+  }
+
+  // ── Leaderboard threat highlighting ────────────────────────────
+
+  // Build a name → ThreatLevel lookup from current threats
+  function _buildThreatMap() {
+    const map = new Map();
+    for (const t of _ic.threats) {
+      if (t.Level > THREAT_NONE) {
+        map.set((t.Name || '').toLowerCase(), t);
+      }
+    }
+    return map;
+  }
+
+  /**
+   * Called after leaderboard renders. Scans lb-row elements and
+   * applies threat classes + icons based on the threat ledger.
+   */
+  function _highlightLeaderboardThreats() {
+    const threatMap = _buildThreatMap();
+    if (threatMap.size === 0) return;
+
+    const rows = document.querySelectorAll('.lb-row');
+    for (const row of rows) {
+      // Get driver name from the lb-name element
+      const nameEl = row.querySelector('.lb-name');
+      if (!nameEl) continue;
+
+      // Extract text, removing "IN PIT" suffix if present
+      const nameText = (nameEl.textContent || '').replace(/\s*IN PIT\s*$/i, '').trim().toLowerCase();
+
+      // Remove any existing threat classes
+      row.classList.remove('ic-watch', 'ic-caution', 'ic-danger');
+      const oldBadge = row.querySelector('.ic-threat-badge');
+      if (oldBadge) oldBadge.remove();
+
+      // Apply threat class if driver is in the ledger
+      const threat = threatMap.get(nameText);
+      if (threat) {
+        const cls = THREAT_CLASSES[threat.Level];
+        if (cls) {
+          row.classList.add(cls);
+
+          // Add threat badge icon
+          const badge = document.createElement('span');
+          badge.className = 'ic-threat-badge ' + cls;
+          badge.textContent = threat.Level === THREAT_DANGER ? '⚠' :
+                              threat.Level === THREAT_CAUTION ? '△' : '◉';
+          badge.title = THREAT_LABELS[threat.Level] + ' — ' + threat.IncidentCount + ' incident(s)';
+          nameEl.prepend(badge);
+        }
+      }
+    }
+  }
+
+  // ── Voice coaching triggers ────────────────────────────────────
+  // Evaluate state changes and fire appropriate voice prompts.
+  // Respects cooldowns and priority rules from voice-coach.js.
+
+  function _evaluateVoiceTriggers() {
+    if (!window.voiceCoachSpeak) return;
+    const now = Date.now();
+
+    // ── New incident detected (lap changed) ──────────────────────
+    if (_ic.lastIncidentLap > 0 && _ic.lastIncidentLap !== _ic.prevIncidentLap) {
+      _ic.prevIncidentLap = _ic.lastIncidentLap;
+      _ic.cleanLapCounter = 0;
+
+      if (now - _ic.lastContactVoiceAt > 10000) { // 10s cooldown for contact alerts
+        window.voiceCoachSpeak('contact_detected', 3);
+        _ic.lastContactVoiceAt = now;
+      }
+    }
+
+    // ── Proximity alert to flagged driver ────────────────────────
+    if (_ic.alert && _ic.alert.Active) {
+      const alertKey = _ic.alert.DriverName + '|' + _ic.alert.VoicePromptKey;
+
+      if (alertKey !== _ic.prevAlertKey) {
+        _ic.prevAlertKey = alertKey;
+
+        const vars = {
+          name: _ic.alert.DriverName,
+          gap: _ic.alert.GapSeconds,
+          direction: _ic.alert.IsAhead ? 'ahead' : 'behind'
+        };
+
+        window.voiceCoachSpeak(
+          _ic.alert.VoicePromptKey,
+          _ic.alert.VoicePriority,
+          vars
+        );
+      }
+    } else {
+      _ic.prevAlertKey = '';
+    }
+
+    // ── Rage escalation ──────────────────────────────────────────
+    if (_ic.rageScore >= 70 && _ic.prevRageScore < 70) {
+      window.voiceCoachSpeak('rage_warning', 4);
+    }
+    if (_ic.rageScore >= 85 && _ic.prevRageScore < 85) {
+      window.voiceCoachSpeak('rage_critical', 5);
+    }
+
+    // ── Cool-down transitions ────────────────────────────────────
+    if (_ic.cooldownActive && !_ic.prevCooldownActive) {
+      window.voiceCoachSpeak('cooldown_active', 4);
+    }
+    if (!_ic.cooldownActive && _ic.prevCooldownActive) {
+      window.voiceCoachSpeak('cooldown_exit', 2);
+    }
+
+    // ── Positive reinforcement — 3 clean laps post-incident ──────
+    // (tracked via behavior metrics clean lap count)
+    if (_ic.behavior && _ic.behavior.CleanLaps > _ic.cleanLapCounter + 2 &&
+        _ic.threats.length > 0) {
+      _ic.cleanLapCounter = _ic.behavior.CleanLaps;
+      window.voiceCoachSpeak('positive_clean_laps', 1);
+    }
+
+    _ic.prevRageScore = _ic.rageScore;
+    _ic.prevCooldownActive = _ic.cooldownActive;
+  }
+
+  // ── Spotter integration ────────────────────────────────────────
+  // Push threat approach messages to the existing spotter stack.
+
+  function _pushThreatSpotterMsg() {
+    if (!_ic.alert || !_ic.alert.Active) return;
+    if (!window._showSpotterMsg && typeof _showSpotterMsg !== 'function') return;
+
+    const showFn = typeof _showSpotterMsg === 'function' ? _showSpotterMsg : window._showSpotterMsg;
+    if (!showFn) return;
+
+    const dir = _ic.alert.IsAhead ? 'ahead' : 'behind';
+    const gap = (+_ic.alert.GapSeconds).toFixed(1);
+    const lvl = _ic.alert.ThreatLevel;
+
+    let msg, severity;
+    if (lvl >= THREAT_DANGER) {
+      msg = '⚠ ' + _ic.alert.DriverName + ' — ' + gap + 's ' + dir;
+      severity = 'sp-danger';
+    } else if (lvl >= THREAT_CAUTION) {
+      msg = '△ ' + _ic.alert.DriverName + ' — ' + gap + 's ' + dir;
+      severity = 'sp-warn';
+    } else {
+      msg = '◉ ' + _ic.alert.DriverName + ' — ' + gap + 's ' + dir;
+      severity = 'sp-warn';
+    }
+
+    showFn(msg, severity, 'Incident Coach', 'ic-threat');
+  }
+
+  // ── Main update function ───────────────────────────────────────
+  // Called every frame from poll-engine.js
+
+  function updateIncidentCoach(p) {
+    // Read master toggle
+    _ic.active = +(p['RaceCorProDrive.Plugin.DS.IncidentCoach.Active']) === 1;
+    if (!_ic.active) {
+      // Hide UI elements when disabled
+      if (_ic.composureEl) _ic.composureEl.style.display = 'none';
+      _updateCooldownVignette(false, 0);
+      return;
+    }
+
+    // ── Parse plugin data ────────────────────────────────────────
+    _ic.rageScore = +(p['RaceCorProDrive.Plugin.DS.IncidentCoach.RageScore']) || 0;
+    _ic.cooldownActive = +(p['RaceCorProDrive.Plugin.DS.IncidentCoach.CooldownActive']) === 1;
+    _ic.lastIncidentLap = +(p['RaceCorProDrive.Plugin.DS.IncidentCoach.LastIncidentLap']) || 0;
+
+    // Parse JSON fields (with try/catch for safety)
+    const threatsRaw = p['RaceCorProDrive.Plugin.DS.IncidentCoach.ThreatDrivers'];
+    if (threatsRaw && typeof threatsRaw === 'string' && threatsRaw !== '[]') {
+      try { _ic.threats = JSON.parse(threatsRaw); } catch(e) { /* keep last */ }
+    } else if (threatsRaw === '[]') {
+      _ic.threats = [];
+    }
+
+    const alertRaw = p['RaceCorProDrive.Plugin.DS.IncidentCoach.ActiveAlert'];
+    if (alertRaw && typeof alertRaw === 'string' && alertRaw !== '{}') {
+      try { _ic.alert = JSON.parse(alertRaw); } catch(e) { /* keep last */ }
+    }
+
+    const behaviorRaw = p['RaceCorProDrive.Plugin.DS.IncidentCoach.SessionBehavior'];
+    if (behaviorRaw && typeof behaviorRaw === 'string' && behaviorRaw !== '{}') {
+      try { _ic.behavior = JSON.parse(behaviorRaw); } catch(e) { /* keep last */ }
+    }
+
+    // ── Update UI elements ───────────────────────────────────────
+    _updateComposureIndicator(_ic.rageScore);
+    _updateCooldownVignette(_ic.cooldownActive, _ic.rageScore);
+    _highlightLeaderboardThreats();
+
+    // ── Evaluate voice triggers (throttled to ~3x/sec) ───────────
+    if (typeof _pollFrame !== 'undefined' && _pollFrame % 10 === 0) {
+      _evaluateVoiceTriggers();
+    }
+
+    // ── Push spotter messages (throttled to ~1x/sec) ─────────────
+    if (typeof _pollFrame !== 'undefined' && _pollFrame % 30 === 0) {
+      _pushThreatSpotterMsg();
+    }
+  }

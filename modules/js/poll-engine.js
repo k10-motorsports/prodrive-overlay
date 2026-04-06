@@ -1159,6 +1159,9 @@
     // ─── Spotter (disabled in pit lane — no close racing alerts) ───
     try { if (!_inPitLane) updateSpotter(p, _demo); } catch(e) { console.error('[K10] Spotter error:', e); }
 
+    // ─── Incident Coach (threat tracking, composure, cool-down, voice) ───
+    try { if (typeof updateIncidentCoach === 'function') updateIncidentCoach(p); } catch(e) { console.error('[K10] IncidentCoach error:', e); }
+
     // ─── Tire / Track Condition Mismatch ───
     try { if (typeof checkTyreMismatch === 'function' && !_inPitLane) checkTyreMismatch(p, _demo); } catch(e) { console.error('[K10] Tire mismatch check error:', e); }
 

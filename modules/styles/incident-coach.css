@@ -1,0 +1,192 @@
+/* ═══════════════════════════════════════════════════════════════
+   INCIDENT COACH — UI STYLES
+   Composure indicator, cool-down vignette, leaderboard threat highlights.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Composure Indicator ──────────────────────────────────────── */
+/* Small persistent element near bottom-center of the overlay.
+   Visualizes rage score state with color + animation. */
+
+.ic-composure {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: hsla(0, 0%, 8%, 0.6);
+  backdrop-filter: blur(4px);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: background 0.6s ease, opacity 0.4s ease;
+}
+
+.ic-composure-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.ic-composure-label {
+  color: hsla(0, 0%, 100%, 0.5);
+  transition: color 0.4s ease;
+}
+
+/* Calm — green, barely noticeable */
+.ic-composure-calm .ic-composure-dot {
+  background: hsl(140, 50%, 45%);
+  box-shadow: 0 0 4px hsla(140, 50%, 45%, 0.3);
+}
+.ic-composure-calm .ic-composure-label { color: hsla(140, 40%, 60%, 0.6); }
+
+/* Elevated — amber pulse */
+.ic-composure-elevated .ic-composure-dot {
+  background: hsl(35, 80%, 50%);
+  box-shadow: 0 0 6px hsla(35, 80%, 50%, 0.4);
+  animation: ic-pulse-amber 2s ease-in-out infinite;
+}
+.ic-composure-elevated .ic-composure-label { color: hsla(35, 70%, 65%, 0.8); }
+
+/* Active — amber ring expanding */
+.ic-composure-active .ic-composure-dot {
+  background: hsl(25, 85%, 50%);
+  box-shadow: 0 0 8px hsla(25, 85%, 50%, 0.5);
+  animation: ic-pulse-orange 1.5s ease-in-out infinite;
+}
+.ic-composure-active .ic-composure-label { color: hsla(25, 80%, 65%, 0.9); }
+.ic-composure-active { background: hsla(25, 40%, 12%, 0.7); }
+
+/* Critical — red pulse with 4-7-8 breathing rhythm (4s in, 7s hold, 8s out = ~19s cycle) */
+.ic-composure-critical .ic-composure-dot {
+  background: hsl(0, 70%, 50%);
+  box-shadow: 0 0 12px hsla(0, 70%, 50%, 0.6);
+  animation: ic-breathe 4s ease-in-out infinite;
+}
+.ic-composure-critical .ic-composure-label { color: hsla(0, 60%, 70%, 1); }
+.ic-composure-critical { background: hsla(0, 40%, 12%, 0.8); }
+
+@keyframes ic-pulse-amber {
+  0%, 100% { box-shadow: 0 0 4px hsla(35, 80%, 50%, 0.3); }
+  50%      { box-shadow: 0 0 10px hsla(35, 80%, 50%, 0.6); }
+}
+
+@keyframes ic-pulse-orange {
+  0%, 100% { box-shadow: 0 0 6px hsla(25, 85%, 50%, 0.4); transform: scale(1); }
+  50%      { box-shadow: 0 0 14px hsla(25, 85%, 50%, 0.7); transform: scale(1.15); }
+}
+
+@keyframes ic-breathe {
+  /* Breathing guide: expand = breathe in, hold, contract = breathe out */
+  0%   { transform: scale(1);    box-shadow: 0 0 6px hsla(0, 70%, 50%, 0.4); }
+  21%  { transform: scale(1.4);  box-shadow: 0 0 16px hsla(0, 70%, 50%, 0.8); } /* 4s in */
+  58%  { transform: scale(1.35); box-shadow: 0 0 14px hsla(0, 70%, 50%, 0.7); } /* 7s hold */
+  100% { transform: scale(1);    box-shadow: 0 0 6px hsla(0, 70%, 50%, 0.4); }  /* 8s out */
+}
+
+
+/* ── Cool-Down Vignette ───────────────────────────────────────── */
+/* Peripheral-only overlay. NEVER obscures racing line or mirrors.
+   Soft blue teal breathing effect during cool-down mode. */
+
+.ic-cooldown-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    hsla(195, 60%, 20%, 0.08) 70%,
+    hsla(195, 50%, 15%, 0.18) 85%,
+    hsla(195, 40%, 10%, 0.28) 100%
+  );
+}
+
+.ic-cooldown-vignette.ic-cooldown-active {
+  opacity: 1;
+  animation: ic-vignette-breathe 4s ease-in-out infinite;
+}
+
+.ic-cooldown-vignette.ic-cooldown-intense {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 50%,
+    hsla(0, 40%, 20%, 0.10) 65%,
+    hsla(0, 35%, 15%, 0.22) 80%,
+    hsla(0, 30%, 12%, 0.35) 100%
+  );
+  animation: ic-vignette-breathe-intense 3s ease-in-out infinite;
+}
+
+@keyframes ic-vignette-breathe {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1.0; }
+}
+
+@keyframes ic-vignette-breathe-intense {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1.0; }
+}
+
+
+/* ── Leaderboard Threat Highlights ────────────────────────────── */
+
+/* Watch — subtle left border + eye icon */
+.lb-row.ic-watch {
+  border-left: 2px solid hsla(200, 50%, 60%, 0.5);
+}
+
+/* Caution — amber left border + warning */
+.lb-row.ic-caution {
+  border-left: 2px solid hsla(35, 80%, 55%, 0.7);
+  background: hsla(35, 60%, 30%, 0.08);
+}
+
+/* Danger — red left border + pulsing highlight */
+.lb-row.ic-danger {
+  border-left: 2px solid hsla(0, 70%, 50%, 0.8);
+  background: hsla(0, 50%, 25%, 0.12);
+  animation: ic-danger-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ic-danger-pulse {
+  0%, 100% { background: hsla(0, 50%, 25%, 0.08); }
+  50%      { background: hsla(0, 50%, 25%, 0.18); }
+}
+
+/* Threat badge (prepended to driver name) */
+.ic-threat-badge {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 9px;
+  line-height: 1;
+  vertical-align: middle;
+}
+.ic-threat-badge.ic-watch   { color: hsla(200, 50%, 65%, 0.7); }
+.ic-threat-badge.ic-caution { color: hsla(35, 80%, 60%, 0.9); }
+.ic-threat-badge.ic-danger  { color: hsla(0, 70%, 55%, 1); }
+
+
+/* ── Gap Display Threat Enhancement ──────────────────────────── */
+/* When Incident Coach adds these classes to gap panels */
+
+.gap-panel.ic-threat-watch {
+  border-color: hsla(200, 50%, 60%, 0.3);
+}
+.gap-panel.ic-threat-caution {
+  border-color: hsla(35, 80%, 55%, 0.5);
+}
+.gap-panel.ic-threat-danger {
+  border-color: hsla(0, 70%, 50%, 0.6);
+  animation: ic-danger-pulse 2s ease-in-out infinite;
+}
