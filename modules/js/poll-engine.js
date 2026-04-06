@@ -47,7 +47,7 @@
   const _trackDisplayNameCache = {};    // { gameTrackName → displayName }
   const _trackSectorCountCache = {};   // { gameTrackName → sectorCount (3 or 7) }
   const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
-  const K10_DISPLAY_NAME_API = 'https://drive.racecor.io/api/tracks';
+  const K10_DISPLAY_NAME_API = 'https://prodrive.racecor.io/api/tracks';
 
   function resolveTrackDisplayName(gameTrackName) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
@@ -1098,7 +1098,7 @@
     const mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading') || 0;
     // Use plugin path if available; show no track when map isn't ready
-    updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading);
+    try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
     const fullMapLbl = document.getElementById('fullMapLabel');
     if (fullMapLbl) {

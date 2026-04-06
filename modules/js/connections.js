@@ -111,7 +111,7 @@
       // Fallback: open website in browser
       if (window.debugConsole) window.debugConsole.logNetwork('info', 'K10 connection not available, opening browser');
       if (window.k10 && window.k10.openExternal) {
-        window.k10.openExternal('https://drive.racecor.io');
+        window.k10.openExternal('https://prodrive.racecor.io');
       }
       return;
     }
