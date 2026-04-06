@@ -53,6 +53,7 @@
 <link rel="stylesheet" href="modules/styles/ambient.css">
 <link rel="stylesheet" href="modules/styles/pitbox.css">
 <link rel="stylesheet" href="modules/styles/race-results.css">
+<link rel="stylesheet" href="modules/styles/incident-coach.css">
 <!-- drive-mode.css removed — iPad drive mode no longer active -->
 
 </head>
@@ -122,6 +123,13 @@
         <span id="dhIncToPen">—</span> to pen
         <span id="dhIncToDQ">—</span> to DQ
       </div>
+    </div>
+    <!-- Incident Coach: composure + rage score in drive mode -->
+    <div class="dh-composure" id="dhComposure" style="display:none;">
+      <div class="dh-composure-bar">
+        <div class="dh-composure-fill" id="dhComposureFill"></div>
+      </div>
+      <div class="dh-composure-label" id="dhComposureLabel">CALM</div>
     </div>
   </div>
 
@@ -706,6 +714,20 @@
     <div>
       <h3 class="rr-section-title">Coaching Tips</h3>
       <div id="rrTips"></div>
+    </div>
+
+    <!-- Incident Coach: Behavior Report Section -->
+    <div id="rrBehaviorSection" style="display:none;">
+      <h3 class="rr-section-title">Behavior Report</h3>
+      <div class="rr-behavior-grid">
+        <div class="rr-behavior-score">
+          <div class="rr-behavior-score-num" id="rrBehaviorScore">—</div>
+          <div class="rr-behavior-score-label">COMPOSURE</div>
+        </div>
+        <div class="rr-behavior-breakdown" id="rrBehaviorBreakdown"></div>
+      </div>
+      <div class="rr-behavior-insights" id="rrBehaviorInsights"></div>
+      <div class="rr-behavior-drivers" id="rrBehaviorDrivers"></div>
     </div>
 
     <!-- AI Analysis Section -->
@@ -1470,6 +1492,8 @@
 <script src="modules/js/race-results.js"></script>
 <script src="modules/js/formation.js"></script>
 <script src="modules/js/spotter.js"></script>
+<script src="modules/js/voice-coach.js"></script>
+<script src="modules/js/incident-coach.js"></script>
 <script src="modules/js/fps.js"></script>
 <script src="modules/js/webgl.js"></script>
 <script src="modules/js/ambient-light.js"></script>

@@ -63,6 +63,14 @@ const PROP_KEYS = [
   'RaceCorProDrive.Plugin.CommentaryCategory',
   'RaceCorProDrive.Plugin.CommentarySentimentColor',
   'RaceCorProDrive.Plugin.CommentarySeverity',
+  // Incident Coach properties
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.Active',
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.LastIncidentLap',
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.ThreatDrivers',
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.ActiveAlert',
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.RageScore',
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.CooldownActive',
+  'RaceCorProDrive.Plugin.DS.IncidentCoach.SessionBehavior',
   // Strategy engine properties
   'RaceCorProDrive.Plugin.Strategy.Visible',
   'RaceCorProDrive.Plugin.Strategy.Text',
