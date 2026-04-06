@@ -86,6 +86,7 @@
     // Detect current game
     var gameName = _vs(p, 'RaceCorProDrive.Plugin.GameId') || _vs(p, 'GameId') || 'unknown';
     var isIRacing = gameName && (gameName === 'iRacing' || gameName === 'IRacing');
+    var isLMU = gameName && (gameName === 'LMU' || gameName === 'Le Mans Ultimate' || gameName.toLowerCase().indexOf('rfactor') >= 0);
 
     // iRating / SR — only read for iRacing, prefer manual entry
     var ir = 0, sr = 0, license = '';
@@ -98,6 +99,11 @@
                   : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_SafetyRating') || 0);
       license = window._manualLicense
         || _vs(p, 'IRacingExtraProperties.iRacing_DriverInfo_LicString') || '';
+    } else if (isLMU) {
+      // LMU has no iRating/SR system — track penalties instead of incidents
+      ir = 0;
+      sr = 0;
+      license = 'LMU';
     }
 
     // Generate unique session ID — iRacing has subsession ID, others use timestamp + track
@@ -228,6 +234,11 @@
           // Store for backfill when next session starts
           window._lastSubmittedSessionId = data.sessionId;
           window._lastSubmittedGameId = _sessionStartSnapshot.gameName || 'unknown';
+
+          // Auto-enrich LMU sessions with DuckDB telemetry
+          if (_sessionStartSnapshot && (_sessionStartSnapshot.gameName === 'LMU' || _sessionStartSnapshot.gameName === 'Le Mans Ultimate')) {
+            window.enrichLMUSession(data.sessionId, _sessionStartSnapshot.trackName, _sessionStartSnapshot.carModel);
+          }
         });
       } else {
         console.warn('[Session Sync] Session submit failed:', r.status);
@@ -646,6 +657,76 @@
   };
 
   /**
+   * Trigger an LMU session history import from local XML results files.
+   *
+   * Flow:
+   *   1. Overlay calls the SimHub plugin at localhost:8889 with ?action=lmuImport
+   *   2. Plugin scans LMU's UserData/Log/Results/ directory for XML result files
+   *   3. Plugin parses each XML file for session results
+   *   4. We POST the parsed data to Pro Drive web API for permanent storage
+   *
+   * @returns {Promise&lt;object|null&gt;} Import result or null on failure
+   */
+  window.triggerLMUImport = function() {
+    var token = _getToken();
+    if (!token) {
+      console.warn('[Session Sync] No auth token — cannot sync to Pro Drive');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'LMU import skipped — no auth token');
+      return Promise.resolve(null);
+    }
+
+    console.log('[Session Sync] Step 1: Scanning LMU results files via local plugin...');
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'LMU import: scanning local results files...');
+
+    // Step 1: Ask the plugin to scan and parse local XML result files
+    return fetch(PLUGIN_BASE + '?action=lmuImport')
+    .then(function(r) { return r.json(); })
+    .then(function(pluginResult) {
+      if (!pluginResult.ok) {
+        console.warn('[Session Sync] Plugin LMU scan failed:', pluginResult.error);
+        if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'LMU import: scan failed — ' + (pluginResult.error || 'unknown error'));
+        return null;
+      }
+
+      var resultsData = pluginResult.data;
+      console.log('[Session Sync] Step 2: Got', resultsData.sessions.length,
+        'LMU sessions — sending to Pro Drive...');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'LMU import: found ' + resultsData.sessions.length + ' sessions, uploading...');
+
+      // Step 2: Push the parsed results to Pro Drive web API
+      return fetch(API_BASE + '/api/lmu/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(resultsData)
+      })
+      .then(function(r) {
+        if (r.ok) {
+          return r.json().then(function(data) {
+            console.log('[Session Sync] LMU import complete:',
+              data.imported.sessions + ' sessions');
+            if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'LMU import complete: ' + data.imported.sessions + ' sessions');
+            return data;
+          });
+        } else {
+          return r.json().then(function(err) {
+            console.warn('[Session Sync] Pro Drive LMU import failed:', err.error);
+            if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'LMU import failed: ' + (err.error || r.status), { statusCode: r.status });
+            return null;
+          });
+        }
+      });
+    })
+    .catch(function(e) {
+      console.error('[Session Sync] LMU import error:', e);
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'LMU import error: ' + (e.message || String(e)));
+      return null;
+    });
+  };
+
+  /**
    * Authenticate with iRacing using email/password (through the local plugin).
    * @param {string} email - iRacing account email
    * @param {string} password - iRacing account password
@@ -680,6 +761,75 @@
     return fetch(PLUGIN_BASE + '?action=iracingStatus')
     .then(function(r) { return r.ok ? r.json() : null; })
     .catch(function() { return null; });
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  //  LMU TELEMETRY ENRICHMENT — post-session DuckDB data
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Enrich the last submitted LMU session with DuckDB telemetry data.
+   * Called automatically after captureSessionEnd for LMU sessions.
+   *
+   * Flow:
+   *   1. Ask the plugin to extract telemetry summary from DuckDB files
+   *   2. POST enrichment data to /api/sessions/enrich to update session metadata
+   *
+   * @param {string} sessionId - The session ID returned from the initial POST
+   * @param {string} trackName - Track name for matching telemetry files
+   * @param {string} carModel - Car model for matching telemetry files
+   * @returns {Promise<object|null>} Enrichment data or null
+   */
+  window.enrichLMUSession = function(sessionId, trackName, carModel) {
+    if (!sessionId) return Promise.resolve(null);
+
+    var token = _getToken();
+    if (!token) return Promise.resolve(null);
+
+    console.log('[Session Sync] Enriching LMU session with telemetry data...');
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'LMU telemetry enrichment starting...');
+
+    var enrichUrl = PLUGIN_BASE + '?action=lmuTelemetry'
+      + (trackName ? '&track=' + encodeURIComponent(trackName) : '')
+      + (carModel ? '&car=' + encodeURIComponent(carModel) : '');
+
+    return fetch(enrichUrl)
+    .then(function(r) { return r.json(); })
+    .then(function(pluginResult) {
+      if (!pluginResult.ok) {
+        console.log('[Session Sync] LMU telemetry enrichment skipped:', pluginResult.error);
+        if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'LMU telemetry: ' + (pluginResult.error || 'not available'));
+        return null;
+      }
+
+      var telemetryData = pluginResult.data;
+      console.log('[Session Sync] Got telemetry enrichment data, uploading...');
+
+      return fetch(API_BASE + '/api/sessions/enrich', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          telemetry: telemetryData
+        })
+      })
+      .then(function(r) {
+        if (r.ok) {
+          console.log('[Session Sync] LMU session enriched with telemetry');
+          if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'Session enriched with DuckDB telemetry data');
+          return telemetryData;
+        }
+        console.warn('[Session Sync] Telemetry enrichment upload failed:', r.status);
+        return null;
+      });
+    })
+    .catch(function(e) {
+      console.warn('[Session Sync] LMU telemetry enrichment error:', e.message || e);
+      return null;
+    });
   };
 
 })();
