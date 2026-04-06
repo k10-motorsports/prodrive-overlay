@@ -89,16 +89,34 @@
     var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
     var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
 
-    // iRating / SR — prefer manual entry, then telemetry
-    var ir = window._manualIRating > 0 ? window._manualIRating
-      : (isDemo ? +_v(p, pre + 'IRating') || 0
-                : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_IRating') || 0);
-    var sr = window._manualSafetyRating > 0 ? window._manualSafetyRating
-      : (isDemo ? +_v(p, pre + 'SafetyRating') || 0
-                : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_SafetyRating') || 0);
+    // Detect current game
+    var gameName = _vs(p, 'RaceCorProDrive.Plugin.GameId') || _vs(p, 'GameId') || 'unknown';
+    var isIRacing = gameName && (gameName === 'iRacing' || gameName === 'IRacing');
 
-    var license = window._manualLicense
-      || _vs(p, 'IRacingExtraProperties.iRacing_DriverInfo_LicString') || '';
+    // iRating / SR — only read for iRacing, prefer manual entry
+    var ir = 0, sr = 0, license = '';
+    if (isIRacing) {
+      ir = window._manualIRating > 0 ? window._manualIRating
+        : (isDemo ? +_v(p, pre + 'IRating') || 0
+                  : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_IRating') || 0);
+      sr = window._manualSafetyRating > 0 ? window._manualSafetyRating
+        : (isDemo ? +_v(p, pre + 'SafetyRating') || 0
+                  : +_v(p, 'IRacingExtraProperties.iRacing_DriverInfo_SafetyRating') || 0);
+      license = window._manualLicense
+        || _vs(p, 'IRacingExtraProperties.iRacing_DriverInfo_LicString') || '';
+    }
+
+    // Generate unique session ID — iRacing has subsession ID, others use timestamp + track
+    var sessionGameId = '';
+    if (isIRacing) {
+      sessionGameId = _vs(p, 'IRacingExtraProperties.iRacing_SessionInfo_SessionID') || '';
+    } else {
+      // Generate a unique ID from timestamp + track + car for deduplication
+      var trackForId = _vs(p, 'RaceCorProDrive.Plugin.TrackMap.TrackName')
+        || _vs(p, 'DataCorePlugin.GameData.TrackName') || 'unknown';
+      var carForId = _vs(p, 'DataCorePlugin.GameData.CarModel') || _vs(p, pre + 'CarModel') || 'unknown';
+      sessionGameId = gameName + '_' + trackForId + '_' + carForId + '_' + Date.now();
+    }
 
     _sessionStartSnapshot = {
       preRaceIRating: ir,
@@ -108,18 +126,19 @@
       trackName: _vs(p, 'RaceCorProDrive.Plugin.TrackMap.TrackName')
         || _vs(p, 'DataCorePlugin.GameData.TrackName') || 'Unknown',
       sessionType: _vs(p, pre + 'SessionTypeName') || 'road',
-      gameId: _vs(p, 'IRacingExtraProperties.iRacing_SessionInfo_SessionID') || '',
+      gameName: gameName,
+      gameId: sessionGameId,
       startedAt: new Date().toISOString(),
       startPosition: +_v(p, 'DataCorePlugin.GameData.Position') || 0,
       startIncidents: +_v(p, dsPre + 'IncidentCount') || 0
     };
     _sessionSubmitted = false;
 
-    console.log('[Session Sync] Session start captured:', _sessionStartSnapshot.carModel,
+    console.log('[Session Sync] Session start captured (' + gameName + '):', _sessionStartSnapshot.carModel,
       '@', _sessionStartSnapshot.trackName, '| iR:', _sessionStartSnapshot.preRaceIRating);
 
     if (window.debugConsole) {
-      window.debugConsole.logIRacingSync('info', 'Session start: ' + _sessionStartSnapshot.carModel + ' @ ' + _sessionStartSnapshot.trackName + ' (iR: ' + _sessionStartSnapshot.preRaceIRating + ')');
+      window.debugConsole.logIRacingSync('info', 'Session start (' + gameName + '): ' + _sessionStartSnapshot.carModel + ' @ ' + _sessionStartSnapshot.trackName + ' (iR: ' + _sessionStartSnapshot.preRaceIRating + ')');
     }
   };
 
@@ -175,6 +194,7 @@
       carModel: _sessionStartSnapshot.carModel,
       trackName: _sessionStartSnapshot.trackName,
       sessionType: _sessionStartSnapshot.sessionType,
+      gameName: _sessionStartSnapshot.gameName,
       gameId: _sessionStartSnapshot.gameId,
       finishPosition: finishPosition,
       incidentCount: incidentDelta,
@@ -213,6 +233,7 @@
           }
           // Store for backfill when next session starts
           window._lastSubmittedSessionId = data.sessionId;
+          window._lastSubmittedGameId = _sessionStartSnapshot.gameName || 'unknown';
         });
       } else {
         console.warn('[Session Sync] Session submit failed:', r.status);
@@ -238,6 +259,12 @@
 
   function _backfillPreviousSession(p, isDemo) {
     if (!window._lastSubmittedSessionId) return;
+
+    // Only backfill rating deltas for iRacing
+    if (window._lastSubmittedGameId && window._lastSubmittedGameId !== 'iRacing' && window._lastSubmittedGameId !== 'IRacing') {
+      window._lastSubmittedSessionId = null;
+      return;
+    }
 
     var token = _getToken();
     if (!token) {
@@ -335,6 +362,10 @@
       if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Initial sync skipped — not signed in to Pro Drive');
       return;
     }
+
+    // Rating sync only applies to iRacing
+    var gameName = _vs(p, 'RaceCorProDrive.Plugin.GameId') || _vs(p, 'GameId') || '';
+    if (gameName && gameName !== 'iRacing' && gameName !== 'IRacing') return;
 
     // Extract iRating from either manual entry or telemetry
     var ir = window._manualIRating > 0 ? window._manualIRating
