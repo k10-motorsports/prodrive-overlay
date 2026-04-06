@@ -27,7 +27,10 @@
 
     // Composure indicator state
     composureEl: null,
-    composureVisible: false
+    composureVisible: false,
+
+    // Incident flash
+    prevFlashLap: 0
   };
 
   // ── Threat level constants (match C# ThreatLevel enum) ────────
@@ -308,6 +311,14 @@
     _updateComposureIndicator(_ic.rageScore);
     _updateCooldownVignette(_ic.cooldownActive, _ic.rageScore);
     _highlightLeaderboardThreats();
+    _updateDriveHudComposure(_ic.rageScore);
+    _updateTrackMapThreats(p);
+
+    // ── Incident flash on new contact ────────────────────────────
+    if (_ic.lastIncidentLap > 0 && _ic.lastIncidentLap !== _ic.prevFlashLap) {
+      _ic.prevFlashLap = _ic.lastIncidentLap;
+      _triggerIncidentFlash(p);
+    }
 
     // ── Evaluate voice triggers (throttled to ~3x/sec) ───────────
     if (typeof _pollFrame !== 'undefined' && _pollFrame % 10 === 0) {
@@ -319,3 +330,281 @@
       _pushThreatSpotterMsg();
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PHASE 3: DRIVE HUD COMPOSURE BAR
+  // ═══════════════════════════════════════════════════════════════
+
+  function _updateDriveHudComposure(rageScore) {
+    const container = document.getElementById('dhComposure');
+    const fill = document.getElementById('dhComposureFill');
+    const label = document.getElementById('dhComposureLabel');
+    if (!container || !fill || !label) return;
+
+    // Only show after first incident
+    if (_ic.threats.length === 0 && rageScore === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = '';
+
+    // Fill bar width represents rage (0–100)
+    fill.style.width = Math.min(100, rageScore) + '%';
+
+    // Color + label by tier
+    if (rageScore <= 30) {
+      fill.style.background = 'hsl(140, 50%, 40%)';
+      label.textContent = 'CALM';
+      label.style.color = 'hsl(140, 40%, 60%)';
+    } else if (rageScore <= 50) {
+      fill.style.background = 'hsl(35, 80%, 50%)';
+      label.textContent = 'ELEVATED';
+      label.style.color = 'hsl(35, 70%, 65%)';
+    } else if (rageScore <= 70) {
+      fill.style.background = 'hsl(25, 85%, 50%)';
+      label.textContent = 'ACTIVE';
+      label.style.color = 'hsl(25, 80%, 65%)';
+    } else {
+      fill.style.background = 'hsl(0, 70%, 50%)';
+      label.textContent = _ic.cooldownActive ? 'COOL DOWN' : 'CRITICAL';
+      label.style.color = 'hsl(0, 60%, 70%)';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PHASE 5: TRACK MAP THREAT COLORING
+  // ═══════════════════════════════════════════════════════════════
+  // Colors opponent dots on the drive-hud track map based on
+  // threat level. Uses nearest-ahead/behind names to identify which
+  // dot belongs to the flagged driver (closest dots get colored).
+
+  function _updateTrackMapThreats(p) {
+    if (_ic.threats.length === 0) return;
+
+    const threatMap = _buildThreatMap();
+    if (threatMap.size === 0) return;
+
+    // Get nearest driver names
+    const aheadName = (p['IRacingExtraProperties.iRacing_Opponent_Ahead_Name'] || '').toLowerCase();
+    const behindName = (p['IRacingExtraProperties.iRacing_Opponent_Behind_Name'] || '').toLowerCase();
+
+    const aheadThreat = threatMap.get(aheadName);
+    const behindThreat = threatMap.get(behindName);
+
+    // Color the closest and second-closest opponent dots
+    const dhOppG = document.getElementById('dhMapOpponents');
+    if (!dhOppG) return;
+
+    const dots = dhOppG.querySelectorAll('.map-opponent');
+    const playerDot = document.getElementById('dhMapPlayer');
+    if (!playerDot || dots.length === 0) return;
+
+    const px = +playerDot.getAttribute('cx') || 50;
+    const py = +playerDot.getAttribute('cy') || 50;
+
+    // Sort dots by distance to player to find nearest
+    const dotDistances = [];
+    for (let i = 0; i < dots.length; i++) {
+      const dot = dots[i];
+      const dx = (+dot.getAttribute('cx') || 0) - px;
+      const dy = (+dot.getAttribute('cy') || 0) - py;
+      dotDistances.push({ dot, dist: dx * dx + dy * dy, index: i });
+      // Reset threat styling
+      dot.classList.remove('ic-map-watch', 'ic-map-caution', 'ic-map-danger');
+      dot.removeAttribute('data-threat');
+    }
+    dotDistances.sort((a, b) => a.dist - b.dist);
+
+    // The closest dot is likely the nearest-ahead or nearest-behind
+    // Apply threat coloring to the 2 closest dots if their drivers are flagged
+    if (dotDistances.length >= 1 && (aheadThreat || behindThreat)) {
+      const closest = dotDistances[0];
+      const highestThreat = (aheadThreat && behindThreat)
+        ? (aheadThreat.Level >= behindThreat.Level ? aheadThreat : behindThreat)
+        : (aheadThreat || behindThreat);
+
+      const cls = THREAT_CLASSES[highestThreat.Level];
+      if (cls) {
+        closest.dot.classList.add('ic-map-' + cls.replace('ic-', ''));
+        closest.dot.setAttribute('data-threat', highestThreat.Level);
+      }
+    }
+
+    if (dotDistances.length >= 2) {
+      const secondThreat = aheadThreat && behindThreat
+        ? (aheadThreat.Level < behindThreat.Level ? aheadThreat : behindThreat)
+        : null;
+      if (secondThreat) {
+        const second = dotDistances[1];
+        const cls = THREAT_CLASSES[secondThreat.Level];
+        if (cls) {
+          second.dot.classList.add('ic-map-' + cls.replace('ic-', ''));
+          second.dot.setAttribute('data-threat', secondThreat.Level);
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PHASE 5: INCIDENT FLASH OVERLAY
+  // ═══════════════════════════════════════════════════════════════
+  // Brief directional flash when contact is detected.
+  // Direction inferred from lateral/longitudinal G at impact.
+
+  function _triggerIncidentFlash(p) {
+    // Get physics data at moment of incident
+    const dsPre = 'RaceCorProDrive.Plugin.DS.';
+    const latG = +(p[dsPre + 'LatAccel']) || 0;
+    const longG = +(p[dsPre + 'LongAccel']) || 0;
+
+    // Determine flash direction
+    let direction = 'ic-flash-all';  // default: all edges
+    if (Math.abs(latG) > Math.abs(longG)) {
+      direction = latG > 0 ? 'ic-flash-right' : 'ic-flash-left';
+    } else if (Math.abs(longG) > 0.3) {
+      direction = longG < 0 ? 'ic-flash-rear' : 'ic-flash-front';
+    }
+
+    // Create flash element
+    let flash = document.getElementById('incidentFlash');
+    if (!flash) {
+      flash = document.createElement('div');
+      flash.id = 'incidentFlash';
+      flash.className = 'ic-incident-flash';
+      document.body.appendChild(flash);
+    }
+
+    // Reset animation
+    flash.classList.remove('ic-flash-left', 'ic-flash-right', 'ic-flash-rear',
+                           'ic-flash-front', 'ic-flash-all', 'ic-flash-active');
+    void flash.offsetWidth; // Force reflow
+    flash.classList.add(direction, 'ic-flash-active');
+
+    // Auto-remove after animation
+    setTimeout(() => {
+      flash.classList.remove('ic-flash-active');
+    }, 600);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PHASE 4: POST-SESSION BEHAVIOR REPORT
+  // ═══════════════════════════════════════════════════════════════
+  // Renders behavior metrics into the race-results screen.
+  // Called from race-results.js via window.renderBehaviorReport().
+
+  window.renderBehaviorReport = function(p) {
+    const section = document.getElementById('rrBehaviorSection');
+    if (!section) return;
+
+    // Only show if incident coach was active and had data
+    if (!_ic.active && _ic.threats.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = '';
+
+    // ── Behavior score (composure-weighted) ──────────────────────
+    const b = _ic.behavior;
+    if (!b) return;
+
+    // Composure score: 100 minus penalties
+    let composure = 100;
+    composure -= Math.min(30, (b.RageSpikes || 0) * 10);
+    composure -= Math.min(20, (b.RetaliationAttempts || 0) * 15);
+    composure -= Math.min(20, Math.floor((b.TailgatingSeconds || 0) / 10) * 5);
+    composure -= Math.min(15, (b.CooldownsTriggered || 0) * 5);
+    composure = Math.max(0, composure);
+
+    // Consistency score
+    const cleanPct = b.TotalLaps > 0 ? ((b.CleanLaps || 0) / b.TotalLaps) * 100 : 100;
+
+    const scoreEl = document.getElementById('rrBehaviorScore');
+    if (scoreEl) {
+      scoreEl.textContent = composure;
+      scoreEl.style.color = composure >= 70 ? '#43a047' :
+                            composure >= 40 ? '#ff9800' : '#e53935';
+    }
+
+    // ── Breakdown grid ───────────────────────────────────────────
+    const breakdownEl = document.getElementById('rrBehaviorBreakdown');
+    if (breakdownEl) {
+      breakdownEl.innerHTML =
+        '<div class="rr-behavior-stat">' +
+          '<div class="rr-bstat-val">' + (b.RageSpikes || 0) + '</div>' +
+          '<div class="rr-bstat-label">Rage Spikes</div>' +
+        '</div>' +
+        '<div class="rr-behavior-stat">' +
+          '<div class="rr-bstat-val">' + (b.CooldownsTriggered || 0) + '</div>' +
+          '<div class="rr-bstat-label">Cool-Downs</div>' +
+        '</div>' +
+        '<div class="rr-behavior-stat">' +
+          '<div class="rr-bstat-val">' + (b.RetaliationAttempts || 0) + '</div>' +
+          '<div class="rr-bstat-label">Retaliation Attempts</div>' +
+        '</div>' +
+        '<div class="rr-behavior-stat">' +
+          '<div class="rr-bstat-val">' + Math.round(cleanPct) + '%</div>' +
+          '<div class="rr-bstat-label">Clean Laps</div>' +
+        '</div>' +
+        '<div class="rr-behavior-stat">' +
+          '<div class="rr-bstat-val">' + Math.round(b.TailgatingSeconds || 0) + 's</div>' +
+          '<div class="rr-bstat-label">Tailgating</div>' +
+        '</div>' +
+        '<div class="rr-behavior-stat">' +
+          '<div class="rr-bstat-val">' + (b.HardBrakingEvents || 0) + '</div>' +
+          '<div class="rr-bstat-label">Hard Braking</div>' +
+        '</div>';
+    }
+
+    // ── Insights ─────────────────────────────────────────────────
+    const insightsEl = document.getElementById('rrBehaviorInsights');
+    if (insightsEl) {
+      const insights = [];
+
+      if ((b.RageSpikes || 0) === 0) {
+        insights.push('No rage spikes this session. Excellent composure.');
+      } else if ((b.RetaliationAttempts || 0) === 0) {
+        insights.push('You had ' + b.RageSpikes + ' rage spike(s) but zero retaliation attempts. Strong self-control.');
+      } else {
+        insights.push(b.RetaliationAttempts + ' retaliation attempt(s) detected. Consider the manual cool-down button next time.');
+      }
+
+      if (cleanPct >= 80) {
+        insights.push(Math.round(cleanPct) + '% clean laps — consistent, disciplined driving.');
+      } else if (cleanPct >= 50) {
+        insights.push('Clean lap rate dropped to ' + Math.round(cleanPct) + '%. Incidents disrupted your rhythm.');
+      }
+
+      if ((b.TailgatingSeconds || 0) > 30) {
+        insights.push('Spent ' + Math.round(b.TailgatingSeconds) + 's tailgating. Build bigger gaps post-incident.');
+      }
+
+      const avgRecovery = b.RageRecoveryCount > 0
+        ? (b.TotalRageRecoverySeconds / b.RageRecoveryCount).toFixed(0)
+        : null;
+      if (avgRecovery) {
+        insights.push('Average rage recovery: ' + avgRecovery + 's. ' +
+          (+avgRecovery < 15 ? 'Quick recovery.' : 'Try the 4-7-8 breathing technique.'));
+      }
+
+      insightsEl.innerHTML = insights.map(i =>
+        '<div class="rr-behavior-insight">' + i + '</div>'
+      ).join('');
+    }
+
+    // ── Flagged drivers summary ──────────────────────────────────
+    const driversEl = document.getElementById('rrBehaviorDrivers');
+    if (driversEl && _ic.threats.length > 0) {
+      driversEl.innerHTML = '<div class="rr-behavior-drivers-title">Flagged Drivers</div>' +
+        _ic.threats.map(t =>
+          '<div class="rr-behavior-driver ' + (THREAT_CLASSES[t.Level] || '') + '">' +
+            '<span class="rr-bd-name">' + (t.Name || '?') + '</span>' +
+            '<span class="rr-bd-ir">' + (t.IRating || '—') + ' iR</span>' +
+            '<span class="rr-bd-count">' + t.IncidentCount + ' incident(s)</span>' +
+            '<span class="rr-bd-level">' + (THREAT_LABELS[t.Level] || '') + '</span>' +
+          '</div>'
+        ).join('');
+    } else if (driversEl) {
+      driversEl.innerHTML = '';
+    }
+  };

@@ -520,6 +520,11 @@
       tipsEl.innerHTML = tipsHTML;
     }
 
+    // Behavior Report — wire up to incident-coach.js
+    if (typeof window.renderBehaviorReport === 'function') {
+      window.renderBehaviorReport(p);
+    }
+
     // AI Analysis section — wire up to race-coach.js
     const aiSection = document.getElementById('rrAISection');
     const aiBtn = document.getElementById('rrAIBtn');
