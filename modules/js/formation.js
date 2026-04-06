@@ -28,6 +28,10 @@
     const startType    = (p[pre + 'StartType'] || 'rolling').toLowerCase();
     const isRolling    = startType === 'rolling';
 
+    // Detect qualifying — no start lights needed (SessionMode: 2=Qualifying)
+    const sessionModePre = isDemo ? 'RaceCorProDrive.Plugin.Demo.SessionMode' : 'RaceCorProDrive.Plugin.DS.SessionMode';
+    const isQuali = +(p[sessionModePre]) === 2;
+
     const mod  = document.getElementById('gridModule');
     const info = document.getElementById('gridInfo');
     const lights = document.getElementById('startLights');
@@ -37,7 +41,7 @@
     // If plugin doesn't send LightsPhase, we generate a synthetic green sequence
     // and hold it for 3 seconds so it's actually visible.
     const transitioningToRace = _gridPrevSessionState >= 1 && _gridPrevSessionState <= 3 && sessionState === 4;
-    if (transitioningToRace && lightsPhase === 0 && _simLightsPhase === 0) {
+    if (transitioningToRace && lightsPhase === 0 && _simLightsPhase === 0 && !isQuali) {
       _simLightsPhase = 7;
       clearTimeout(_simLightsTimer);
       _simLightsTimer = setTimeout(() => { _simLightsPhase = 0; }, 3000);

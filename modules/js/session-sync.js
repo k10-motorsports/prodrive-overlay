@@ -52,17 +52,11 @@
   };
 
   /**
-   * Get bearer token from local storage.
+   * Get bearer token from cached window property.
    * @returns {string|null} Bearer token or null if not set.
    */
   function _getToken() {
-    try {
-      var stored = localStorage.getItem('k10_auth_token');
-      return stored || null;
-    } catch (e) {
-      console.warn('[Session Sync] Could not read auth token:', e);
-      return null;
-    }
+    return window._k10Token || null;
   }
 
   /**
@@ -437,6 +431,150 @@
         window.debugConsole.logIRacingSync('error', 'Initial sync error: ' + (e.message || String(e)));
       }
     });
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  //  PRACTICE / QUALIFYING SESSION END — summary for dashboard
+  // ═══════════════════════════════════════════════════════════════
+
+  // Track the previous sessionMode so we can detect practice→race transitions
+  var _prevSyncSessionMode = 0;
+  var _practiceSubmitted = false;
+
+  /**
+   * Called by poll-engine.js when session type changes.
+   * Captures a practice/qualifying/warmup session summary and POSTs it
+   * to /api/sessions so the dashboard can show practice trends over time.
+   */
+  window.capturePracticeSessionEnd = function(p, isDemo) {
+    if (!_syncEnabled) return;
+    if (!window._k10User) return;
+    if (_practiceSubmitted) return;
+    if (!_sessionStartSnapshot) return;
+
+    var token = _getToken();
+    if (!token) return;
+
+    var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
+    var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
+
+    // Only capture non-race sessions (Practice=1, Qualifying=2, Warmup=3)
+    var sessionMode = +(p[dsPre + 'SessionMode']) || 0;
+    // Use the snapshot's session mode — the current p[] may already reflect the NEW session
+    // So check what the start snapshot recorded
+    var startSessionType = (_sessionStartSnapshot.sessionType || '').toLowerCase();
+    var wasPractice = startSessionType.indexOf('practice') >= 0
+      || startSessionType.indexOf('warmup') >= 0
+      || startSessionType.indexOf('open qualify') >= 0
+      || startSessionType.indexOf('lone qualify') >= 0
+      || startSessionType.indexOf('qualify') >= 0;
+
+    if (!wasPractice) return;
+
+    // Gather summary data from current telemetry
+    var bestLapTime = isDemo
+      ? +(p[pre + 'BestLapTime']) || 0
+      : +(p['DataCorePlugin.GameData.BestLapTime']) || 0;
+    var completedLaps = +(p[dsPre + 'CompletedLaps'])
+      || +(p['DataCorePlugin.GameData.CompletedLaps']) || 0;
+    var incidentCount = +(p[dsPre + 'IncidentCount']) || 0;
+    var incidentDelta = incidentCount - (_sessionStartSnapshot.startIncidents || 0);
+    if (incidentDelta < 0) incidentDelta = incidentCount;
+
+    // Collect sector best times from plugin (SectorTracker exposes best splits)
+    var sectorCount = +(p[dsPre + 'SectorCount']) || 3;
+    var sectorBests = [];
+    var sectorBestsStr = p[dsPre + 'SectorBests'] || '';
+    if (sectorBestsStr) {
+      var parts = sectorBestsStr.split(',');
+      for (var si = 0; si < parts.length; si++) {
+        var val = parseFloat(parts[si]) || 0;
+        if (val > 0) sectorBests.push(val);
+      }
+    }
+
+    // Skip if we have no meaningful data (no laps completed)
+    if (completedLaps <= 0 && bestLapTime <= 0) return;
+
+    // Determine session mode name for the record
+    var sessionModeName = 'practice';
+    if (startSessionType.indexOf('qualify') >= 0) sessionModeName = 'qualifying';
+    else if (startSessionType.indexOf('warmup') >= 0) sessionModeName = 'warmup';
+
+    var payload = {
+      preRaceIRating: _sessionStartSnapshot.preRaceIRating || 0,
+      preRaceSR: _sessionStartSnapshot.preRaceSR || 0,
+      preRaceLicense: _sessionStartSnapshot.preRaceLicense || 'R',
+      carModel: _sessionStartSnapshot.carModel,
+      trackName: _sessionStartSnapshot.trackName,
+      sessionType: startSessionType || sessionModeName,
+      gameName: _sessionStartSnapshot.gameName,
+      gameId: _sessionStartSnapshot.gameId,
+      finishPosition: null,  // No finish position in practice
+      incidentCount: incidentDelta,
+      completedLaps: completedLaps,
+      totalLaps: 0,
+      bestLapTime: bestLapTime,
+      estimatedIRatingDelta: 0,
+      startedAt: _sessionStartSnapshot.startedAt,
+      finishedAt: new Date().toISOString(),
+      // Practice-specific metadata
+      isPracticeSession: true,
+      practiceData: {
+        sessionMode: sessionModeName,
+        sectorBests: sectorBests.length > 0 ? sectorBests : null,
+        sectorCount: sectorCount
+      }
+    };
+
+    _practiceSubmitted = true;
+
+    console.log('[Session Sync] Submitting ' + sessionModeName + ' session:',
+      completedLaps + ' laps', 'best: ' + (bestLapTime > 0 ? bestLapTime.toFixed(3) + 's' : 'N/A'),
+      incidentDelta + 'x');
+
+    if (window.debugConsole) {
+      window.debugConsole.logIRacingSync('info', sessionModeName + ' session: ' + completedLaps + ' laps, best: ' + (bestLapTime > 0 ? bestLapTime.toFixed(3) + 's' : 'N/A'));
+    }
+
+    fetch(API_BASE + '/api/sessions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) {
+      if (r.ok) {
+        return r.json().then(function(data) {
+          console.log('[Session Sync] ' + sessionModeName + ' session recorded:', data.sessionId);
+          if (window.debugConsole) {
+            window.debugConsole.logIRacingSync('success', sessionModeName + ' session recorded: ' + data.sessionId);
+          }
+        });
+      } else {
+        console.warn('[Session Sync] ' + sessionModeName + ' submit failed:', r.status);
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('error', sessionModeName + ' submit failed: ' + r.status);
+        }
+        _practiceSubmitted = false;
+      }
+    })
+    .catch(function(e) {
+      console.error('[Session Sync] ' + sessionModeName + ' submit error:', e);
+      if (window.debugConsole) {
+        window.debugConsole.logIRacingSync('error', sessionModeName + ' submit error: ' + (e.message || String(e)));
+      }
+      _practiceSubmitted = false;
+    });
+  };
+
+  // Reset practice submitted flag when a new session starts
+  var _origCaptureStartForPractice = window.captureSessionStart;
+  window.captureSessionStart = function(p, isDemo) {
+    _practiceSubmitted = false;
+    _origCaptureStartForPractice(p, isDemo);
   };
 
   // ═══════════════════════════════════════════════════════════════

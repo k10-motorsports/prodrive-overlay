@@ -344,9 +344,10 @@ let _gapsLastLap = 0;          // last completed lap for gaps module
 let _gapsWorstLap = 0;         // worst valid lap time for gaps module
 let _gapsLapNum = 0;           // current lap number for gaps module
 let _gapsNonRaceMode = false;  // currently in non-race session
-let _lapStartIncidents = 0;   // incident count at start of current lap (for invalid detection)
 let _lapInvalid = false;       // true when incidents increased during current lap
 let _prevSectorSplits = [];    // previous poll's sector splits — survives iRacing clearing on lap cross
+let _prevSectorStates = [];    // previous poll's sector color states — retained across lap boundaries
+let _prevTimerSector = 0;      // previous sector number for lap-race timer popup on sector transition
 let _startPosition = 0;
 let _prevBB = -1, _prevTC = -1, _prevABS = -1;
 let _clutchSeenActive = false;
@@ -610,6 +611,7 @@ let _discordUser = null;
 // accesses them as window._k10User / window._k10Features.
 var _k10User = null;
 var _k10Features = [];
+var _k10Token = null;
 
 // Logo cycling
 let _currentCarLogoIdx = 0;
