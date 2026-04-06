@@ -606,8 +606,10 @@ let _discordUser = null;
 
 // K10 Pro Drive state (set by connections.js on startup)
 // Declared here so game-detect.js and other early scripts can reference it
-let _k10User = null;
-let _k10Features = [];
+// Must use var (not let) so these attach to window — session-sync.js (IIFE)
+// accesses them as window._k10User / window._k10Features.
+var _k10User = null;
+var _k10Features = [];
 
 // Logo cycling
 let _currentCarLogoIdx = 0;
