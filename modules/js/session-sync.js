@@ -33,6 +33,22 @@
       _initialSyncDone = false;
     }
     console.log('[Session Sync]', _syncEnabled ? 'enabled' : 'disabled');
+
+    if (window.debugConsole) {
+      if (_syncEnabled) {
+        var token = _getToken();
+        var user = window._k10User;
+        if (!token) {
+          window.debugConsole.logIRacingSync('error', 'Sync enabled but no auth token — connect to Pro Drive first');
+        } else if (!user) {
+          window.debugConsole.logIRacingSync('error', 'Sync enabled but not signed in to Pro Drive');
+        } else {
+          window.debugConsole.logIRacingSync('success', 'Sync enabled — waiting for session data');
+        }
+      } else {
+        window.debugConsole.logIRacingSync('info', 'Sync disabled');
+      }
+    }
   };
 
   /**
@@ -64,7 +80,11 @@
   // ═══════════════════════════════════════════════════════════════
 
   window.captureSessionStart = function(p, isDemo) {
-    if (!_syncEnabled || !window._k10User) return;
+    if (!_syncEnabled) return;
+    if (!window._k10User) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Session start skipped — not signed in to Pro Drive');
+      return;
+    }
 
     var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
     var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
@@ -97,6 +117,10 @@
 
     console.log('[Session Sync] Session start captured:', _sessionStartSnapshot.carModel,
       '@', _sessionStartSnapshot.trackName, '| iR:', _sessionStartSnapshot.preRaceIRating);
+
+    if (window.debugConsole) {
+      window.debugConsole.logIRacingSync('info', 'Session start: ' + _sessionStartSnapshot.carModel + ' @ ' + _sessionStartSnapshot.trackName + ' (iR: ' + _sessionStartSnapshot.preRaceIRating + ')');
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -104,16 +128,22 @@
   // ═══════════════════════════════════════════════════════════════
 
   window.captureSessionEnd = function(p, isDemo) {
-    if (!_syncEnabled || !window._k10User) return;
+    if (!_syncEnabled) return;
+    if (!window._k10User) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Session end skipped — not signed in to Pro Drive');
+      return;
+    }
     if (_sessionSubmitted) return;  // Already sent for this race
     if (!_sessionStartSnapshot) {
       console.warn('[Session Sync] No start snapshot — skipping session end');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Session end skipped — no start snapshot captured');
       return;
     }
 
     var token = _getToken();
     if (!token) {
       console.warn('[Session Sync] No auth token — cannot submit session');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Session end skipped — no auth token (reconnect to Pro Drive)');
       return;
     }
 
@@ -210,7 +240,10 @@
     if (!window._lastSubmittedSessionId) return;
 
     var token = _getToken();
-    if (!token) return;
+    if (!token) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Backfill skipped — no auth token');
+      return;
+    }
 
     var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.' : 'RaceCorProDrive.Plugin.';
 
@@ -258,6 +291,11 @@
           window.debugConsole.logIRacingSync('success', 'Backfill completed with actual rating deltas');
         }
         window._lastSubmittedSessionId = null; // Clear after backfill
+      } else {
+        console.warn('[Session Sync] Backfill failed:', r.status);
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('error', 'Backfill failed: ' + r.status + (r.status === 404 ? ' (no session to backfill — previous submit may have been lost)' : ''), { statusCode: r.status });
+        }
       }
     })
     .catch(function(e) {
@@ -292,7 +330,11 @@
     if (_initialSyncDone) return;
 
     // Only if sync is enabled and user is logged in to Pro Drive
-    if (!_syncEnabled || !window._k10User) return;
+    if (!_syncEnabled) return;
+    if (!window._k10User) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Initial sync skipped — not signed in to Pro Drive');
+      return;
+    }
 
     // Extract iRating from either manual entry or telemetry
     var ir = window._manualIRating > 0 ? window._manualIRating
@@ -309,7 +351,10 @@
 
     var license = window._manualLicense || '';
     var token = _getToken();
-    if (!token) return;
+    if (!token) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Initial sync skipped — no auth token');
+      return;
+    }
 
     _initialSyncDone = true;
 
@@ -374,10 +419,12 @@
     var token = _getToken();
     if (!token) {
       console.warn('[Session Sync] No auth token — cannot sync to Pro Drive');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import skipped — no auth token');
       return Promise.resolve(null);
     }
 
     console.log('[Session Sync] Step 1: Fetching iRacing career data from local plugin...');
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'iRacing import: fetching career data from local plugin...');
 
     // Step 1: Ask the plugin to fetch career data using local iRacing cookies
     return fetch(PLUGIN_BASE + '?action=iracingImport')
@@ -385,6 +432,7 @@
     .then(function(pluginResult) {
       if (!pluginResult.ok) {
         console.warn('[Session Sync] Plugin iRacing fetch failed:', pluginResult.error);
+        if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import: plugin fetch failed — ' + (pluginResult.error || 'unknown error'));
         return null;
       }
 
@@ -392,6 +440,7 @@
       console.log('[Session Sync] Step 2: Got career data for',
         careerData.displayName, '(#' + careerData.custId + ')',
         '— sending to Pro Drive...');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'iRacing import: got data for ' + careerData.displayName + ' (#' + careerData.custId + '), uploading...');
 
       // Step 2: Push the career data to Pro Drive web API
       return fetch(API_BASE + '/api/iracing/import', {
@@ -408,11 +457,13 @@
             console.log('[Session Sync] iRacing import complete:',
               data.imported.sessions + ' sessions,',
               data.imported.historyPoints + ' history points');
+            if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'iRacing import complete: ' + data.imported.sessions + ' sessions, ' + data.imported.historyPoints + ' history points');
             return data;
           });
         } else {
           return r.json().then(function(err) {
             console.warn('[Session Sync] Pro Drive import failed:', err.error);
+            if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import failed: ' + (err.error || r.status), { statusCode: r.status });
             return null;
           });
         }
@@ -420,6 +471,7 @@
     })
     .catch(function(e) {
       console.error('[Session Sync] iRacing import error:', e);
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import error: ' + (e.message || String(e)));
       return null;
     });
   };
@@ -437,13 +489,16 @@
     .then(function(result) {
       if (result.ok) {
         console.log('[Session Sync] iRacing authenticated successfully');
+        if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'iRacing authenticated');
         return true;
       }
       console.warn('[Session Sync] iRacing auth failed:', result.error);
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing auth failed: ' + (result.error || 'unknown'));
       return false;
     })
     .catch(function(e) {
       console.error('[Session Sync] iRacing auth error:', e);
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing auth error: ' + (e.message || String(e)));
       return false;
     });
   };

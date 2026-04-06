@@ -202,7 +202,7 @@
       let isIRacingSync = false;
       let isNetworkSync = false;
 
-      if (url.includes('/api/sessions') || url.includes('/api/ratings')) {
+      if (url.includes('/api/sessions') || url.includes('/api/ratings') || url.includes('/api/iracing') || url.includes('/api/plugin-auth')) {
         isIRacingSync = true;
       } else if (url.includes('prodrive.racecor.io')) {
         isNetworkSync = true;
