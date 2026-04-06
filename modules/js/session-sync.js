@@ -52,17 +52,11 @@
   };
 
   /**
-   * Get bearer token from local storage.
+   * Get bearer token from cached window property.
    * @returns {string|null} Bearer token or null if not set.
    */
   function _getToken() {
-    try {
-      var stored = localStorage.getItem('k10_auth_token');
-      return stored || null;
-    } catch (e) {
-      console.warn('[Session Sync] Could not read auth token:', e);
-      return null;
-    }
+    return window._k10Token || null;
   }
 
   /**
