@@ -111,12 +111,12 @@
         states.push(+(p[dsPre + 'SectorStateS' + si]) || 0);
       }
     }
-    var stateClass = ['', 'dh-s-pb', 'dh-s-faster', 'dh-s-slower'];
-    var currentLapTime = isDemo
-      ? (+(p['RaceCorProDrive.Plugin.Demo.CurrentLapTime']) || 0)
-      : (+(p['DataCorePlugin.GameData.CurrentLapTime']) || 0);
+    // Color mapping: green = my best, yellow = worse than my best, red = invalid
+    // No purple — we don't have "best of everyone on track" data
+    // state: 0=none, 1=pb (treat as green), 2=faster (green), 3=slower (yellow)
+    var dhStateClass = ['', 'dh-s-faster', 'dh-s-faster', 'dh-s-slower'];
 
-    // Dynamically create/update drive HUD sector cells
+    // Dynamically create/update drive HUD sector cells (label only — no times)
     var dhSectorsEl = document.querySelector('.dh-sectors');
     if (dhSectorsEl) {
       var existingCells = dhSectorsEl.querySelectorAll('.dh-sector');
@@ -126,9 +126,7 @@
           var cell = document.createElement('div');
           cell.className = 'dh-sector';
           cell.id = 'dhS' + ci;
-          cell.innerHTML = '<div class="dh-sec-label">S' + ci + '</div>' +
-            '<div class="dh-sec-time" id="dhS' + ci + 'Time">—</div>' +
-            '<div class="dh-sec-delta" id="dhS' + ci + 'Delta"></div>';
+          cell.innerHTML = '<div class="dh-sec-label">S' + ci + '</div>';
           dhSectorsEl.appendChild(cell);
         }
       }
@@ -136,9 +134,7 @@
 
     for (var si = 1; si <= sectorCount; si++) {
       var cell = document.getElementById('dhS' + si);
-      var timeEl = document.getElementById('dhS' + si + 'Time');
-      var sDeltaEl = document.getElementById('dhS' + si + 'Delta');
-      if (!cell || !timeEl) continue;
+      if (!cell) continue;
 
       cell.classList.remove('dh-s-pb', 'dh-s-faster', 'dh-s-slower', 'dh-s-invalid', 'dh-s-active');
 
@@ -147,82 +143,23 @@
 
       if (si === curSector) {
         cell.classList.add('dh-s-active');
-        // Calculate sector entry time — only if ALL previous splits are valid.
-        // iRacing clears splits at lap-cross in quali; without this guard the
-        // full currentLapTime leaks into the sector cell.
-        var entryTime = 0;
-        var hasPrevSplits = true;
-        for (var k = 0; k < si - 1; k++) {
-          if (!splits[k] || splits[k] <= 0) { hasPrevSplits = false; break; }
-          entryTime += splits[k];
+        // Live delta coloring on active sector
+        if (!_lapInvalid && lapDelta !== 0) {
+          cell.classList.add(lapDelta < 0 ? 'dh-s-faster' : 'dh-s-slower');
         }
-        if (hasPrevSplits && currentLapTime > entryTime) {
-          var elapsed = currentLapTime - entryTime;
-          // Extra guard: no single sector should approach full lap length
-          if (bestLap > 0 && elapsed >= bestLap * 0.85) {
-            timeEl.textContent = '—';
-            if (sDeltaEl) sDeltaEl.textContent = '';
-          } else {
-            var em = Math.floor(elapsed / 60);
-            var es = elapsed % 60;
-            timeEl.textContent = (em > 0 ? em + ':' : '') + (em > 0 && es < 10 ? '0' : '') + es.toFixed(1);
-            if (sDeltaEl) {
-              if (lapDelta !== 0) {
-                sDeltaEl.textContent = (lapDelta >= 0 ? '+' : '') + lapDelta.toFixed(2);
-                cell.classList.add(lapDelta < 0 ? 'dh-s-faster' : 'dh-s-slower');
-              } else { sDeltaEl.textContent = ''; }
-            }
-          }
-        } else if (si === 1 && currentLapTime > 0 && currentLapTime < 120) {
-          // S1 is always valid — entry time is lap start (0)
-          var em = Math.floor(currentLapTime / 60);
-          var es = currentLapTime % 60;
-          timeEl.textContent = (em > 0 ? em + ':' : '') + (em > 0 && es < 10 ? '0' : '') + es.toFixed(1);
-          if (sDeltaEl) {
-            if (lapDelta !== 0) {
-              sDeltaEl.textContent = (lapDelta >= 0 ? '+' : '') + lapDelta.toFixed(2);
-              cell.classList.add(lapDelta < 0 ? 'dh-s-faster' : 'dh-s-slower');
-            } else { sDeltaEl.textContent = ''; }
-          }
-        } else {
-          timeEl.textContent = '—';
-          if (sDeltaEl) sDeltaEl.textContent = '';
+      } else if (states[si - 1] > 0) {
+        // Completed sector with a new performance state — apply and cache it
+        if (!_lapInvalid) {
+          var cls = dhStateClass[states[si - 1]];
+          if (cls) cell.classList.add(cls);
         }
-      } else if (splits[si - 1] > 0) {
-        var split = splits[si - 1];
-        // Sanity check: iRacing sometimes sends cumulative lap time as
-        // the final sector split. Never display a full lap time here.
-        var sumOther = 0, otherCount = 0;
-        for (var sc = 0; sc < sectorCount; sc++) {
-          if (sc !== si - 1 && splits[sc] > 0) { sumOther += splits[sc]; otherCount++; }
+        _prevSectorStates[si - 1] = states[si - 1];
+      } else if (_prevSectorStates[si - 1] > 0) {
+        // No new state yet (e.g. new lap, splits cleared) — retain previous color
+        if (!_lapInvalid) {
+          var cls = dhStateClass[_prevSectorStates[si - 1]];
+          if (cls) cell.classList.add(cls);
         }
-        var exceedsOthers = sumOther > 0 && split >= sumOther;
-        var exceedsBest = bestLap > 0 && split >= bestLap * 0.85;
-        // Also check previous poll's splits — iRacing clears sectors on lap
-        // cross in qualifying, so otherCount can be 0 even for a real split
-        var prevOther = 0;
-        for (var pc = 0; pc < _prevSectorSplits.length; pc++) {
-          if (pc !== si - 1 && _prevSectorSplits[pc] > 0) prevOther++;
-        }
-        var lastNoCtx = si === sectorCount && sectorCount >= 2 && otherCount === 0 && prevOther === 0;
-        if (exceedsOthers || exceedsBest || lastNoCtx) {
-          timeEl.textContent = '—';
-          if (sDeltaEl) sDeltaEl.textContent = '';
-        } else {
-        var m = Math.floor(split / 60);
-        var s = split % 60;
-        timeEl.textContent = (m > 0 ? m + ':' : '') + (m > 0 && s < 10 ? '0' : '') + s.toFixed(1);
-        if (stateClass[states[si - 1]]) cell.classList.add(stateClass[states[si - 1]]);
-        if (sDeltaEl) {
-          var d = deltas[si - 1];
-          if (states[si - 1] === 1) sDeltaEl.textContent = 'PB';
-          else if (d !== 0) sDeltaEl.textContent = (d >= 0 ? '+' : '') + d.toFixed(2);
-          else sDeltaEl.textContent = '';
-        }
-        }
-      } else {
-        timeEl.textContent = '—';
-        if (sDeltaEl) sDeltaEl.textContent = '';
       }
     }
 

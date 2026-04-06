@@ -146,6 +146,10 @@
       : vs('RaceCorProDrive.Plugin.SessionTypeName');
     if (_currSessionTypeName && _currSessionTypeName !== _prevSessionTypeName && _prevSessionTypeName) {
       console.log('[K10] Session changed:', _prevSessionTypeName, '→', _currSessionTypeName);
+      // Capture practice/quali/warmup session end before resetting
+      if (typeof window.capturePracticeSessionEnd === 'function') {
+        window.capturePracticeSessionEnd(p, _demo);
+      }
       if (typeof resetTimeline === 'function') resetTimeline();
       if (typeof resetRaceResults === 'function') resetRaceResults();
       // Capture session start snapshot for sync
@@ -437,11 +441,9 @@
     //   Qualifying: first timed lap (completedLaps 0 → 1)
     //   Race: green lights (Grid.SessionState transitions to 4)
     if (window.showMfrFlag && _currentCarLogo && _currentCarLogo !== 'generic' && _currentCarLogo !== 'none') {
-      const sessType = (_demo ? (p['RaceCorProDrive.Plugin.Demo.SessionTypeName'] || '')
-                              : (p['RaceCorProDrive.Plugin.SessionTypeName'] || '')).toLowerCase();
-      const isPractice = sessType.includes('practice') || sessType.includes('test') || sessType.includes('warmup');
-      const isQuali = sessType.includes('qualify') || sessType.includes('qual');
-      const isRace = !isPractice && !isQuali && sessType.length > 0;
+      const isPractice = sessionMode === 1 || sessionMode === 3;
+      const isQuali = sessionMode === 2;
+      const isRace = sessionMode === 4;
 
       let shouldFire = false;
 
@@ -579,14 +581,49 @@
     const remLaps = +d('DataCorePlugin.GameData.RemainingLaps', 'Demo.RemainingLaps') || 0;
     const timerEl = document.getElementById('raceTimerValue');
     const timerRow = document.querySelector('.timer-row');
+    // Session mode from plugin (single source of truth)
+    // 0=Unknown, 1=Practice, 2=Qualifying, 3=Warmup, 4=Race
+    const sessionMode = +(p[dsPre + 'SessionMode']) || 0;
+    const isPracticeTimer = sessionMode === 1 || sessionMode === 3; // Practice or Warmup
+    const isQualiTimer = sessionMode === 2;
+    const isNonRaceTimer = isPracticeTimer || isQualiTimer;
     // Determine if this is a lap-limited race (not timed)
-    const isLapRace = totalLaps > 0 && totalLaps <= 9999 && !(+(p[dsPre + 'IsTimedRace']) > 0);
+    const isLapRace = +(p[dsPre + 'IsLapRace']) > 0;
+    // Read current sector early — needed for lap-race timer popup on sector transitions
+    const timerCurSector = +(p[dsPre + 'CurrentSector']) || 1;
+
     if (timerEl) {
-      if (isLapRace && remLaps >= 0) {
-        // Lap-limited race: show remaining laps instead of time
+      if (isPracticeTimer) {
+        // Practice: show local wall clock time (12-hour format)
+        const now = new Date();
+        let hours = now.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        const mins = now.getMinutes();
+        timerEl.textContent = hours + ':' + (mins < 10 ? '0' : '') + mins + ' ' + ampm;
+      } else if (isLapRace && !isNonRaceTimer) {
+        // Lap-limited race: show current lap time instead of useless 168:00:00 countdown
         if (remLaps === 1) timerEl.textContent = 'Final Lap';
         else if (remLaps === 0) timerEl.textContent = 'Finish';
-        else timerEl.textContent = remLaps + (remLaps === 1 ? ' Lap' : ' Laps');
+        else if (curLapTime > 0) {
+          const lm = Math.floor(curLapTime / 60);
+          const ls = curLapTime % 60;
+          timerEl.textContent = (lm > 0 ? lm + ':' : '') + (lm > 0 && ls < 10 ? '0' : '') + ls.toFixed(1);
+        } else {
+          timerEl.textContent = '0.0';
+        }
+      } else if (isQualiTimer) {
+        // Qualifying: show remaining session time
+        const serverFmt = p[dsPre + 'RemainingTimeFormatted'] || '';
+        if (serverFmt) {
+          timerEl.textContent = serverFmt;
+        } else if (remTime > 0) {
+          const m = Math.floor(remTime / 60);
+          const s = Math.floor(remTime % 60);
+          timerEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+        } else {
+          timerEl.textContent = '0:00';
+        }
       } else {
         // Timed race: show remaining time
         const serverFmt = p[dsPre + 'RemainingTimeFormatted'] || '';
@@ -608,26 +645,39 @@
     const lastLapEl = document.getElementById('lastLapTimeValue');
     if (lastLapEl) { lastLapEl.textContent = fmtLap(lastLapTime); }
 
-    // Detect lap change → show timer block + force position page
-    if (lap > 0 && lap !== _prevLap && _prevLap > 0 && timerRow) {
-      timerRow.classList.add('timer-visible');
-      showPositionPage();
-      // Clear any pending hide
-      if (_timerHideTimeout) clearTimeout(_timerHideTimeout);
-      // Auto-hide after 30s unless pinned for end-of-race
-      if (!_timerPinned) {
-        _timerHideTimeout = setTimeout(() => {
-          if (!_timerPinned) timerRow.classList.remove('timer-visible');
-        }, 30000);
+    // ── Timer visibility logic ──
+    // Lap-limited races: pop up on sector transitions and lap changes, auto-hide between
+    const sectorChanged = timerCurSector !== _prevTimerSector && _prevTimerSector > 0;
+    _prevTimerSector = timerCurSector;
+
+    if (isLapRace && !isNonRaceTimer && timerRow) {
+      // Show on sector transition or lap change
+      if (sectorChanged || (lap > 0 && lap !== _prevLap && _prevLap > 0)) {
+        timerRow.classList.add('timer-visible');
+        showPositionPage();
+        if (_timerHideTimeout) clearTimeout(_timerHideTimeout);
+        if (!_timerPinned) {
+          _timerHideTimeout = setTimeout(() => {
+            if (!_timerPinned) timerRow.classList.remove('timer-visible');
+          }, 10000); // 10s visibility per sector popup
+        }
+      }
+    } else if (!isNonRaceTimer) {
+      // Timed race: show on lap change, auto-hide after 30s
+      if (lap > 0 && lap !== _prevLap && _prevLap > 0 && timerRow) {
+        timerRow.classList.add('timer-visible');
+        showPositionPage();
+        if (_timerHideTimeout) clearTimeout(_timerHideTimeout);
+        if (!_timerPinned) {
+          _timerHideTimeout = setTimeout(() => {
+            if (!_timerPinned) timerRow.classList.remove('timer-visible');
+          }, 30000);
+        }
       }
     }
-    // ── Lap validity: detect incidents added during this lap ──
-    const _incCount = +(p[dsPre + 'IncidentCount']) || 0;
-    if (lap > 0 && lap !== _prevLap) {
-      _lapStartIncidents = _incCount;
-      _lapInvalid = false;
-    }
-    if (_incCount > _lapStartIncidents) _lapInvalid = true;
+
+    // ── Lap validity from plugin (single source of truth) ──
+    _lapInvalid = +(p[dsPre + 'IsLapInvalid']) > 0;
 
     _prevLap = lap;
 
@@ -643,6 +693,11 @@
       timerRow.classList.add('timer-visible');
     } else if (_timerPinned && !isEndOfRace) {
       _timerPinned = false; // race ended or data reset
+    }
+
+    // Non-race sessions (qualifying, practice): always keep timer visible
+    if (isNonRaceTimer && timerRow) {
+      timerRow.classList.add('timer-visible');
     }
 
     // ─── iRating / Safety ───
@@ -699,10 +754,7 @@
     }
 
     // ─── Gaps / Lap Timing ───
-    // Prefer server-computed DS.IsNonRaceSession, fallback to client-side string check
-    const nonRace = +(p[dsPre + 'IsNonRaceSession']) > 0 || _isNonRaceSession(
-      _demo ? (p['RaceCorProDrive.Plugin.Demo.SessionTypeName'] || '')
-            : (p['RaceCorProDrive.Plugin.SessionTypeName'] || ''));
+    const nonRace = sessionMode >= 1 && sessionMode <= 3; // Practice, Qualifying, or Warmup
 
     const gapLabels = document.querySelectorAll('.gaps-block .panel-label');
     const gapTimes = document.querySelectorAll('.gap-time');
@@ -751,7 +803,7 @@
         : (+(p['DataCorePlugin.GameData.CurrentLapTime']) || 0);
 
       // ── Dynamic sector cell management ──
-      // Ensure sectorIndicator has the right number of cells
+      // Ensure sectorIndicator has the right number of cells (label only — no times)
       if (sectorEl) {
         const existing = sectorEl.querySelectorAll('.sector-cell');
         if (existing.length !== sectorCount) {
@@ -760,19 +812,20 @@
             const cell = document.createElement('div');
             cell.className = 'sector-cell';
             cell.id = 'sector' + i;
-            cell.innerHTML = '<div class="sector-label">S' + i + '</div>' +
-              '<div class="sector-time" id="sector' + i + 'Time">—</div>' +
-              '<div class="sector-delta" id="sector' + i + 'Delta"></div>';
+            cell.innerHTML = '<div class="sector-label">S' + i + '</div>';
             sectorEl.appendChild(cell);
           }
         }
       }
 
+      // Color mapping: green = my best, yellow = worse than my best, red = invalid
+      // No purple — we don't have "best of everyone on track" data
+      // state: 0=none, 1=pb (treat as green), 2=faster (green), 3=slower (yellow)
+      const sectorColorClass = ['', 'sector-faster', 'sector-faster', 'sector-slower'];
+
       for (let si = 1; si <= sectorCount; si++) {
         const cell = document.getElementById('sector' + si);
-        const timeEl = document.getElementById('sector' + si + 'Time');
-        const deltaEl = document.getElementById('sector' + si + 'Delta');
-        if (!cell || !timeEl) continue;
+        if (!cell) continue;
 
         cell.classList.remove('sector-pb', 'sector-faster', 'sector-slower', 'sector-invalid', 'sector-active');
 
@@ -782,90 +835,24 @@
         }
 
         if (si === curSector) {
-          // Active sector: show running sector elapsed time, delta below
           cell.classList.add('sector-active');
-          // Calculate sector entry time from completed previous sectors
-          let entryTime = 0;
-          let hasPrevSplits = true;
-          for (let k = 0; k < si - 1; k++) {
-            if (!splits[k] || splits[k] <= 0) { hasPrevSplits = false; break; }
-            entryTime += splits[k];
+          // Live delta coloring on active sector
+          if (!_lapInvalid && lapDelta !== 0) {
+            cell.classList.add(lapDelta < 0 ? 'sector-faster' : 'sector-slower');
           }
-          // Only show sector elapsed if we have valid entry time data
-          // Otherwise show dash to avoid displaying the full lap time
-          if (hasPrevSplits && currentLapTime > entryTime) {
-            const elapsed = currentLapTime - entryTime;
-            const em = Math.floor(elapsed / 60);
-            const es = elapsed % 60;
-            timeEl.textContent = (em > 0 ? em + ':' : '') + (em > 0 && es < 10 ? '0' : '') + es.toFixed(1);
-          } else if (si === 1 && currentLapTime > 0 && currentLapTime < 120) {
-            // S1 is always valid since entry = lap start (time 0)
-            const em = Math.floor(currentLapTime / 60);
-            const es = currentLapTime % 60;
-            timeEl.textContent = (em > 0 ? em + ':' : '') + (em > 0 && es < 10 ? '0' : '') + es.toFixed(1);
-          } else {
-            timeEl.textContent = '—';
+        } else if (states[si - 1] > 0) {
+          // Completed sector with a new performance state — apply and cache it
+          if (!_lapInvalid) {
+            const cls = sectorColorClass[states[si - 1]];
+            if (cls) cell.classList.add(cls);
           }
-          if (deltaEl) {
-            if (lapDelta !== 0) {
-              deltaEl.textContent = (lapDelta >= 0 ? '+' : '') + lapDelta.toFixed(2);
-              if (!_lapInvalid) cell.classList.add(lapDelta < 0 ? 'sector-faster' : 'sector-slower');
-            } else {
-              deltaEl.textContent = '';
-            }
+          _prevSectorStates[si - 1] = states[si - 1];
+        } else if (_prevSectorStates[si - 1] > 0) {
+          // No new state yet (e.g. new lap, splits cleared) — retain previous color
+          if (!_lapInvalid) {
+            const cls = sectorColorClass[_prevSectorStates[si - 1]];
+            if (cls) cell.classList.add(cls);
           }
-        } else if (splits[si - 1] > 0) {
-          // Completed sector: show sector time + delta to my best.
-          // Multi-layered sanity check: iRacing sometimes sends the
-          // cumulative lap time as the final sector split. We must
-          // never display a full lap time inside a sector cell.
-          const split = splits[si - 1];
-          let sumOtherSplits = 0;
-          let otherSplitCount = 0;
-          for (let k = 0; k < sectorCount; k++) {
-            if (k !== si - 1 && splits[k] > 0) {
-              sumOtherSplits += splits[k];
-              otherSplitCount++;
-            }
-          }
-          // Check 1: split >= sum of all other known sectors (original check)
-          const exceedsOthers = sumOtherSplits > 0 && split >= sumOtherSplits;
-          // Check 2: split >= 85% of best lap — no single sector should be
-          // that large relative to the full lap
-          const exceedsBestLap = bestLap > 0 && split >= bestLap * 0.85;
-          // Check 3: last sector with no other splits populated yet —
-          // this is the classic case where iRacing sends cumulative time
-          // before the earlier sectors are filled in.
-          // BUT: in qualifying, iRacing clears previous sectors on lap cross
-          // right as the final split arrives. Use _prevSectorSplits to avoid
-          // false positives — if the previous poll had other sectors filled,
-          // this is a real split, not a cumulative time.
-          let prevOtherCount = 0;
-          for (let k = 0; k < _prevSectorSplits.length; k++) {
-            if (k !== si - 1 && _prevSectorSplits[k] > 0) prevOtherCount++;
-          }
-          const lastSectorNoContext = si === sectorCount && sectorCount >= 2
-            && otherSplitCount === 0 && prevOtherCount === 0;
-          const looksLikeFullLap = exceedsOthers || exceedsBestLap || lastSectorNoContext;
-          if (looksLikeFullLap) {
-            // Suppress — never show a full lap time inside a sector cell
-            timeEl.textContent = '—';
-            if (deltaEl) deltaEl.textContent = '';
-          } else {
-            const m = Math.floor(split / 60);
-            const s = (split % 60);
-            timeEl.textContent = (m > 0 ? m + ':' : '') + (m > 0 && s < 10 ? '0' : '') + s.toFixed(1);
-            if (!_lapInvalid && stateClass[states[si - 1]]) cell.classList.add(stateClass[states[si - 1]]);
-            if (deltaEl) {
-              const d = deltas[si - 1];
-              if (d !== 0) deltaEl.textContent = (d >= 0 ? '+' : '') + d.toFixed(2);
-              else if (states[si - 1] === 1) deltaEl.textContent = 'PB';
-              else deltaEl.textContent = '';
-            }
-          }
-        } else {
-          timeEl.textContent = '—';
-          if (deltaEl) deltaEl.textContent = '';
         }
       }
 
