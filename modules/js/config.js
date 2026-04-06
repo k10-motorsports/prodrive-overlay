@@ -611,6 +611,7 @@ let _discordUser = null;
 // accesses them as window._k10User / window._k10Features.
 var _k10User = null;
 var _k10Features = [];
+var _k10Token = null;
 
 // Logo cycling
 let _currentCarLogoIdx = 0;

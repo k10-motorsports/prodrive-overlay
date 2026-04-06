@@ -139,6 +139,11 @@
         if (window.debugConsole) window.debugConsole.logNetwork('success', 'K10 Pro Drive connected - ' + (result.user.discordUsername || result.user.discordDisplayName || 'User'));
 
         updateK10ConnectionCard();
+
+        // Cache auth token for session-sync.js
+        if (window.k10 && window.k10.getK10Token) {
+          window.k10.getK10Token().then(function(t) { _k10Token = t; }).catch(function() {});
+        }
       } else {
         const errMsg = result?.error || 'Connection failed';
         console.warn('[K10] Pro connect failed:', errMsg);
@@ -167,6 +172,7 @@
     }
     _k10User = null;
     _k10Features = [];
+    _k10Token = null;
     delete _settings.k10User;
     delete _settings.k10Features;
     saveSettings();
@@ -464,6 +470,11 @@
 
           updateK10ConnectionCard();
 
+          // Cache auth token for session-sync.js
+          if (window.k10 && window.k10.getK10Token) {
+            window.k10.getK10Token().then(function(t) { _k10Token = t; }).catch(function() {});
+          }
+
           // Verify token in background
           if (window.k10.verifyK10Token) {
             window.k10.verifyK10Token().then(result => {
@@ -500,6 +511,11 @@
       }
 
       updateK10ConnectionCard();
+
+      // Cache auth token for session-sync.js
+      if (window.k10 && window.k10.getK10Token) {
+        window.k10.getK10Token().then(function(t) { _k10Token = t; }).catch(function() {});
+      }
     }
   }
 

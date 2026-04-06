@@ -1160,6 +1160,11 @@ ipcMain.handle('get-k10-user', async () => {
   };
 });
 
+ipcMain.handle('get-k10-token', async () => {
+  const user = loadK10User();
+  return user?.accessToken || null;
+});
+
 ipcMain.handle('verify-k10-token', async () => {
   const user = loadK10User();
   if (!user || !user.accessToken) return { valid: false };
