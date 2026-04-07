@@ -135,7 +135,16 @@
 
         // Cache auth token for session-sync.js
         if (window.k10 && window.k10.getK10Token) {
-          window.k10.getK10Token().then(function(t) { _k10Token = t; }).catch(function() {});
+          window.k10.getK10Token().then(function(t) {
+            _k10Token = t;
+
+            // Trigger full iRacing career import on initial connect
+            // (deduplicates server-side, safe to call even if data exists)
+            if (_settings.iracingDataSync && window.triggerIRacingImport) {
+              console.log('[Connections] K10 connected — triggering iRacing career sync');
+              window.triggerIRacingImport();
+            }
+          }).catch(function() {});
         }
       } else {
         const errMsg = result?.error || 'Connection failed';
@@ -423,9 +432,17 @@
 
           updateK10ConnectionCard();
 
-          // Cache auth token for session-sync.js
+          // Cache auth token for session-sync.js + check iRacing sync on load
           if (window.k10 && window.k10.getK10Token) {
-            window.k10.getK10Token().then(function(t) { _k10Token = t; }).catch(function() {});
+            window.k10.getK10Token().then(function(t) {
+              _k10Token = t;
+
+              // Check if iRacing history needs syncing (on overlay load)
+              if (_settings.iracingDataSync && window.checkAndSyncIRacingHistory) {
+                // Small delay to let the plugin HTTP server start
+                setTimeout(function() { window.checkAndSyncIRacingHistory(); }, 3000);
+              }
+            }).catch(function() {});
           }
 
           // Verify token in background

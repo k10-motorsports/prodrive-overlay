@@ -615,7 +615,8 @@ const _defaultSettings = {
   // Remote design tokens
   useRemoteTokens: true,       // fetch CSS token builds from K10 Pro Drive API
   theme: 'dark',               // 'dark' or 'light' — synced with web dashboard preference
-  apiBase: 'https://prodrive.racecor.io' // K10 Pro Drive API base URL
+  apiBase: 'https://prodrive.racecor.io', // K10 Pro Drive API base URL
+  iracingDataSync: true // Sync race sessions to Pro Drive by default
 };
 
 let _settings = Object.assign({}, _defaultSettings);

@@ -832,4 +832,220 @@
     });
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  //  POST-RACE POLL — fetch latest results from iRacing API
+  // ═══════════════════════════════════════════════════════════════
+
+  var _postRacePollTimer = null;
+  var _postRacePollAttempts = 0;
+  var _postRacePollMaxAttempts = 5;
+  var _postRacePollInterval = 10000; // 10 seconds
+  var _postRacePollGameId = null;    // subsession/gameId we're waiting for
+
+  /**
+   * Start polling iRacing API (via plugin) for the latest race result.
+   * Called after captureSessionEnd for iRacing sessions. Polls every 10s
+   * up to 5 times, looking for the subsession that just finished.
+   * When found (or max attempts reached), stops polling.
+   */
+  function _startPostRacePoll(gameId) {
+    _stopPostRacePoll(); // Clear any prior poll
+
+    _postRacePollGameId = gameId || null;
+    _postRacePollAttempts = 0;
+
+    console.log('[Session Sync] Starting post-race poll for latest iRacing results...');
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Post-race sync: polling for finalized results...');
+
+    // First attempt after a short delay (iRacing needs time to finalize)
+    _postRacePollTimer = setTimeout(_doPostRacePoll, _postRacePollInterval);
+  }
+
+  function _stopPostRacePoll() {
+    if (_postRacePollTimer) {
+      clearTimeout(_postRacePollTimer);
+      _postRacePollTimer = null;
+    }
+    _postRacePollAttempts = 0;
+    _postRacePollGameId = null;
+  }
+
+  function _doPostRacePoll() {
+    _postRacePollTimer = null;
+    _postRacePollAttempts++;
+
+    var token = _getToken();
+    if (!token || !window._k10User) {
+      console.warn('[Session Sync] Post-race poll: no auth — stopping');
+      _stopPostRacePoll();
+      return;
+    }
+
+    console.log('[Session Sync] Post-race poll attempt ' + _postRacePollAttempts + '/' + _postRacePollMaxAttempts);
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Post-race poll attempt ' + _postRacePollAttempts + '/' + _postRacePollMaxAttempts);
+
+    // Fetch latest recent races from iRacing via the local SimHub plugin
+    fetch(PLUGIN_BASE + '?action=iracingLatest')
+    .then(function(r) { return r.json(); })
+    .then(function(pluginResult) {
+      if (!pluginResult.ok) {
+        console.warn('[Session Sync] Post-race poll: plugin fetch failed:', pluginResult.error);
+        if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Post-race poll failed: ' + (pluginResult.error || 'unknown'));
+        _scheduleNextPoll();
+        return;
+      }
+
+      var data = pluginResult.data;
+      if (!data || !Array.isArray(data.recentRaces) || data.recentRaces.length === 0) {
+        console.log('[Session Sync] Post-race poll: no races returned yet');
+        _scheduleNextPoll();
+        return;
+      }
+
+      // Push the recent races to /api/iracing/latest for deduped import
+      fetch(API_BASE + '/api/iracing/latest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(data)
+      })
+      .then(function(r) {
+        if (r.ok) {
+          return r.json().then(function(result) {
+            var imported = result.imported || {};
+            if (imported.sessions > 0) {
+              console.log('[Session Sync] Post-race sync: imported ' + imported.sessions + ' new session(s), ' + (imported.ratings || 0) + ' rating point(s)');
+              if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'Post-race sync: ' + imported.sessions + ' new session(s) imported from iRacing API');
+              // Success — stop polling
+              _stopPostRacePoll();
+            } else {
+              console.log('[Session Sync] Post-race sync: no new sessions (may not be finalized yet)');
+              _scheduleNextPoll();
+            }
+          });
+        } else {
+          console.warn('[Session Sync] Post-race sync: API error', r.status);
+          _scheduleNextPoll();
+        }
+      })
+      .catch(function(e) {
+        console.error('[Session Sync] Post-race sync error:', e);
+        _scheduleNextPoll();
+      });
+    })
+    .catch(function(e) {
+      console.warn('[Session Sync] Post-race poll: network error:', e.message || e);
+      _scheduleNextPoll();
+    });
+  }
+
+  function _scheduleNextPoll() {
+    if (_postRacePollAttempts >= _postRacePollMaxAttempts) {
+      console.log('[Session Sync] Post-race poll: max attempts reached — stopping');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Post-race poll: max attempts reached, will sync on next launch');
+      _stopPostRacePoll();
+      return;
+    }
+    _postRacePollTimer = setTimeout(_doPostRacePoll, _postRacePollInterval);
+  }
+
+  // Hook into captureSessionEnd to trigger post-race polling for iRacing
+  var _origCaptureEndForPoll = window.captureSessionEnd;
+  window.captureSessionEnd = function(p, isDemo) {
+    // Call original captureSessionEnd first
+    _origCaptureEndForPoll(p, isDemo);
+
+    // Only poll for iRacing sessions
+    var gameName = _vs(p, 'RaceCorProDrive.Plugin.GameId') || _vs(p, 'GameId') || '';
+    if (gameName === 'iRacing' || gameName === 'IRacing') {
+      var gameId = _vs(p, 'IRacingExtraProperties.iRacing_SessionInfo_SessionID') || '';
+      _startPostRacePoll(gameId);
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  //  SYNC ON LOAD — check if a full import has happened yet
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Check if a full iRacing history sync has been done. If not, trigger one.
+   * Called when the overlay loads with an existing K10 Pro Drive connection.
+   */
+  window.checkAndSyncIRacingHistory = function() {
+    var token = _getToken();
+    if (!token || !window._k10User) return;
+    if (!_syncEnabled) return;
+
+    console.log('[Session Sync] Checking iRacing import status...');
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Checking if full iRacing history sync is needed...');
+
+    fetch(API_BASE + '/api/iracing/import', {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(status) {
+      if (!status) {
+        console.warn('[Session Sync] Could not check import status');
+        return;
+      }
+
+      if (!status.connected || !status.lastImportAt) {
+        // No prior import — trigger a full career sync
+        console.log('[Session Sync] No prior iRacing import found — triggering full career sync');
+        if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'No prior import found — starting full iRacing career sync...');
+        window.triggerIRacingImport();
+      } else {
+        console.log('[Session Sync] iRacing data already synced (last: ' + status.lastImportAt + ')');
+        if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'iRacing data synced (last: ' + new Date(status.lastImportAt).toLocaleDateString() + ')');
+
+        // Even if we have a prior import, fetch the latest races to catch anything
+        // that happened since the last sync (e.g. races from previous overlay session)
+        _doQuietLatestSync();
+      }
+    })
+    .catch(function(e) {
+      console.warn('[Session Sync] Import status check error:', e.message || e);
+    });
+  };
+
+  /**
+   * Quietly sync the latest recent races without a full career export.
+   * Used on load to catch races since the last sync.
+   */
+  function _doQuietLatestSync() {
+    var token = _getToken();
+    if (!token) return;
+
+    fetch(PLUGIN_BASE + '?action=iracingLatest')
+    .then(function(r) { return r.json(); })
+    .then(function(pluginResult) {
+      if (!pluginResult.ok || !pluginResult.data) return;
+
+      fetch(API_BASE + '/api/iracing/latest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(pluginResult.data)
+      })
+      .then(function(r) {
+        if (r.ok) {
+          return r.json().then(function(result) {
+            var imported = result.imported || {};
+            if (imported.sessions > 0) {
+              console.log('[Session Sync] Quiet sync: imported ' + imported.sessions + ' new session(s)');
+              if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'Caught up: ' + imported.sessions + ' new session(s) from iRacing');
+            }
+          });
+        }
+      })
+      .catch(function() {}); // Quiet — don't log errors for background sync
+    })
+    .catch(function() {}); // Plugin may not be reachable yet
+  }
+
 })();
