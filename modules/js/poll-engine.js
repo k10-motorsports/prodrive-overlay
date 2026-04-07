@@ -183,11 +183,7 @@
     // Game logo overlay
     if (window.updateGameLogo) window.updateGameLogo(_currentGameId, _settings.showGameLogo !== false);
 
-    // Block non-iRacing games unless Discord connected (demo mode always allowed)
-    if (!_demo && !isGameAllowed()) {
-      // Show "Connect Discord to unlock" message
-      return;
-    }
+    // All games are now allowed without connection checks
 
     // Expose rolling/formation start state for leaderboard sparklines
     window._isRollingStart = (sessNum === 2 || sessNum === 3); // Warmup or ParadeLaps

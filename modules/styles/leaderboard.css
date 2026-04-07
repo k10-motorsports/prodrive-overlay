@@ -358,6 +358,7 @@
     width: 240px;
     transition: opacity 0.4s ease;
     flex-shrink: 0;
+    overflow: hidden;
   }
   .leaderboard-panel.section-hidden { display: none; }
   /* Position offsets removed — now handled by .sec-container flex layout */

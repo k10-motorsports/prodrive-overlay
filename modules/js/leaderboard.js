@@ -35,52 +35,44 @@
     const container = document.getElementById('lbRows');
     if (!container) return;
 
+    // ── Focus + row limit logic ──
+    const focusMode = _settings.lbFocus || 'me';
+
     // Update header title based on focus mode
     const headerEl = document.querySelector('.lb-header');
     if (headerEl) {
       headerEl.textContent = focusMode === 'lead' ? 'LEADERBOARD' : 'RELATIVE';
     }
-
-    // ── Focus + row limit logic ──
-    const focusMode = _settings.lbFocus || 'me';
     let maxRows = _settings.lbMaxRows || 5;
 
-    // Expand to fill: calculate max rows that fit on screen
+    // Calculate available height for the leaderboard — used by both
+    // expand-to-fill (dynamic row count) and the CSS max-height safety net.
+    const sec = document.getElementById('secContainer');
+    const dash = document.getElementById('dashboard');
+    const zoom = parseFloat(sec ? sec.style.zoom : 1) || 1;
+    const vpH = window.innerHeight || 600;
+    const GAP = 24; // minimum gap between leaderboard and opposite-edge HUD
+
+    // Measure how much vertical space the main dashboard occupies
+    let dashFootprint = 0;
+    if (dash) {
+      const dashRect = dash.getBoundingClientRect();
+      if (dashRect.height > 0) dashFootprint = dashRect.height;
+    }
+
+    // Available height = viewport minus dashboard footprint minus edges minus gap
+    const edgePx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--edge') || '10');
+    const availH = Math.max(100, (vpH - dashFootprint - edgePx * 2 - GAP) / zoom);
+
+    // Set CSS custom property so sec-container can't overflow even without expand-to-fill
+    if (sec) sec.style.setProperty('--sec-max-h', Math.floor(availH * zoom) + 'px');
+
+    // Expand to fill: calculate max rows that fit in available space
     if (expandToFill) {
-      const lbPanel = document.getElementById('leaderboardPanel');
-      const sec = document.getElementById('secContainer');
-      const zoom = parseFloat(sec ? sec.style.zoom : 1) || 1;
-      const rowH = 22; // approximate row height in px (in panel coordinates)
-      // Measure available height from the sec-container position
-      // getBoundingClientRect() returns viewport pixels; divide by zoom to get panel-space pixels
-      const vpH = window.innerHeight || 600;
-      let availH;
-      if (sec && sec.offsetHeight > 0) {
-        const secRect = sec.getBoundingClientRect();
-        const isTop = sec.classList.contains('sec-top');
-        // Available height: from the container's edge toward the opposite viewport edge
-        availH = isTop ? (vpH - secRect.top) / zoom : secRect.bottom / zoom;
-        // Fallback if getBoundingClientRect returned 0 (not laid out yet)
-        if (availH <= 0) {
-          availH = vpH / zoom;
-        }
-      } else if (lbPanel && lbPanel.offsetHeight > 0) {
-        // Fallback: use lbPanel's own height if available
-        availH = lbPanel.offsetHeight / zoom;
-      } else {
-        // Last resort: use viewport height
-        availH = vpH / zoom;
-      }
-      // Reserve space for lb-header, timeline strip, padding, and a safety margin
+      const rowH = 22;  // approximate row height in px (in panel coordinates)
       const headerH = 36; // header + timeline + top/bottom padding
-      const marginH = 16; // breathing room at the edge
+      const marginH = 16; // breathing room
       const calculatedMaxRows = Math.max(3, Math.min(raw.length, Math.floor((availH - headerH - marginH) / rowH)));
-      // Warn if calculated maxRows is suspiciously small when expand-to-fill is enabled
-      if (calculatedMaxRows < 6 && raw.length >= 6) {
-        if (_pollFrame > 0 && _pollFrame % 20 === 0) {
-          console.warn('[K10 LB] expand-to-fill calculated suspiciously small maxRows:', calculatedMaxRows, 'availH:', availH, 'lbPanel.offsetHeight:', lbPanel ? lbPanel.offsetHeight : 'N/A', 'sec.offsetHeight:', sec ? sec.offsetHeight : 'N/A');
-        }
-      }
       maxRows = calculatedMaxRows;
     }
 
