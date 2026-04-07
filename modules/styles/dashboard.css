@@ -372,7 +372,7 @@
   .logo-col {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: var(--gap);
     flex-shrink: 0;
   }
   .logo-square {
