@@ -31,10 +31,9 @@
     return GAME_FEATURES[_currentGameId] || GAME_FEATURES.iracing;
   }
 
-  // Returns true if the current game is allowed (iRacing always allowed; others require K10 Pro)
+  // All games are allowed — no connection check required
   function isGameAllowed() {
-    if (_currentGameId === 'iracing') return true;
-    return !!_k10User;
+    return true;
   }
 
   function isRallyGame() {

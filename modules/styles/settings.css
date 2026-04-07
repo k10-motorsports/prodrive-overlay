@@ -12,6 +12,9 @@
     gap: var(--panel-gap);
     align-items: flex-start;
     pointer-events: none;
+    /* Prevent sec panels from growing into the opposite-edge HUD.
+       JS sets --sec-max-h dynamically; fallback keeps it safe. */
+    max-height: var(--sec-max-h, 55vh);
   }
   .sec-container > * { pointer-events: auto; }
 

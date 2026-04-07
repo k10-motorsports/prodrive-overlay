@@ -15,20 +15,13 @@
   const PRO_FEATURE_KEYS = ['commentary','incidents','spotter','leaderboard','datastream','webgl','reflections','modules','minimal','minimal-plus','branding'];
 
   function isProFeature(key) {
-    const map = {
-      'showCommentary': 'commentary',
-      'showIncidents': 'incidents',
-      'showSpotter': 'spotter',
-      'showLeaderboard': 'leaderboard',
-      'showDatastream': 'datastream',
-      'showWebGL': 'webgl',
-      'ambientMode': 'reflections',
-    };
-    return map[key] || null;
+    // Feature gates removed — all local features are always available
+    return null;
   }
 
   function isProEnabled(featureKey) {
-    return _k10User && _k10Features.includes(featureKey);
+    // Feature gates removed — all local features are always enabled
+    return true;
   }
 
   function updateConnectionsTab() {
@@ -180,46 +173,18 @@
   }
 
   // ── Pro Feature Gating ──
-  // Add disabled state + K10 badge to toggles that require Pro
+  // Previously gated local features behind K10 Pro connection.
+  // All local features are now always available. Only session-sync
+  // and remote dashboard still require a connection.
   function updateProFeatureGating() {
-    const isPro = !!_k10User;
-
-    // Toggle elements with pro gating
-    document.querySelectorAll('[data-pro-feature]').forEach(el => {
-      const featureKey = el.dataset.proFeature;
-      const enabled = isPro && _k10Features.includes(featureKey);
-
-      if (enabled) {
-        el.classList.remove('pro-locked');
-        // Remove pro badge if present
-        const badge = el.parentElement?.querySelector('.pro-badge');
-        if (badge) badge.style.display = 'none';
-      } else {
-        el.classList.add('pro-locked');
-        // Show pro badge
-        let badge = el.parentElement?.querySelector('.pro-badge');
-        if (!badge && el.parentElement) {
-          badge = document.createElement('span');
-          badge.className = 'pro-badge';
-          badge.innerHTML = '<img src="images/branding/logomark.png" alt="Pro" />';
-          badge.title = 'K10 Pro feature — connect to enable';
-          badge.onclick = function(e) { e.stopPropagation(); navigateToConnections(); };
-          el.parentElement.appendChild(badge);
-        }
-        if (badge) badge.style.display = '';
-      }
-    });
-
-    // Sidebar items gating
+    // Clean up any leftover pro-locked classes and badges from prior sessions
+    document.querySelectorAll('.pro-locked').forEach(el => el.classList.remove('pro-locked'));
+    document.querySelectorAll('.pro-badge').forEach(el => el.style.display = 'none');
     document.querySelectorAll('[data-pro-tab]').forEach(tab => {
-      const featureKey = tab.dataset.proTab;
-      const enabled = isPro && _k10Features.includes(featureKey);
-      tab.classList.toggle('disabled', !enabled);
-      tab.title = enabled ? '' : 'K10 Pro feature — connect to enable';
+      tab.classList.remove('disabled');
+      tab.title = '';
     });
 
-    // Update layout rally toggle (now based on K10 Pro, not Discord)
-    updateLayoutRallyToggle();
     syncRallyToggles();
   }
 
@@ -335,8 +300,6 @@
   }
 
   function toggleLayoutRally(el) {
-    // Ignore clicks when disabled (no K10 Pro connection)
-    if (el.classList.contains('disabled')) return;
     const isOn = el.classList.contains('on');
     el.classList.toggle('on', !isOn);
     _rallyModeEnabled = !isOn;
@@ -356,23 +319,13 @@
     if (connToggle) connToggle.classList.toggle('on', _rallyModeEnabled);
   }
 
-  /** Enable/disable the layout rally toggle based on K10 Pro state */
+  /** Sync layout rally toggle state — always enabled */
   function updateLayoutRallyToggle() {
     const el = document.getElementById('layoutRallyToggle');
     const hint = document.getElementById('layoutRallyHint');
     if (!el) return;
-    if (_k10User) {
-      el.classList.remove('disabled');
-      if (hint) hint.style.display = 'none';
-    } else {
-      el.classList.add('disabled');
-      el.classList.remove('on');
-      if (hint) hint.style.display = '';
-      // Force rally off when disconnected
-      _rallyModeEnabled = false;
-      _settings.rallyMode = false;
-      _isRally = isRallyGame();
-    }
+    el.classList.remove('disabled');
+    if (hint) hint.style.display = 'none';
   }
 
   // ── Remote Dashboard (LAN streaming via remote-server.js) ──
@@ -520,11 +473,6 @@
   }
 
   function toggleSetting(el) {
-    // Check if this is a pro-locked toggle
-    if (el.classList.contains('pro-locked')) {
-      navigateToConnections();
-      return;
-    }
     const key = el.dataset.key;
     const isOn = el.classList.contains('on');
     _settings[key] = !isOn;
@@ -542,11 +490,6 @@
   }
 
   function toggleWebGL(el) {
-    // Check if this is a pro-locked toggle
-    if (el.classList.contains('pro-locked')) {
-      navigateToConnections();
-      return;
-    }
     const isOn = el.classList.contains('on');
     const newVal = !isOn;
     el.classList.toggle('on', newVal);

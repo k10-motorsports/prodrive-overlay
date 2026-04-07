@@ -68,13 +68,12 @@
     if (licSelect) licSelect.value = _manualLicense || 'R';
   }
 
-  // ── Enable/disable iRacing tab based on K10 Pro connection ──
+  // ── iRacing tab state — always enabled ──
   function updateIRacingTabState() {
     const tab = document.getElementById('iracingTab');
     if (!tab) return;
-    const connected = !!_k10User;
-    tab.classList.toggle('disabled', !connected);
-    tab.title = connected ? '' : 'Connect K10 Pro to enable';
+    tab.classList.remove('disabled');
+    tab.title = '';
   }
   window.updateIRacingTabState = updateIRacingTabState;
 

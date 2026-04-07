@@ -863,7 +863,7 @@
         <div class="settings-sidebar-item" data-tab="branding" onclick="switchSettingsTab(this)">Branding</div>
         <div class="settings-sidebar-item" data-tab="effects" onclick="switchSettingsTab(this)">Effects</div>
         <div class="settings-sidebar-item" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
-        <div class="settings-sidebar-item" data-tab="commentary" data-pro-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
+        <div class="settings-sidebar-item" data-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
         <div class="settings-sidebar-item" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
         <div class="settings-sidebar-item" data-tab="pedals" onclick="switchSettingsTab(this)">Pedals</div>
         <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
@@ -899,14 +899,14 @@
         <div class="settings-row"><span class="settings-label">Track Maps</span><div class="settings-toggle on" data-section="maps-col" data-key="showMaps" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Controls (BB/TC/ABS)</span><div class="settings-toggle on" data-section="car-controls" data-key="showControls" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Pedals</span><div class="settings-toggle on" data-section="pedals-area" data-key="showPedals" onclick="toggleSetting(this)"></div></div>
-        <div class="settings-row"><span class="settings-label">Commentary</span><div class="settings-toggle on" data-section="commentary-col" data-key="showCommentary" data-pro-feature="commentary" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Commentary</span><div class="settings-toggle on" data-section="commentary-col" data-key="showCommentary" onclick="toggleSetting(this)"></div></div>
         </div>
       </div>
 
       <!-- Subtab: Leaderboard -->
       <div class="settings-subtab-page" data-subtab-page="leaderboard">
         <div class="settings-two-col">
-        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="leaderboardPanel" data-key="showLeaderboard" data-pro-feature="leaderboard" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="leaderboardPanel" data-key="showLeaderboard" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row settings-sub"><span class="settings-label">Focus</span>
           <select class="settings-select" id="settingsLbFocus" onchange="updateLbFocus(this.value)">
             <option value="me">Focus on Me</option>
@@ -921,6 +921,7 @@
             <option value="10">10</option>
             <option value="15">15</option>
             <option value="20">20</option>
+            <option value="60">Full Field</option>
           </select>
         </div>
         <div class="settings-row settings-sub"><span class="settings-label">Expand to Fill</span><div class="settings-toggle" id="lbExpandToggle" onclick="toggleLbExpand(this)"></div></div>
@@ -937,7 +938,7 @@
       <!-- Subtab: Datastream -->
       <div class="settings-subtab-page" data-subtab-page="datastream">
         <div class="settings-two-col">
-        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="datastreamPanel" data-key="showDatastream" data-pro-feature="datastream" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Show</span><div class="settings-toggle on" data-section="datastreamPanel" data-key="showDatastream" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row settings-sub"><span class="settings-label">G-Force</span><div class="settings-toggle on" data-key="dsShowGforce" onclick="toggleDsSetting(this)"></div></div>
         <div class="settings-row settings-sub"><span class="settings-label">Yaw Rate</span><div class="settings-toggle on" data-key="dsShowYaw" onclick="toggleDsSetting(this)"></div></div>
         <div class="settings-row settings-sub"><span class="settings-label">FFB / Steer</span><div class="settings-toggle on" data-key="dsShowFfb" onclick="toggleDsSetting(this)"></div></div>
@@ -950,8 +951,8 @@
       <!-- Subtab: Overlays -->
       <div class="settings-subtab-page" data-subtab-page="overlays">
         <div class="settings-two-col">
-        <div class="settings-row"><span class="settings-label">Incidents</span><div class="settings-toggle on" data-section="incidentsPanel" data-key="showIncidents" data-pro-feature="incidents" onclick="toggleSetting(this)"></div></div>
-        <div class="settings-row"><span class="settings-label">Spotter</span><div class="settings-toggle on" data-section="spotterPanel" data-key="showSpotter" data-pro-feature="spotter" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Incidents</span><div class="settings-toggle on" data-section="incidentsPanel" data-key="showIncidents" onclick="toggleSetting(this)"></div></div>
+        <div class="settings-row"><span class="settings-label">Spotter</span><div class="settings-toggle on" data-section="spotterPanel" data-key="showSpotter" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Pit Limiter Animation</span><div class="settings-toggle on" data-key="showBonkers" id="bonkersToggle" onclick="toggleBonkers(this)"></div></div>
         </div>
       </div>
@@ -962,7 +963,7 @@
     <div class="settings-tab-content" id="settingsTabBranding">
       <div class="settings-two-col">
       <div class="settings-row"><span class="settings-label">K10 Logo</span><div class="settings-toggle on" data-section="k10LogoSquare" data-key="showK10Logo" onclick="toggleSetting(this)"></div></div>
-      <div class="settings-row" data-pro-feature="branding">
+      <div class="settings-row">
         <span class="settings-label">Logo Subtitle</span>
         <input type="text" id="logoSubtitleInput" maxlength="30" placeholder="Your team name" class="settings-input" oninput="updateLogoSubtitle(this.value)">
       </div>
@@ -978,11 +979,11 @@
       <!-- Visual Style Presets -->
       <div class="settings-group-label">Visual Style</div>
       <div class="settings-preset-row">
-        <button class="settings-preset-btn" data-preset="minimal" data-pro-feature="modules" onclick="applyVisualPreset('minimal')">Minimal</button>
-        <button class="settings-preset-btn" data-preset="minimal-plus" data-pro-feature="modules" onclick="applyVisualPreset('minimal-plus')">Minimal+</button>
+        <button class="settings-preset-btn" data-preset="minimal" onclick="applyVisualPreset('minimal')">Minimal</button>
+        <button class="settings-preset-btn" data-preset="minimal-plus" onclick="applyVisualPreset('minimal-plus')">Minimal+</button>
         <button class="settings-preset-btn active" data-preset="standard" onclick="applyVisualPreset('standard')">Standard</button>
       </div>
-      <div class="settings-hint">Minimal and Minimal+ require K10 Pro connection</div>
+      <div class="settings-hint">Minimal strips effects; Minimal+ keeps data-reactive effects</div>
 
       <!-- Theme -->
       <div class="settings-group-label">Theme</div>
@@ -998,9 +999,9 @@
 
       <!-- Lighting -->
       <div class="settings-group-label">Lighting</div>
-      <div class="settings-row"><span class="settings-label">WebGL Effects</span><div class="settings-toggle on" data-key="showWebGL" data-pro-feature="webgl" onclick="toggleWebGL(this)"></div></div>
+      <div class="settings-row"><span class="settings-label">WebGL Effects</span><div class="settings-toggle on" data-key="showWebGL" onclick="toggleWebGL(this)"></div></div>
       <div class="settings-row"><span class="settings-label">Ambient Light</span>
-        <select class="settings-select" id="settingsAmbientMode" data-pro-feature="reflections" onchange="updateAmbientMode(this.value)">
+        <select class="settings-select" id="settingsAmbientMode" onchange="updateAmbientMode(this.value)">
           <option value="reflective">Reflective</option>
           <option value="matte">Matte</option>
           <option value="plastic">Plastic</option>

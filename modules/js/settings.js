@@ -176,11 +176,6 @@
 
   function switchSettingsTab(tab) {
     const tabName = tab.dataset.tab;
-    // Check if this tab requires pro and is disabled
-    if (tab.classList.contains('disabled') && tab.dataset.proTab) {
-      navigateToConnections();
-      return;
-    }
     // Update both sidebar items and legacy tab bar
     document.querySelectorAll('.settings-sidebar-item').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
     document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
@@ -207,7 +202,7 @@
   }
 
   function updateLbMaxRows(value) {
-    _settings.lbMaxRows = Math.max(1, Math.min(40, +value || 5));
+    _settings.lbMaxRows = Math.max(1, Math.min(60, +value || 5));
     window._lbLastJson = '';
     saveSettings();
   }
@@ -242,12 +237,6 @@
 
   // ── Visual mode presets (Minimal, Minimal+, Standard) ──
   function applyVisualPreset(preset) {
-    // Feature gate: minimal/minimal+ require K10 Pro connection
-    if (preset !== 'standard' && !_k10User) {
-      navigateToConnections();
-      return;
-    }
-
     _settings.visualPreset = preset;
 
     // Remove all mode classes
