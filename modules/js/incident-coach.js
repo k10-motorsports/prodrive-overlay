@@ -30,7 +30,11 @@
     composureVisible: false,
 
     // Incident flash
-    prevFlashLap: 0
+    prevFlashLap: 0,
+
+    // Perf: cache keys to skip redundant DOM work
+    _lastThreatHash: '',
+    _lastMapKey: ''
   };
 
   // ── Threat level constants (match C# ThreatLevel enum) ────────
@@ -137,7 +141,14 @@
    */
   function _highlightLeaderboardThreats() {
     const threatMap = _buildThreatMap();
-    if (threatMap.size === 0) return;
+
+    // ── Cache check: skip DOM work if threats haven't changed ────
+    let hash = '';
+    for (const [name, t] of threatMap) {
+      hash += name + ':' + t.Level + ':' + t.IncidentCount + '|';
+    }
+    if (hash === _ic._lastThreatHash) return;
+    _ic._lastThreatHash = hash;
 
     const rows = document.querySelectorAll('.lb-row');
     for (const row of rows) {
@@ -148,26 +159,37 @@
       // Extract text, removing "IN PIT" suffix if present
       const nameText = (nameEl.textContent || '').replace(/\s*IN PIT\s*$/i, '').trim().toLowerCase();
 
-      // Remove any existing threat classes
-      row.classList.remove('ic-watch', 'ic-caution', 'ic-danger');
-      const oldBadge = row.querySelector('.ic-threat-badge');
-      if (oldBadge) oldBadge.remove();
-
-      // Apply threat class if driver is in the ledger
       const threat = threatMap.get(nameText);
+      const oldBadge = row.querySelector('.ic-threat-badge');
+
       if (threat) {
         const cls = THREAT_CLASSES[threat.Level];
         if (cls) {
+          // Remove stale classes, apply current
+          row.classList.remove('ic-watch', 'ic-caution', 'ic-danger');
           row.classList.add(cls);
 
-          // Add threat badge icon
-          const badge = document.createElement('span');
-          badge.className = 'ic-threat-badge ' + cls;
-          badge.textContent = threat.Level === THREAT_DANGER ? '⚠' :
-                              threat.Level === THREAT_CAUTION ? '△' : '◉';
-          badge.title = THREAT_LABELS[threat.Level] + ' — ' + threat.IncidentCount + ' incident(s)';
-          nameEl.prepend(badge);
+          const icon = threat.Level === THREAT_DANGER ? '⚠' :
+                       threat.Level === THREAT_CAUTION ? '△' : '◉';
+          const title = THREAT_LABELS[threat.Level] + ' — ' + threat.IncidentCount + ' incident(s)';
+
+          // Reuse existing badge if present; only create when needed
+          if (oldBadge) {
+            oldBadge.className = 'ic-threat-badge ' + cls;
+            oldBadge.textContent = icon;
+            oldBadge.title = title;
+          } else {
+            const badge = document.createElement('span');
+            badge.className = 'ic-threat-badge ' + cls;
+            badge.textContent = icon;
+            badge.title = title;
+            nameEl.prepend(badge);
+          }
         }
+      } else {
+        // Driver not in ledger — clean up
+        row.classList.remove('ic-watch', 'ic-caution', 'ic-danger');
+        if (oldBadge) oldBadge.remove();
       }
     }
   }
@@ -310,9 +332,14 @@
     // ── Update UI elements ───────────────────────────────────────
     _updateComposureIndicator(_ic.rageScore);
     _updateCooldownVignette(_ic.cooldownActive, _ic.rageScore);
-    _highlightLeaderboardThreats();
     _updateDriveHudComposure(_ic.rageScore);
-    _updateTrackMapThreats(p);
+
+    // ── Leaderboard + track-map threats (throttled to ~3x/sec) ──
+    // These do heavy DOM queries/mutations; no need to run every frame.
+    if (typeof _pollFrame !== 'undefined' && _pollFrame % 10 === 0) {
+      _highlightLeaderboardThreats();
+      _updateTrackMapThreats(p);
+    }
 
     // ── Incident flash on new contact ────────────────────────────
     if (_ic.lastIncidentLap > 0 && _ic.lastIncidentLap !== _ic.prevFlashLap) {
@@ -388,6 +415,11 @@
     const aheadName = (p['IRacingExtraProperties.iRacing_Opponent_Ahead_Name'] || '').toLowerCase();
     const behindName = (p['IRacingExtraProperties.iRacing_Opponent_Behind_Name'] || '').toLowerCase();
 
+    // ── Cache check: skip DOM work if threat + proximity unchanged ──
+    const mapKey = _ic._lastThreatHash + '/' + aheadName + '/' + behindName;
+    if (mapKey === _ic._lastMapKey) return;
+    _ic._lastMapKey = mapKey;
+
     const aheadThreat = threatMap.get(aheadName);
     const behindThreat = threatMap.get(behindName);
 
@@ -402,44 +434,52 @@
     const px = +playerDot.getAttribute('cx') || 50;
     const py = +playerDot.getAttribute('cy') || 50;
 
-    // Sort dots by distance to player to find nearest
-    const dotDistances = [];
+    // O(n) two-pass: find closest and second-closest dots to player
+    // (avoids allocating an array + sorting every call)
+    let closest = null, closestDist = Infinity;
+    let second = null, secondDist = Infinity;
+
     for (let i = 0; i < dots.length; i++) {
       const dot = dots[i];
       const dx = (+dot.getAttribute('cx') || 0) - px;
       const dy = (+dot.getAttribute('cy') || 0) - py;
-      dotDistances.push({ dot, dist: dx * dx + dy * dy, index: i });
+      const dist = dx * dx + dy * dy;
+
       // Reset threat styling
       dot.classList.remove('ic-map-watch', 'ic-map-caution', 'ic-map-danger');
       dot.removeAttribute('data-threat');
+
+      if (dist < closestDist) {
+        second = closest; secondDist = closestDist;
+        closest = dot;    closestDist = dist;
+      } else if (dist < secondDist) {
+        second = dot;     secondDist = dist;
+      }
     }
-    dotDistances.sort((a, b) => a.dist - b.dist);
 
     // The closest dot is likely the nearest-ahead or nearest-behind
     // Apply threat coloring to the 2 closest dots if their drivers are flagged
-    if (dotDistances.length >= 1 && (aheadThreat || behindThreat)) {
-      const closest = dotDistances[0];
+    if (closest && (aheadThreat || behindThreat)) {
       const highestThreat = (aheadThreat && behindThreat)
         ? (aheadThreat.Level >= behindThreat.Level ? aheadThreat : behindThreat)
         : (aheadThreat || behindThreat);
 
       const cls = THREAT_CLASSES[highestThreat.Level];
       if (cls) {
-        closest.dot.classList.add('ic-map-' + cls.replace('ic-', ''));
-        closest.dot.setAttribute('data-threat', highestThreat.Level);
+        closest.classList.add('ic-map-' + cls.replace('ic-', ''));
+        closest.setAttribute('data-threat', highestThreat.Level);
       }
     }
 
-    if (dotDistances.length >= 2) {
+    if (second) {
       const secondThreat = aheadThreat && behindThreat
         ? (aheadThreat.Level < behindThreat.Level ? aheadThreat : behindThreat)
         : null;
       if (secondThreat) {
-        const second = dotDistances[1];
         const cls = THREAT_CLASSES[secondThreat.Level];
         if (cls) {
-          second.dot.classList.add('ic-map-' + cls.replace('ic-', ''));
-          second.dot.setAttribute('data-threat', secondThreat.Level);
+          second.classList.add('ic-map-' + cls.replace('ic-', ''));
+          second.setAttribute('data-threat', secondThreat.Level);
         }
       }
     }
