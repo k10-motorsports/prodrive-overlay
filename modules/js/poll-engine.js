@@ -140,6 +140,10 @@
     const sessNum = parseInt(vs(sessionPre + 'SessionState')) || 0;
     const _inPitLane = +(p[dsPre + 'IsInPitLane']) > 0;
 
+    // Session mode from plugin (single source of truth)
+    // 0=Unknown, 1=Practice, 2=Qualifying, 3=Warmup, 4=Race
+    const sessionMode = +(p[dsPre + 'SessionMode']) || 0;
+
     // ─── Session change detection — reset per-session state ───
     const _currSessionTypeName = _demo
       ? vs('RaceCorProDrive.Plugin.Demo.SessionTypeName')
@@ -581,9 +585,6 @@
     const remLaps = +d('DataCorePlugin.GameData.RemainingLaps', 'Demo.RemainingLaps') || 0;
     const timerEl = document.getElementById('raceTimerValue');
     const timerRow = document.querySelector('.timer-row');
-    // Session mode from plugin (single source of truth)
-    // 0=Unknown, 1=Practice, 2=Qualifying, 3=Warmup, 4=Race
-    const sessionMode = +(p[dsPre + 'SessionMode']) || 0;
     const isPracticeTimer = sessionMode === 1 || sessionMode === 3; // Practice or Warmup
     const isQualiTimer = sessionMode === 2;
     const isNonRaceTimer = isPracticeTimer || isQualiTimer;
