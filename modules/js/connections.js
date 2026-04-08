@@ -591,7 +591,6 @@
     var newVal = !isOn;
     el.classList.toggle('on', newVal);
     _settings.iracingDataSync = newVal;
-    if (window.setSessionSyncEnabled) window.setSessionSyncEnabled(newVal);
 
     var detail = document.getElementById('iracingSyncDetail');
     var active = document.getElementById('iracingSyncActive');
@@ -599,6 +598,11 @@
     if (active) active.style.display = newVal ? '' : 'none';
 
     saveSettings();
+
+    // If just enabled, trigger sync check now
+    if (newVal && window.checkAndSyncIRacingHistory) {
+      window.checkAndSyncIRacingHistory();
+    }
   }
   window.toggleIRacingSync = toggleIRacingSync;
 
@@ -928,7 +932,6 @@
   var syncToggle = document.getElementById('iracingSyncToggle');
   if (syncToggle && _settings.iracingDataSync) {
     syncToggle.classList.add('on');
-    if (window.setSessionSyncEnabled) window.setSessionSyncEnabled(true);
     var detail = document.getElementById('iracingSyncDetail');
     var active = document.getElementById('iracingSyncActive');
     if (detail) detail.style.display = 'none';

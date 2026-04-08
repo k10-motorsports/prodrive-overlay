@@ -16,40 +16,13 @@
   var API_BASE = 'https://prodrive.racecor.io';
 
   // ─── Session Sync State ───
-  var _syncEnabled = false;
   var _initialSyncDone = false;
 
   // Race session tracking
   var _sessionStartSnapshot = null;   // Captured at session start
   var _sessionSubmitted = false;      // Prevent double-submit per race
 
-  /**
-   * Enable/disable session sync.
-   * When disabled, reset the initial sync flag to allow re-sync if re-enabled.
-   */
-  window.setSessionSyncEnabled = function(enabled) {
-    _syncEnabled = !!enabled;
-    if (!enabled) {
-      _initialSyncDone = false;
-    }
-    console.log('[Session Sync]', _syncEnabled ? 'enabled' : 'disabled');
-
-    if (window.debugConsole) {
-      if (_syncEnabled) {
-        var token = _getToken();
-        var user = window._k10User;
-        if (!token) {
-          window.debugConsole.logIRacingSync('error', 'Sync enabled but no auth token — connect to Pro Drive first');
-        } else if (!user) {
-          window.debugConsole.logIRacingSync('error', 'Sync enabled but not signed in to Pro Drive');
-        } else {
-          window.debugConsole.logIRacingSync('success', 'Sync enabled — waiting for session data');
-        }
-      } else {
-        window.debugConsole.logIRacingSync('info', 'Sync disabled');
-      }
-    }
-  };
+  // Sync enabled state is read directly from _settings.iracingDataSync (single source of truth)
 
   /**
    * Get bearer token from cached window property.
@@ -74,7 +47,7 @@
   // ═══════════════════════════════════════════════════════════════
 
   window.captureSessionStart = function(p, isDemo) {
-    if (!_syncEnabled) return;
+    if (!_settings.iracingDataSync) return;
     if (!window._k10User) {
       if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Session start skipped — not signed in to Pro Drive');
       return;
@@ -147,7 +120,7 @@
   // ═══════════════════════════════════════════════════════════════
 
   window.captureSessionEnd = function(p, isDemo) {
-    if (!_syncEnabled) return;
+    if (!_settings.iracingDataSync) return;
     if (!window._k10User) {
       if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Session end skipped — not signed in to Pro Drive');
       return;
@@ -362,7 +335,7 @@
     if (_initialSyncDone) return;
 
     // Only if sync is enabled and user is logged in to Pro Drive
-    if (!_syncEnabled) return;
+    if (!_settings.iracingDataSync) return;
     if (!window._k10User) {
       if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Initial sync skipped — not signed in to Pro Drive');
       return;
@@ -447,7 +420,7 @@
    * to /api/sessions so the dashboard can show practice trends over time.
    */
   window.capturePracticeSessionEnd = function(p, isDemo) {
-    if (!_syncEnabled) return;
+    if (!_settings.iracingDataSync) return;
     if (!window._k10User) return;
     if (_practiceSubmitted) return;
     if (!_sessionStartSnapshot) return;
@@ -975,8 +948,14 @@
    */
   window.checkAndSyncIRacingHistory = function() {
     var token = _getToken();
-    if (!token || !window._k10User) return;
-    if (!_syncEnabled) return;
+    if (!token || !window._k10User) {
+      console.log('[Session Sync] Skipping iRacing check — ' + (!token ? 'no auth token' : 'no K10 user'));
+      return;
+    }
+    if (!_settings.iracingDataSync) {
+      console.log('[Session Sync] iRacing data sync is disabled in settings');
+      return;
+    }
 
     console.log('[Session Sync] Checking iRacing import status...');
     if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Checking if full iRacing history sync is needed...');
