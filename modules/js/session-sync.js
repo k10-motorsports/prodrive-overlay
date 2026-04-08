@@ -720,16 +720,17 @@
       if (result.ok) {
         console.log('[Session Sync] iRacing authenticated successfully');
         if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'iRacing authenticated');
-        return true;
+        return { ok: true };
       }
-      console.warn('[Session Sync] iRacing auth failed:', result.error);
-      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing auth failed: ' + (result.error || 'unknown'));
-      return false;
+      var errMsg = result.error || 'unknown error';
+      console.warn('[Session Sync] iRacing auth failed:', errMsg);
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing auth failed: ' + errMsg);
+      return { ok: false, error: errMsg };
     })
     .catch(function(e) {
       console.error('[Session Sync] iRacing auth error:', e);
       if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing auth error: ' + (e.message || String(e)));
-      return false;
+      return { ok: false, error: e.message || String(e) };
     });
   };
 

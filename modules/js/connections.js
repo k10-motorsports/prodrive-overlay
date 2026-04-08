@@ -645,9 +645,9 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
     if (statusEl) { statusEl.style.color = 'hsla(0,0%,100%,0.4)'; statusEl.textContent = ''; }
 
-    window.authenticateIRacing(email, password).then(function(ok) {
+    window.authenticateIRacing(email, password).then(function(result) {
       if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
-      if (ok) {
+      if (result && result.ok) {
         if (statusEl) { statusEl.style.color = 'hsl(120,60%,55%)'; statusEl.textContent = 'Authenticated!'; }
         // Clear password from DOM
         passEl.value = '';
@@ -658,7 +658,8 @@
           setTimeout(function() { window.checkAndSyncIRacingHistory(); }, 2000);
         }
       } else {
-        if (statusEl) { statusEl.style.color = 'hsl(0,70%,60%)'; statusEl.textContent = 'Auth failed — check credentials'; }
+        var errMsg = (result && result.error) ? result.error : 'Auth failed — check credentials';
+        if (statusEl) { statusEl.style.color = 'hsl(0,70%,60%)'; statusEl.textContent = errMsg; }
       }
     });
   };
