@@ -584,8 +584,15 @@
     .then(function(r) { return r.json(); })
     .then(function(pluginResult) {
       if (!pluginResult.ok) {
-        console.warn('[Session Sync] Plugin iRacing fetch failed:', pluginResult.error);
-        if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import: plugin fetch failed — ' + (pluginResult.error || 'unknown error'));
+        var errMsg = pluginResult.error || 'unknown error';
+        console.warn('[Session Sync] Plugin iRacing fetch failed:', errMsg);
+        if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import: plugin fetch failed — ' + errMsg);
+
+        // If the plugin says "not authenticated", show the credential UI
+        if (errMsg.toLowerCase().indexOf('not authenticated') >= 0 && window.showIRacingAuthPanel) {
+          window.showIRacingAuthPanel();
+          if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Enter your iRacing credentials below to connect.');
+        }
         return null;
       }
 
