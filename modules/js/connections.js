@@ -606,62 +606,11 @@
   }
   window.toggleIRacingSync = toggleIRacingSync;
 
-  // ─── iRacing Auth Panel ───
-  /**
-   * Show the credential inputs (called when plugin returns "not authenticated").
-   */
-  window.showIRacingAuthPanel = function() {
-    var panel = document.getElementById('iracingAuthPanel');
-    if (panel) panel.style.display = '';
-  };
-
-  /**
-   * Hide the credential inputs (called after successful auth).
-   */
-  window.hideIRacingAuthPanel = function() {
-    var panel = document.getElementById('iracingAuthPanel');
-    if (panel) panel.style.display = 'none';
-    var status = document.getElementById('iracingAuthStatus');
-    if (status) status.textContent = '';
-  };
-
-  /**
-   * Submit iRacing credentials: authenticate, then retry the sync.
-   */
-  window.submitIRacingAuth = function() {
-    var emailEl = document.getElementById('iracingEmail');
-    var passEl = document.getElementById('iracingPassword');
-    var statusEl = document.getElementById('iracingAuthStatus');
-    var btn = document.getElementById('iracingAuthBtn');
-    if (!emailEl || !passEl) return;
-
-    var email = emailEl.value.trim();
-    var password = passEl.value;
-    if (!email || !password) {
-      if (statusEl) { statusEl.style.color = 'hsl(0,70%,60%)'; statusEl.textContent = 'Enter email and password'; }
-      return;
-    }
-
-    if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
-    if (statusEl) { statusEl.style.color = 'hsla(0,0%,100%,0.4)'; statusEl.textContent = ''; }
-
-    window.authenticateIRacing(email, password).then(function(result) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
-      if (result && result.ok) {
-        if (statusEl) { statusEl.style.color = 'hsl(120,60%,55%)'; statusEl.textContent = 'Authenticated!'; }
-        // Clear password from DOM
-        passEl.value = '';
-        // Hide panel after a beat
-        setTimeout(function() { window.hideIRacingAuthPanel(); }, 1500);
-        // Now retry the sync
-        if (window.checkAndSyncIRacingHistory) {
-          setTimeout(function() { window.checkAndSyncIRacingHistory(); }, 2000);
-        }
-      } else {
-        var errMsg = (result && result.error) ? result.error : 'Auth failed — check credentials';
-        if (statusEl) { statusEl.style.color = 'hsl(0,70%,60%)'; statusEl.textContent = errMsg; }
-      }
-    });
+  // ─── iRacing OAuth Notice ───
+  // Legacy auth retired Dec 2025. Show notice when sync can't authenticate.
+  window.showIRacingOAuthNotice = function() {
+    var notice = document.getElementById('iracingOAuthNotice');
+    if (notice) notice.style.display = '';
   };
 
   // ─── Logo subtitle ───

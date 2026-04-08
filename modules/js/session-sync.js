@@ -588,10 +588,9 @@
         console.warn('[Session Sync] Plugin iRacing fetch failed:', errMsg);
         if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'iRacing import: plugin fetch failed — ' + errMsg);
 
-        // If the plugin says "not authenticated", show the credential UI
-        if (errMsg.toLowerCase().indexOf('not authenticated') >= 0 && window.showIRacingAuthPanel) {
-          window.showIRacingAuthPanel();
-          if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Enter your iRacing credentials below to connect.');
+        // Legacy auth retired Dec 2025 — show OAuth notice
+        if (errMsg.toLowerCase().indexOf('not authenticated') >= 0 && window.showIRacingOAuthNotice) {
+          window.showIRacingOAuthNotice();
         }
         return null;
       }

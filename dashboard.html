@@ -1211,28 +1211,10 @@
           ✓ Session data will sync to your RaceCor.io Pro Drive dashboard
         </div>
 
-        <!-- iRacing credentials (shown when auth fails) -->
-        <div id="iracingAuthPanel" style="display:none;padding:6px 2px 2px;">
-          <div style="font-size:10px;color:hsla(0,0%,100%,0.55);margin-bottom:6px;">
-            Enter your iRacing credentials to enable data sync. These are stored locally in SimHub and only sent to iRacing's auth server.
-          </div>
-          <input type="email" id="iracingEmail" placeholder="iRacing email"
-            spellcheck="false" autocomplete="off"
-            style="display:block;width:100%;box-sizing:border-box;margin-bottom:4px;padding:5px 8px;
-              background:hsla(0,0%,100%,0.06);border:1px solid hsla(0,0%,100%,0.12);border-radius:4px;
-              color:#fff;font-size:11px;font-family:inherit;outline:none;" />
-          <input type="password" id="iracingPassword" placeholder="iRacing password"
-            spellcheck="false" autocomplete="off"
-            onkeydown="if(event.key==='Enter')window.submitIRacingAuth()"
-            style="display:block;width:100%;box-sizing:border-box;margin-bottom:6px;padding:5px 8px;
-              background:hsla(0,0%,100%,0.06);border:1px solid hsla(0,0%,100%,0.12);border-radius:4px;
-              color:#fff;font-size:11px;font-family:inherit;outline:none;" />
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="window.submitIRacingAuth()"
-              id="iracingAuthBtn"
-              style="padding:4px 12px;background:hsl(35,90%,45%);border:none;border-radius:4px;
-                color:#fff;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;">Sign In</button>
-            <span id="iracingAuthStatus" style="font-size:10px;color:hsla(0,0%,100%,0.4);"></span>
+        <!-- iRacing OAuth notice (legacy auth retired Dec 2025) -->
+        <div id="iracingOAuthNotice" style="display:none;padding:6px 2px 2px;">
+          <div style="font-size:10px;line-height:1.4;color:hsla(35,80%,60%,0.85);">
+            iRacing retired legacy authentication in Dec 2025. Data sync requires OAuth2 credentials which are not yet available. This feature will be re-enabled once iRacing reopens OAuth client registration.
           </div>
         </div>
       </div>
