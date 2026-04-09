@@ -600,6 +600,12 @@ function createLoginWindow() {
       webSecurity: true,
       allowRunningInsecureContent: false,
       partition: 'persist:iracing',
+      // Reduce GPU pressure from this window — it's only used for OAuth
+      // login and token capture, not performance-critical rendering.
+      // On Windows + NVIDIA 4090, the overlay's WebGL renderer and this
+      // Angular SPA competing for the shared GPU process causes crashes.
+      webgl: false,
+      backgroundThrottling: true,
     },
   });
 
@@ -1259,18 +1265,13 @@ function connect() {
     _bearerToken = null;  // reset any previous token
     _loginWin = createLoginWindow();
 
-    // Load the iRacing web client directly on members-ng.iracing.com.
-    // This is the modern racing dashboard — it talks to the data API
-    // using session cookies, which our interceptor captures.
-    // If not logged in, iRacing will redirect to their OAuth login page,
-    // then back here after auth. The persist:iracing session remembers
-    // cookies across app restarts so re-login is rarely needed.
-    _loginWin.loadURL('https://members-ng.iracing.com/web/racing/home/dashboard').catch((err) => {
-      log('Failed to load iRacing: ' + err.message);
-    });
+    // ── Register ALL event handlers BEFORE loadURL ──
+    // On Windows (especially with NVIDIA 4090 / fast GPUs), ready-to-show
+    // can fire synchronously during loadURL. Attaching after = missed event
+    // = window never shows = app appears frozen.
 
     _loginWin.once('ready-to-show', () => {
-      _loginWin.show();
+      if (_loginWin && !_loginWin.isDestroyed()) _loginWin.show();
     });
 
     _loginWin.on('closed', () => {
@@ -1280,9 +1281,48 @@ function connect() {
       resolve({ success: false, error: 'Login window closed' });
     });
 
+    // ── Crash / error recovery for the iRacing window ──
+    // Without these, a renderer or GPU crash leaves a zombie window that
+    // blocks auth polling and can cascade-crash the overlay on Windows.
+    _loginWin.webContents.on('render-process-gone', (_event, details) => {
+      log(`iRacing renderer crashed: ${details.reason} (exit ${details.exitCode})`);
+      clearAuthPolling();
+      if (_loginWin && !_loginWin.isDestroyed()) { _loginWin.close(); _loginWin = null; }
+      resolve({ success: false, error: `iRacing renderer crashed: ${details.reason}` });
+    });
+
+    _loginWin.webContents.on('unresponsive', () => {
+      log('iRacing window unresponsive');
+    });
+
+    _loginWin.webContents.on('responsive', () => {
+      log('iRacing window responsive again');
+    });
+
+    _loginWin.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) return;  // ignore subframe failures
+      log(`iRacing failed to load: ${errorDescription} (code ${errorCode}) — ${validatedURL}`);
+      // Don't close on redirects (errorCode -3) — iRacing OAuth redirects trigger this
+      if (errorCode === -3) return;
+      clearAuthPolling();
+      if (_loginWin && !_loginWin.isDestroyed()) { _loginWin.close(); _loginWin = null; }
+      resolve({ success: false, error: `Failed to load iRacing: ${errorDescription}` });
+    });
+
     // Poll for auth: detect when we're on members-ng.iracing.com
     // and cookies allow data API access
     startAuthPolling(resolve);
+
+    // Load the iRacing web client directly on members-ng.iracing.com.
+    // This is the modern racing dashboard — it talks to the data API
+    // using session cookies, which our interceptor captures.
+    // If not logged in, iRacing will redirect to their OAuth login page,
+    // then back here after auth. The persist:iracing session remembers
+    // cookies across app restarts so re-login is rarely needed.
+    // IMPORTANT: loadURL must come AFTER all event handlers are attached.
+    _loginWin.loadURL('https://members-ng.iracing.com/web/racing/home/dashboard').catch((err) => {
+      log('Failed to load iRacing: ' + err.message);
+    });
   });
 }
 

@@ -290,13 +290,21 @@ async function createOverlay() {
   // ── GPU process crash handler ───────────────────────────────
   app.on('child-process-gone', (_event, details) => {
     logToFile(`[K10] Child process gone: type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`);
-    if (details.type === 'GPU' && overlayWindow && !overlayWindow.isDestroyed()) {
-      logToFile('[K10] GPU process crashed — reloading dashboard');
-      setTimeout(() => {
-        if (overlayWindow && !overlayWindow.isDestroyed()) {
-          loadDashboard();
-        }
-      }, 2000);
+    if (details.type === 'GPU') {
+      // Kill the iRacing window first — it's not critical and keeping it
+      // alive after a GPU crash just risks another crash cycle.
+      try {
+        iracingClient.disconnect().catch(() => {});
+      } catch (e) { /* best-effort */ }
+
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        logToFile('[K10] GPU process crashed — reloading dashboard');
+        setTimeout(() => {
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            loadDashboard();
+          }
+        }, 2000);
+      }
     }
   });
 }
@@ -368,20 +376,30 @@ app.whenReady().then(() => {
   // ── AUTO-CONNECT iRacing ──
   // Open the iRacing web client and start syncing on app launch.
   // No clicks needed — just opens the window and goes.
-  logToFile('[K10] Auto-connect: opening iRacing client...');
-  iracingClient.connect().then((result) => {
-    logToFile('[K10] Auto-connect: ' + (result.success ? 'connected' : (result.error || 'closed')));
-    if (result.success || result.discovery) {
-      if (overlayWindow && !overlayWindow.isDestroyed()) {
-        overlayWindow.webContents.send('iracing-auto-connected', result);
+  //
+  // Delay on Windows: let the overlay's WebGL renderer initialize and
+  // the GPU process stabilize before spinning up a second Chromium
+  // renderer for the iRacing Angular SPA. Without this delay, the two
+  // renderers compete for GPU resources on NVIDIA cards (especially
+  // 4090) and can crash the shared GPU process.
+  const autoConnectDelay = process.platform === 'win32' ? 5000 : 500;
+  logToFile(`[K10] Auto-connect: will open iRacing client in ${autoConnectDelay}ms...`);
+  setTimeout(() => {
+    logToFile('[K10] Auto-connect: opening iRacing client...');
+    iracingClient.connect().then((result) => {
+      logToFile('[K10] Auto-connect: ' + (result.success ? 'connected' : (result.error || 'closed')));
+      if (result.success || result.discovery) {
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('iracing-auto-connected', result);
+        }
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+          settingsWindow.webContents.send('iracing-auto-connected', result);
+        }
       }
-      if (settingsWindow && !settingsWindow.isDestroyed()) {
-        settingsWindow.webContents.send('iracing-auto-connected', result);
-      }
-    }
-  }).catch((err) => {
-    logToFile('[K10] Auto-connect error: ' + err.message);
-  });
+    }).catch((err) => {
+      logToFile('[K10] Auto-connect error: ' + err.message);
+    });
+  }, autoConnectDelay);
 
   // ── GLOBAL HOTKEYS ──
 
