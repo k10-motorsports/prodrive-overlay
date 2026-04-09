@@ -88,7 +88,32 @@ function log(msg) {
   const line = `${TAG} ${msg}`;
   console.log(line);  // main process stdout (if available)
   emitter.emit('log', line);
+  // Also push to the sidebar console in the iRacing window
+  if (_loginWin && !_loginWin.isDestroyed()) {
+    const escaped = line.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+    _loginWin.webContents.executeJavaScript(
+      `window.__k10_log && window.__k10_log('${escaped}');`
+    ).catch(() => {});
+  }
 }
+
+// Push status to the sidebar when auth state changes
+function updateSidebarStatus(connected, displayName, custId, lastSync) {
+  if (_loginWin && !_loginWin.isDestroyed()) {
+    const name = (displayName || '').replace(/'/g, "\\'");
+    _loginWin.webContents.executeJavaScript(
+      `window.__k10_status && window.__k10_status(${connected}, '${name}', '${custId || ''}', '${lastSync || ''}');`
+    ).catch(() => {});
+  }
+}
+
+emitter.on('auth-success', (info) => {
+  updateSidebarStatus(true, info.displayName, info.custId, new Date().toISOString());
+});
+
+emitter.on('sync-complete', (data) => {
+  updateSidebarStatus(true, data.displayName, data.custId, data.exportedAt);
+});
 
 
 // ── Node.js HTTPS helpers ────────────────────────────────────
@@ -322,7 +347,99 @@ async function syncAllData(token) {
 }
 
 /**
- * Same as syncAllData but uses webContents cookie-based fetch.
+ * Fetch from the /data/ API directly via the page context (same-origin cookies).
+ * The iRacing data API returns { link: "signed-s3-url" } envelopes that must be followed.
+ */
+async function fetchDirectData(wc, endpoint) {
+  const path = '/data' + endpoint;
+  log(`Fetching ${path} (direct data API)...`);
+
+  const envelope = await wc.executeJavaScript(`
+    (async () => {
+      try {
+        const res = await fetch('${path}', { credentials: 'same-origin' });
+        if (!res.ok) return { _error: res.status + ' ' + res.statusText };
+        return await res.json();
+      } catch (e) {
+        return { _error: e.message };
+      }
+    })()
+  `);
+
+  if (envelope._error) throw new Error(endpoint + ': ' + envelope._error);
+  if (!envelope.link) return envelope;
+
+  // Follow the signed S3 link
+  const data = await wc.executeJavaScript(`
+    (async () => {
+      try {
+        const res = await fetch(${JSON.stringify(envelope.link)});
+        if (!res.ok) return { _error: res.status + ' ' + res.statusText };
+        return await res.json();
+      } catch (e) {
+        return { _error: e.message };
+      }
+    })()
+  `);
+
+  if (data._error) throw new Error(endpoint + ' (link): ' + data._error);
+  return data;
+}
+
+/**
+ * Sync all data using direct /data/ API calls via webContents.
+ */
+async function syncAllDataViaDirectData(wc) {
+  log('Starting full data sync (direct /data/ API)...');
+
+  const memberInfo = await fetchDirectData(wc, '/member/info');
+  const custId = memberInfo.cust_id;
+  const displayName = memberInfo.display_name;
+  log(`Member: ${displayName} (${custId})`);
+
+  const recentRaces = await fetchDirectData(wc, `/stats/member_recent_races?cust_id=${custId}`);
+  const careerSummary = await fetchDirectData(wc, `/stats/member_summary?cust_id=${custId}`);
+
+  const chartData = {};
+  for (const catId of CATEGORIES) {
+    const catName = CATEGORY_NAMES[catId];
+    try {
+      const irating = await fetchDirectData(wc, `/member/chart_data?cust_id=${custId}&category_id=${catId}&chart_type=1`);
+      const sr = await fetchDirectData(wc, `/member/chart_data?cust_id=${custId}&category_id=${catId}&chart_type=3`);
+      chartData[catName] = { irating, sr };
+    } catch (e) {
+      log(`No chart data for ${catName}: ${e.message}`);
+      chartData[catName] = { irating: [], sr: [] };
+    }
+  }
+
+  let yearlyStats = null;
+  try {
+    yearlyStats = await fetchDirectData(wc, `/stats/member_yearly?cust_id=${custId}`);
+  } catch (e) {
+    log(`Yearly stats unavailable: ${e.message}`);
+  }
+
+  const payload = {
+    custId,
+    displayName,
+    recentRaces: recentRaces.races || recentRaces,
+    careerSummary: careerSummary.stats || careerSummary,
+    chartData,
+    yearlyStats,
+    exportedAt: new Date().toISOString(),
+    source: 'electron-iracing-client-direct',
+  };
+
+  saveData(payload);
+  saveStatus({ connected: true, lastSync: payload.exportedAt, custId, displayName });
+  log(`Sync complete: ${(payload.recentRaces || []).length} recent races`);
+  emitter.emit('sync-complete', payload);
+  return { success: true, ...payload };
+}
+
+/**
+ * Same as syncAllData but uses webContents cookie-based fetch via BFF proxy.
  */
 async function syncAllDataViaWebContents(wc) {
   log('Starting full data sync (cookie-based)...');
@@ -393,11 +510,12 @@ function createLoginWindow() {
       const pathname = urlObj.pathname;
       const authHeader = details.requestHeaders['Authorization'] || details.requestHeaders['authorization'];
 
-      // Log requests to the data API (members-ng) — these are the ones we care about
-      if (host === 'members-ng.iracing.com') {
-        const headerNames = Object.keys(details.requestHeaders).join(', ');
-        // Only log each unique path once to avoid spam
-        const logKey = details.method + ' ' + pathname;
+      // Log ALL iRacing API requests (any subdomain) to discover data flow
+      const headerNames = Object.keys(details.requestHeaders).join(', ');
+      const logKey = details.method + ' ' + host + pathname;
+      // Skip static assets
+      if (!/\.(js|css|ico|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|map)(\?|$)/i.test(pathname)
+          && !pathname.includes('/chunk-') && !pathname.includes('/polyfills.')) {
         if (!_loggedUrls.has(logKey)) {
           _loggedUrls.add(logKey);
           log(`[NET] → ${details.method} ${host}${pathname} headers=[${headerNames}]`);
@@ -442,22 +560,32 @@ function createLoginWindow() {
     }
   );
 
-  // Log completed BFF requests with status codes (catches requests even if the
-  // in-page fetch spy wasn't injected yet). Also collect them into _bffCalls
-  // so auth polling can detect when the web client is authenticated.
+  // Log ALL completed requests to members-ng.iracing.com so we can discover
+  // how the Angular app fetches race data (not just BFF calls).
   _bffCalls = [];  // reset on each new login window
   iracingSession.webRequest.onCompleted(
-    { urls: ['*://members-ng.iracing.com/bff/*'] },
+    { urls: ['*://members-ng.iracing.com/*'] },
     (details) => {
-      const pathname = new URL(details.url).pathname;
-      log(`[BFF] ${details.method} ${pathname} → ${details.statusCode}`);
-      _bffCalls.push({ method: details.method, path: pathname, status: details.statusCode, ts: Date.now() });
+      const urlObj = new URL(details.url);
+      const pathname = urlObj.pathname;
+      // Skip static assets (JS, CSS, images, fonts, sourcemaps)
+      if (/\.(js|css|ico|png|jpg|svg|woff2?|ttf|map)(\?|$)/i.test(pathname)) return;
+      // Skip webpack/Angular chunks
+      if (pathname.includes('/chunk-') || pathname.includes('/main.') || pathname.includes('/polyfills.')) return;
+
+      const isBff = pathname.startsWith('/bff/');
+      const tag = isBff ? '[BFF]' : '[API]';
+      log(`${tag} ${details.method} ${pathname} → ${details.statusCode}`);
+
+      if (isBff) {
+        _bffCalls.push({ method: details.method, path: pathname, status: details.statusCode, ts: Date.now() });
+      }
     }
   );
 
   const win = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 1200,
+    height: 900,
     frame: false,
     transparent: false,
     backgroundColor: '#1a1a1a',
@@ -562,45 +690,556 @@ function createLoginWindow() {
     `).catch(() => {});
   });
 
-  // Inject a draggable title bar + close button after page loads
+  // Inject title bar + K10 sidebar panel after page loads
   win.webContents.on('did-finish-load', () => {
     const currentUrl = win.webContents.getURL();
     log(`[NAV] Page loaded: ${currentUrl}`);
 
-    win.webContents.executeJavaScript(`
+    // Build sidebar injection as a plain string to avoid escaping nightmares
+    const sidebarJS = `
       (function() {
         if (document.getElementById('k10-iracing-bar')) return;
 
-        const bar = document.createElement('div');
+        // ── Title bar ──
+        var bar = document.createElement('div');
         bar.id = 'k10-iracing-bar';
         bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:32px;background:#111;'
           + 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;'
           + 'z-index:999999;-webkit-app-region:drag;font-family:system-ui,sans-serif;'
           + 'border-bottom:1px solid #333;';
 
-        const title = document.createElement('span');
-        title.textContent = 'iRacing Login — K10 Motorsports';
+        var title = document.createElement('span');
+        title.id = 'k10-title';
+        title.textContent = 'iRacing \\u2014 K10 Motorsports';
         title.style.cssText = 'color:#aaa;font-size:12px;font-weight:500;letter-spacing:0.5px;';
 
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
+        var rightBtns = document.createElement('div');
+        rightBtns.style.cssText = 'display:flex;align-items:center;gap:4px;-webkit-app-region:no-drag;';
+
+        var panelBtn = document.createElement('button');
+        panelBtn.textContent = '\\u25A8';
+        panelBtn.title = 'Toggle K10 panel';
+        panelBtn.style.cssText = 'background:none;border:none;color:#d4a843;font-size:16px;'
+          + 'cursor:pointer;padding:4px 8px;border-radius:4px;';
+        panelBtn.onmouseenter = function() { this.style.background = '#333'; };
+        panelBtn.onmouseleave = function() { this.style.background = 'none'; };
+        panelBtn.onclick = function() {
+          var panel = document.getElementById('k10-bottom-panel');
+          var isOpen = panel.style.bottom === '0px';
+          panel.style.bottom = isOpen ? '-250px' : '0px';
+        };
+
+        var closeBtn = document.createElement('button');
+        closeBtn.textContent = '\\u2715';
         closeBtn.style.cssText = 'background:none;border:none;color:#888;font-size:14px;'
-          + 'cursor:pointer;-webkit-app-region:no-drag;padding:4px 8px;border-radius:4px;';
+          + 'cursor:pointer;padding:4px 8px;border-radius:4px;';
         closeBtn.onmouseenter = function() { this.style.background = '#333'; this.style.color = '#fff'; };
         closeBtn.onmouseleave = function() { this.style.background = 'none'; this.style.color = '#888'; };
         closeBtn.onclick = function() { window.close(); };
 
+        rightBtns.appendChild(panelBtn);
+        rightBtns.appendChild(closeBtn);
         bar.appendChild(title);
-        bar.appendChild(closeBtn);
+        bar.appendChild(rightBtns);
         document.body.prepend(bar);
         document.body.style.paddingTop = '32px';
-      })();
-    `).catch(() => { /* non-critical */ });
 
-    // Note: API spy (fetch + XHR) already injected in dom-ready handler above.
+        // ── Bottom panel (like Chrome DevTools) ──
+        var bpanel = document.createElement('div');
+        bpanel.id = 'k10-bottom-panel';
+        bpanel.style.cssText = 'position:fixed;left:0;right:0;bottom:0px;height:220px;'
+          + 'background:#111;border-top:2px solid #333;z-index:999998;'
+          + 'font-family:system-ui,sans-serif;display:flex;flex-direction:column;'
+          + 'transition:bottom 0.2s ease;';
+
+        // Header row: status on left, console controls on right
+        var bHeader = document.createElement('div');
+        bHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;'
+          + 'padding:5px 12px;border-bottom:1px solid #222;flex-shrink:0;';
+
+        var statusLeft = document.createElement('div');
+        statusLeft.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+        var dot = document.createElement('div');
+        dot.id = 'k10-status-dot';
+        dot.style.cssText = 'width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0;';
+
+        var statusText = document.createElement('span');
+        statusText.id = 'k10-status-text';
+        statusText.style.cssText = 'color:#aaa;font-size:11px;';
+        statusText.textContent = 'Connecting...';
+
+        var memberInfoEl = document.createElement('span');
+        memberInfoEl.id = 'k10-member-info';
+        memberInfoEl.style.cssText = 'color:#555;font-size:10px;';
+
+        statusLeft.appendChild(dot);
+        statusLeft.appendChild(statusText);
+        statusLeft.appendChild(memberInfoEl);
+
+        var ctrlRight = document.createElement('div');
+        ctrlRight.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+        var consoleLabel = document.createElement('span');
+        consoleLabel.style.cssText = 'color:#444;font-size:9px;text-transform:uppercase;letter-spacing:1px;';
+        consoleLabel.textContent = 'Sync Console';
+
+        var copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Copy';
+        copyBtn.style.cssText = 'background:none;border:none;color:#555;font-size:10px;cursor:pointer;padding:2px 6px;';
+        copyBtn.onclick = function() {
+          var c = document.getElementById('k10-console');
+          if (c) {
+            navigator.clipboard.writeText(c.innerText);
+            copyBtn.textContent = '\\u2713';
+            copyBtn.style.color = '#4ade80';
+            setTimeout(function() { copyBtn.textContent = 'Copy'; copyBtn.style.color = '#555'; }, 1500);
+          }
+        };
+
+        var clearBtn = document.createElement('button');
+        clearBtn.textContent = 'Clear';
+        clearBtn.style.cssText = 'background:none;border:none;color:#555;font-size:10px;cursor:pointer;padding:2px 6px;';
+        clearBtn.onclick = function() {
+          var c = document.getElementById('k10-console');
+          if (c) c.innerHTML = '';
+        };
+
+        ctrlRight.appendChild(consoleLabel);
+        ctrlRight.appendChild(copyBtn);
+        ctrlRight.appendChild(clearBtn);
+        bHeader.appendChild(statusLeft);
+        bHeader.appendChild(ctrlRight);
+
+        // Console body
+        var consoleBody = document.createElement('div');
+        consoleBody.id = 'k10-console';
+        consoleBody.style.cssText = 'flex:1;overflow-y:auto;padding:4px 12px;font-size:10px;'
+          + 'color:#888;font-family:ui-monospace,Menlo,monospace;line-height:1.4;'
+          + 'scrollbar-width:thin;scrollbar-color:#333 transparent;';
+
+        bpanel.appendChild(bHeader);
+        bpanel.appendChild(consoleBody);
+        document.body.appendChild(bpanel);
+
+        // ── Floating "Sync Now" button (top-right, below title bar) ──
+        var syncBtn = document.createElement('button');
+        syncBtn.id = 'k10-sync-btn';
+        syncBtn.textContent = 'Sync Now';
+        syncBtn.style.cssText = 'position:fixed;top:48px;right:12px;'
+          + 'padding:8px 16px;background:rgba(0,0,0,0.6);color:#d4a843;'
+          + 'border:1px solid rgba(212,168,67,0.4);border-radius:20px;'
+          + 'font-size:12px;font-weight:500;cursor:pointer;'
+          + 'z-index:999997;transition:all 0.2s ease;font-family:system-ui,sans-serif;';
+        syncBtn.onmouseenter = function() {
+          if (!this.disabled) {
+            this.style.background = 'rgba(0,0,0,0.8)';
+            this.style.borderColor = 'rgba(212,168,67,0.7)';
+          }
+        };
+        syncBtn.onmouseleave = function() {
+          if (!this.disabled) {
+            this.style.background = 'rgba(0,0,0,0.6)';
+            this.style.borderColor = 'rgba(212,168,67,0.4)';
+          }
+        };
+        syncBtn.onclick = function() {
+          console.log('__k10_cmd:sync');
+        };
+        document.body.appendChild(syncBtn);
+
+        // ── Sync overlay (dark shim + spinner) ──
+        var overlay = document.createElement('div');
+        overlay.id = 'k10-sync-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:250px;'
+          + 'background:rgba(0,0,0,0.7);z-index:999996;display:none;'
+          + 'align-items:center;justify-content:center;';
+
+        var spinnerContainer = document.createElement('div');
+        spinnerContainer.style.cssText = 'text-align:center;';
+
+        var spinner = document.createElement('div');
+        spinner.id = 'k10-spinner';
+        spinner.style.cssText = 'width:40px;height:40px;border:4px solid rgba(212,168,67,0.3);'
+          + 'border-top-color:#d4a843;border-radius:50%;margin:0 auto 16px;'
+          + 'animation:k10_spin 1s linear infinite;';
+
+        var spinnerText = document.createElement('div');
+        spinnerText.style.cssText = 'color:#d4a843;font-size:14px;font-family:system-ui,sans-serif;';
+        spinnerText.textContent = 'Syncing iRacing data...';
+
+        spinnerContainer.appendChild(spinner);
+        spinnerContainer.appendChild(spinnerText);
+        overlay.appendChild(spinnerContainer);
+        document.body.appendChild(overlay);
+
+        // Add spinner animation
+        var style = document.createElement('style');
+        style.textContent = '@keyframes k10_spin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+
+        // ── Toast notification ──
+        var toastContainer = document.createElement('div');
+        toastContainer.id = 'k10-toast';
+        toastContainer.style.cssText = 'position:fixed;bottom:280px;right:20px;'
+          + 'padding:12px 16px;border-radius:6px;font-size:13px;'
+          + 'font-family:system-ui,sans-serif;z-index:999999;display:none;'
+          + 'animation:k10_toast_in 0.3s ease;max-width:300px;word-wrap:break-word;';
+
+        style = document.createElement('style');
+        style.textContent = '@keyframes k10_toast_in { from { opacity:0;transform:translateY(20px); } to { opacity:1;transform:translateY(0); } }';
+        document.head.appendChild(style);
+
+        document.body.appendChild(toastContainer);
+
+        // ── Window helper functions ──
+        window.__k10_showSyncOverlay = function() {
+          var ov = document.getElementById('k10-sync-overlay');
+          if (ov) {
+            ov.style.display = 'flex';
+          }
+          var btn = document.getElementById('k10-sync-btn');
+          if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+          }
+        };
+
+        window.__k10_hideSyncOverlay = function() {
+          var ov = document.getElementById('k10-sync-overlay');
+          if (ov) {
+            ov.style.display = 'none';
+          }
+          var btn = document.getElementById('k10-sync-btn');
+          if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+          }
+        };
+
+        window.__k10_showToast = function(type, message) {
+          var toast = document.getElementById('k10-toast');
+          if (!toast) return;
+
+          if (type === 'success') {
+            toast.style.background = 'rgba(74,222,128,0.95)';
+            toast.style.color = '#000';
+            toast.innerHTML = '<span style="margin-right:8px;">\\u2713</span>' + message;
+          } else if (type === 'error') {
+            toast.style.background = 'rgba(239,68,68,0.95)';
+            toast.style.color = '#fff';
+            toast.innerHTML = '<span style="margin-right:8px;">!</span>' + message;
+          }
+
+          toast.style.display = 'block';
+
+          if (type === 'success') {
+            setTimeout(function() {
+              toast.style.display = 'none';
+            }, 4000);
+          }
+        };
+
+        window.__k10_hideConsole = function() {
+          var panel = document.getElementById('k10-bottom-panel');
+          if (panel) {
+            panel.style.bottom = '-250px';
+          }
+        };
+
+        window.__k10_showConsole = function() {
+          var panel = document.getElementById('k10-bottom-panel');
+          if (panel) {
+            panel.style.bottom = '0px';
+          }
+        };
+
+        // Log helper — called by main process via executeJavaScript
+        window.__k10_log = function(line) {
+          var c = document.getElementById('k10-console');
+          if (!c) return;
+          var entry = document.createElement('div');
+          entry.style.cssText = 'padding:1px 0;border-bottom:1px solid #1a1a1a;word-break:break-all;';
+          entry.textContent = line;
+          c.appendChild(entry);
+          c.scrollTop = c.scrollHeight;
+        };
+
+        // Status update helper
+        window.__k10_status = function(connected, name, custId, lastSync) {
+          var d = document.getElementById('k10-status-dot');
+          var t = document.getElementById('k10-status-text');
+          var i = document.getElementById('k10-member-info');
+          if (d) d.style.background = connected ? '#4ade80' : '#555';
+          if (t) t.textContent = connected ? 'Connected' : 'Disconnected';
+          if (i) i.textContent = connected
+            ? (name + ' (#' + custId + ')' + (lastSync ? ' \\u2014 ' + new Date(lastSync).toLocaleTimeString() : ''))
+            : '';
+        };
+      })();
+    `;
+    win.webContents.executeJavaScript(sidebarJS).catch((err) => {
+      log('Sidebar injection failed: ' + err.message);
+    });
+  });
+
+  // Listen for sync requests from the floating button
+  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    if (message === '__k10_cmd:sync') {
+      log('Sync request received from UI');
+      runSync(win.webContents);
+    }
   });
 
   return win;
+}
+
+
+/**
+ * Manual sync triggered from the UI's floating "Sync Now" button
+ * or called during initial authentication. Runs DOM scraping
+ * to extract iRacing data from the dashboard and profile pages.
+ */
+async function runSync(wc) {
+  try {
+    // Show overlay + spinner
+    await wc.executeJavaScript(`window.__k10_showSyncOverlay && window.__k10_showSyncOverlay();`).catch(() => {});
+
+    // Save current URL so we can navigate back
+    const savedUrl = wc.getURL();
+    log(`[SYNC] Saved URL: ${savedUrl}`);
+
+    // Helper: fetch a BFF endpoint from page context with cookies
+    async function fetchBff(path) {
+      const raw = await wc.executeJavaScript(`
+        (async () => {
+          try {
+            var res = await fetch('${path}', { credentials: 'same-origin' });
+            var text = await res.text();
+            return JSON.stringify({ status: res.status, body: text });
+          } catch (e) {
+            return JSON.stringify({ status: 0, error: e.message });
+          }
+        })()
+      `);
+      const result = JSON.parse(raw || '{}');
+      if (result.status !== 200) {
+        throw new Error(path + ' → ' + result.status + ': ' + (result.error || result.body?.slice(0, 200)));
+      }
+      // Log raw response for debugging
+      const bodyPreview = (result.body || '').slice(0, 300);
+      log(path + ' raw response (' + (result.body || '').length + ' chars): ' + bodyPreview);
+
+      // iRacing data API returns a signed S3 link envelope for large payloads
+      let data;
+      try { data = JSON.parse(result.body); } catch (e) { throw new Error(path + ' returned non-JSON: ' + bodyPreview); }
+
+      // If the response has a "link" field, it's an S3 redirect envelope
+      if (data && data.link) {
+        log('Following S3 link for ' + path + '...');
+        const s3Raw = await wc.executeJavaScript(`
+          (async () => {
+            try {
+              var res = await fetch('${data.link.replace(/'/g, "\\'")}');
+              var text = await res.text();
+              return text;
+            } catch (e) {
+              return JSON.stringify({ _error: e.message });
+            }
+          })()
+        `);
+        try { data = JSON.parse(s3Raw); } catch (e) { throw new Error(path + ' S3 link returned non-JSON'); }
+      }
+
+      return data;
+    }
+
+    // ── DOM Scraping: the data is rendered by Angular SSR ──
+    // The /data/ API requires separate auth we can't get from OAuth.
+    // But ALL the data we need is rendered in the page DOM.
+
+    // Step 1: Scrape the dashboard
+    log('Scraping dashboard data...');
+    const dashData = await wc.executeJavaScript(`
+      (function() {
+        var r = {};
+        var body = document.body.innerText;
+
+        // User name from greeting
+        var m = body.match(/Good (?:Morning|Afternoon|Evening),\\\\s*([^\\\\n]+)/);
+        if (m) r.displayName = m[1].trim();
+
+        // Season info
+        m = body.match(/(\\\\d{4}) Season (\\\\d+).*Week (\\\\d+) of (\\\\d+)/);
+        if (m) r.season = { year: m[1], season: m[2], week: m[3], totalWeeks: m[4] };
+
+        // Recent Results — scrape all visible result cards
+        r.recentResults = [];
+        // Find all elements that look like result entries
+        var allText = body;
+        var resultPattern = /(\\\\w{3} \\\\d{2}, \\\\d{4}, \\\\d+:\\\\d+ [AP]M).*?(?:RACE|QUAL|PRACTICE|TIME TRIAL).*?Car\\\\s*([^\\\\n]+?)\\\\s*Track\\\\s*([^\\\\n]+?)\\\\s*Finish\\\\s*(\\\\d+\\\\w+)\\\\s*Start\\\\s*(\\\\d+\\\\w+)/g;
+        var rm;
+        while ((rm = resultPattern.exec(allText)) !== null) {
+          r.recentResults.push({
+            date: rm[1], car: rm[2].trim(), track: rm[3].trim(),
+            finish: rm[4], start: rm[5]
+          });
+        }
+
+        // 30 Day Activity
+        m = body.match(/30 Day Activity.*?Days\\\\s*Active\\\\s*(\\\\d+).*?VS\\\\.\\\\s*LAST 30[^\\\\n]*?([^\\\\n]*Days)/s);
+        if (m) r.activity30d = { daysActive: m[1], vsLast30: m[2].trim() };
+
+        // Licenses — look for license badges (R 2.50, B 1.63, D 3.59, etc.)
+        r.licenses = [];
+        var licPattern = /([RABCD])\\\\s*(\\\\d+\\\\.\\\\d+)/g;
+        var licSection = body.match(/Licenses[\\\\s\\\\S]{0,500}/);
+        if (licSection) {
+          var lm;
+          while ((lm = licPattern.exec(licSection[0])) !== null) {
+            r.licenses.push({ class: lm[1], rating: parseFloat(lm[2]) });
+          }
+        }
+
+        return JSON.stringify(r);
+      })()
+    `);
+    log('Dashboard scrape: ' + dashData);
+    const dashboard = JSON.parse(dashData || '{}');
+
+    // Step 2: Navigate to Profile page for iRating and detailed stats
+    log('Navigating to Profile page...');
+    await wc.executeJavaScript(`
+      // Click the Profile link in the sidebar nav
+      var links = document.querySelectorAll('a');
+      for (var i = 0; i < links.length; i++) {
+        if (links[i].textContent.trim() === 'Profile') {
+          links[i].click();
+          break;
+        }
+      }
+    `);
+
+    // Wait for the profile page to render
+    await new Promise(r => setTimeout(r, 3000));
+
+    const profileData = await wc.executeJavaScript(`
+      (function() {
+        var r = {};
+        var body = document.body.innerText;
+
+        // iRating values — typically shown as "1,234" or "1234"
+        // Look for patterns near category labels
+        var categories = ['Road', 'Oval', 'Dirt Road', 'Dirt Oval', 'Sports Car'];
+        r.ratings = {};
+
+        // Try to find iRating values
+        var iratingPattern = /iRating[:\\\\s]*(\\\\d[\\\\d,]*)/gi;
+        var im;
+        while ((im = iratingPattern.exec(body)) !== null) {
+          r.ratings.irating_raw = (r.ratings.irating_raw || []);
+          r.ratings.irating_raw.push(im[1].replace(/,/g, ''));
+        }
+
+        // Safety Rating
+        var srPattern = /Safety Rating[:\\\\s]*([RABCD]?)\\\\s*(\\\\d+\\\\.\\\\d+)/gi;
+        var sm;
+        r.ratings.sr_raw = [];
+        while ((sm = srPattern.exec(body)) !== null) {
+          r.ratings.sr_raw.push({ class: sm[1], rating: sm[2] });
+        }
+
+        // Member Since
+        var msm = body.match(/Member Since[:\\\\s]*(\\\\w+ \\\\d{4}|\\\\d{4})/i);
+        if (msm) r.memberSince = msm[1];
+
+        // Customer ID
+        var cidm = body.match(/(?:Customer|Cust\\\\.?|Member)\\\\s*(?:ID|#)[:\\\\s]*(\\\\d+)/i);
+        if (cidm) r.custId = cidm[1];
+
+        // Starts, Wins, Top 5, etc.
+        var statsPattern = /(Starts|Wins|Top 5|Podiums|Laps|Inc(?:idents)?)[:\\\\s]*(\\\\d[\\\\d,]*)/gi;
+        r.careerStats = {};
+        var stm;
+        while ((stm = statsPattern.exec(body)) !== null) {
+          r.careerStats[stm[1].toLowerCase()] = stm[2].replace(/,/g, '');
+        }
+
+        // Grab a large text sample for debugging
+        r.profileText = body.slice(0, 2000);
+
+        return JSON.stringify(r);
+      })()
+    `);
+    log('Profile scrape: ' + profileData);
+    const profile = JSON.parse(profileData || '{}');
+
+    // Step 3: Navigate back to saved URL
+    log('Navigating back to: ' + savedUrl);
+    await wc.loadURL(savedUrl).catch((err) => {
+      log('Navigation back failed: ' + err.message);
+    });
+
+    // Wait for page to load
+    await new Promise(r => setTimeout(r, 2000));
+
+    // Step 4: Build sync payload from scraped data
+    const displayName = dashboard.displayName || '';
+    const custId = profile.custId || '';
+    log('Member: ' + displayName + ' (#' + custId + ')');
+
+    const payload = {
+      custId,
+      displayName,
+      season: dashboard.season,
+      recentRaces: dashboard.recentResults || [],
+      licenses: dashboard.licenses || [],
+      ratings: profile.ratings || {},
+      careerStats: profile.careerStats || {},
+      memberSince: profile.memberSince || '',
+      exportedAt: new Date().toISOString(),
+      source: 'electron-iracing-dom',
+    };
+
+    saveData(payload);
+    saveStatus({ connected: true, lastSync: payload.exportedAt, custId, displayName });
+
+    const raceCount = payload.recentRaces.length;
+    log('Sync complete! ' + displayName + ' — ' + raceCount + ' recent races, '
+      + payload.licenses.length + ' licenses');
+
+    // Hide overlay
+    await wc.executeJavaScript(`window.__k10_hideSyncOverlay && window.__k10_hideSyncOverlay();`).catch(() => {});
+
+    // Show success toast
+    const toastMsg = 'Synced! ' + displayName + ' — ' + raceCount + ' races';
+    await wc.executeJavaScript(
+      `window.__k10_showToast && window.__k10_showToast('success', '${toastMsg.replace(/'/g, "\\'")}');`
+    ).catch(() => {});
+
+    // Hide console on success
+    await wc.executeJavaScript(`window.__k10_hideConsole && window.__k10_hideConsole();`).catch(() => {});
+
+    updateSidebarStatus(true, displayName, custId, payload.exportedAt);
+    emitter.emit('sync-complete', payload);
+
+  } catch (syncErr) {
+    log('Sync error: ' + syncErr.message);
+
+    // Hide overlay
+    await wc.executeJavaScript(`window.__k10_hideSyncOverlay && window.__k10_hideSyncOverlay();`).catch(() => {});
+
+    // Show error toast (stays visible)
+    const errMsg = 'Sync failed: ' + syncErr.message;
+    await wc.executeJavaScript(
+      `window.__k10_showToast && window.__k10_showToast('error', '${errMsg.replace(/'/g, "\\'")}');`
+    ).catch(() => {});
+
+    // Keep console visible on error
+    await wc.executeJavaScript(`window.__k10_showConsole && window.__k10_showConsole();`).catch(() => {});
+
+    emitter.emit('error', syncErr);
+  }
 }
 
 
@@ -722,195 +1361,15 @@ function startAuthPolling(resolve) {
         log('In-page spy not available: ' + e.message);
       }
 
-      // Auth is confirmed. Discover the BFF API surface before trying to sync.
-      log('Cookie-based auth confirmed! Discovering BFF API endpoints...');
+      // Auth confirmed — don't auto-sync (it's jarring).
+      // Just mark connected and let the user click Sync Now when ready.
+      log('Cookie-based auth confirmed! Ready to sync (click Sync Now).');
       clearAuthPolling();
       resolved = true;
 
-      wc.executeJavaScript(`
-        (function() {
-          var t = document.querySelector('#k10-iracing-bar span');
-          if (t) t.textContent = 'Discovering iRacing API...';
-        })();
-      `).catch(() => {});
-
-      try {
-        // Step 1: Fetch the known-good /sessions endpoint and log its structure
-        const sessionsData = await wc.executeJavaScript(`
-          (async () => {
-            try {
-              const res = await fetch('/bff/pub/proxy/api/sessions', { credentials: 'same-origin' });
-              if (!res.ok) return { _error: res.status + ' ' + res.statusText };
-              const json = await res.json();
-              return { _keys: Object.keys(json), _snippet: JSON.stringify(json).slice(0, 1000), _full: json };
-            } catch (e) {
-              return { _error: e.message };
-            }
-          })()
-        `);
-        log('/sessions response keys: ' + JSON.stringify(sessionsData._keys));
-        log('/sessions snippet: ' + sessionsData._snippet);
-
-        // Step 2: Scan Angular JS bundles for all /bff/ endpoint paths
-        const bffPaths = await wc.executeJavaScript(`
-          (function() {
-            var paths = new Set();
-            // Search all script elements for BFF path strings
-            var scripts = document.querySelectorAll('script[src]');
-            var scriptUrls = [];
-            for (var i = 0; i < scripts.length; i++) {
-              scriptUrls.push(scripts[i].src);
-            }
-
-            // Also search inline scripts and the performance entries for JS bundles
-            var perfEntries = performance.getEntriesByType('resource')
-              .filter(function(e) { return e.name.includes('.js'); })
-              .map(function(e) { return e.name; });
-
-            return JSON.stringify({ scriptTags: scriptUrls.length, perfEntries: perfEntries.length });
-          })()
-        `);
-        log('Page scripts: ' + bffPaths);
-
-        // Step 3: Fetch JS source and grep for /bff/ patterns
-        const bffEndpoints = await wc.executeJavaScript(`
-          (async () => {
-            try {
-              // Fetch the main bundle and search for BFF paths
-              var scripts = Array.from(document.querySelectorAll('script[src*="main"]'));
-              var allPaths = [];
-              for (var i = 0; i < scripts.length; i++) {
-                var res = await fetch(scripts[i].src);
-                var text = await res.text();
-                // Look for BFF proxy patterns
-                var matches = text.match(/\\/bff\\/[a-zA-Z0-9_/.-]+/g) || [];
-                allPaths = allPaths.concat(matches);
-                // Also look for API path patterns near "proxy"
-                var proxyMatches = text.match(/proxy\\/api\\/[a-zA-Z0-9_/.-]+/g) || [];
-                allPaths = allPaths.concat(proxyMatches.map(function(m) { return '/bff/pub/' + m; }));
-                // Look for quoted API path segments
-                var apiMatches = text.match(/["']\\/api\\/[a-zA-Z0-9_/.?=-]+["']/g) || [];
-                allPaths = allPaths.concat(apiMatches.map(function(m) { return m.replace(/["']/g, ''); }));
-              }
-              // Also check other JS bundles
-              var otherScripts = Array.from(document.querySelectorAll('script[src]'))
-                .filter(function(s) { return !s.src.includes('main'); });
-              for (var i = 0; i < otherScripts.length; i++) {
-                try {
-                  var res = await fetch(otherScripts[i].src);
-                  var text = await res.text();
-                  var matches = text.match(/\\/bff\\/[a-zA-Z0-9_/.-]+/g) || [];
-                  allPaths = allPaths.concat(matches);
-                  var apiMatches = text.match(/["']\\/api\\/[a-zA-Z0-9_/.?=-]+["']/g) || [];
-                  allPaths = allPaths.concat(apiMatches.map(function(m) { return m.replace(/["']/g, ''); }));
-                } catch(e) {}
-              }
-              // Deduplicate
-              return JSON.stringify([...new Set(allPaths)]);
-            } catch (e) {
-              return JSON.stringify({ _error: e.message });
-            }
-          })()
-        `);
-        log('BFF endpoints found in JS source: ' + bffEndpoints);
-
-        // Step 4: Deep scan — look for ALL API-like URLs in every JS bundle
-        // (not just /bff/ — the data API might use a different base path)
-        const deepScan = await wc.executeJavaScript(`
-          (async () => {
-            try {
-              var allScripts = Array.from(document.querySelectorAll('script[src]'));
-              var findings = {
-                apiUrls: [],       // Full URLs containing 'api' or 'data'
-                httpUrls: [],      // Any https:// URLs found in code
-                wsUrls: [],        // WebSocket URLs
-                servicePatterns: [] // Angular service/endpoint patterns
-              };
-
-              for (var i = 0; i < allScripts.length; i++) {
-                try {
-                  var res = await fetch(allScripts[i].src);
-                  var text = await res.text();
-                  var fname = allScripts[i].src.split('/').pop();
-
-                  // Find all https:// URLs
-                  var httpMatches = text.match(/https?:\\/\\/[a-zA-Z0-9._-]+\\.iracing\\.com[a-zA-Z0-9_/.?=&-]*/g) || [];
-                  findings.httpUrls = findings.httpUrls.concat(httpMatches);
-
-                  // Find WebSocket URLs
-                  var wsMatches = text.match(/wss?:\\/\\/[a-zA-Z0-9._/-]+/g) || [];
-                  findings.wsUrls = findings.wsUrls.concat(wsMatches);
-
-                  // Find /data/ endpoint paths (the iRacing API pattern)
-                  var dataMatches = text.match(/["']\\/data\\/[a-zA-Z0-9_/.?=&-]+["']/g) || [];
-                  findings.apiUrls = findings.apiUrls.concat(dataMatches.map(function(m) { return m.replace(/["']/g, ''); }));
-
-                  // Find Angular service injection patterns and HTTP calls
-                  var httpClientMatches = text.match(/\\.(get|post|put|delete)\\s*\\(\\s*["'][^"']+["']/g) || [];
-                  findings.servicePatterns = findings.servicePatterns.concat(
-                    httpClientMatches.map(function(m) { return fname + ': ' + m; })
-                  );
-
-                  // Find environment/config URLs
-                  var envMatches = text.match(/apiUrl['"\\s:]+["'][^"']+["']/gi) || [];
-                  findings.servicePatterns = findings.servicePatterns.concat(
-                    envMatches.map(function(m) { return fname + ': ' + m; })
-                  );
-                  var baseMatches = text.match(/baseUrl['"\\s:]+["'][^"']+["']/gi) || [];
-                  findings.servicePatterns = findings.servicePatterns.concat(
-                    baseMatches.map(function(m) { return fname + ': ' + m; })
-                  );
-                } catch(e) {}
-              }
-
-              // Deduplicate
-              findings.httpUrls = [...new Set(findings.httpUrls)];
-              findings.wsUrls = [...new Set(findings.wsUrls)];
-              findings.apiUrls = [...new Set(findings.apiUrls)];
-              findings.servicePatterns = [...new Set(findings.servicePatterns)];
-
-              return JSON.stringify(findings);
-            } catch (e) {
-              return JSON.stringify({ _error: e.message });
-            }
-          })()
-        `);
-        log('Deep scan results: ' + deepScan);
-
-        // Step 5: Check for active WebSocket connections
-        const wsCheck = await wc.executeJavaScript(`
-          (function() {
-            // Check performance entries for WebSocket connections
-            var wsEntries = performance.getEntriesByType('resource')
-              .filter(function(e) { return e.name.includes('ws:') || e.name.includes('wss:'); });
-            return JSON.stringify({
-              wsEntries: wsEntries.map(function(e) { return e.name; }),
-              // Check if any global WebSocket references exist
-              hasSignalR: !!window.signalR,
-              hasSocketIO: !!window.io,
-              hasSockJS: !!window.SockJS
-            });
-          })()
-        `);
-        log('WebSocket check: ' + wsCheck);
-
-        // Keep the window open
-        wc.executeJavaScript(`
-          (function() {
-            var t = document.querySelector('#k10-iracing-bar span');
-            if (t) t.textContent = 'iRacing — K10 Motorsports (discovery complete)';
-          })();
-        `).catch(() => {});
-
-        log('Discovery complete. Window kept open for further exploration.');
-        emitter.emit('auth-success', { custId: 'discovery', displayName: 'API Discovery' });
-        resolve({ success: true, discovery: true });
-      } catch (syncErr) {
-        log('Discovery failed: ' + syncErr.message);
-        emitter.emit('error', syncErr);
-        // DON'T close the window — keep it open for debugging
-        resolve({ success: false, error: syncErr.message });
-      }
+      emitter.emit('auth-success', { custId: 'pending', displayName: 'Connected' });
+      updateSidebarStatus(true, 'Connected', '', null);
+      resolve({ success: true });
     }
   }, AUTH_CHECK_INTERVAL);
 

@@ -134,7 +134,11 @@
     const ds = (gameKey, demoKey) => _demo ? vs('RaceCorProDrive.Plugin.' + demoKey) : vs(gameKey);
 
     // ─── Idle State Detection ───
+    // Always use REAL game state for idle detection (never demo-swapped).
+    // This ensures logo-only mode when no game is actually running,
+    // even if the SimHub plugin has demo mode enabled.
     const gameRunning = +v('DataCorePlugin.GameRunning') || 0;
+    const realSessNum = parseInt(vs('RaceCorProDrive.Plugin.Grid.SessionState')) || 0;
     const sessionPre = _demo ? 'RaceCorProDrive.Plugin.Demo.Grid.' : 'RaceCorProDrive.Plugin.Grid.';
     const dsPre = _demo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
     const sessNum = parseInt(vs(sessionPre + 'SessionState')) || 0;
@@ -188,9 +192,10 @@
     // Expose rolling/formation start state for leaderboard sparklines
     window._isRollingStart = (sessNum === 2 || sessNum === 3); // Warmup or ParadeLaps
 
-    // Idle detection: only idle when no session (sessNum === 0) or game not running
-    // Pre-race states (sessNum 1=GetInCar, 2=Warmup, 3=ParadeLaps) should stay active
-    const nowIdle = !_demo && (!gameRunning || sessNum === 0);
+    // Idle detection: use REAL session state (not demo-swapped) so the overlay
+    // stays logo-only when no game is actually running, regardless of demo mode.
+    // Pre-race states (1=GetInCar, 2=Warmup, 3=ParadeLaps) keep the HUD active.
+    const nowIdle = !gameRunning || realSessNum === 0;
     const idleLogo = document.getElementById('idleLogo');
     if (nowIdle !== _isIdle) {
       _isIdle = nowIdle;

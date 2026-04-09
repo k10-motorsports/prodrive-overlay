@@ -591,73 +591,40 @@
     var notConn = document.getElementById('iracingNotConnected');
     var conn    = document.getElementById('iracingConnected');
     var name    = document.getElementById('iracingDisplayName');
-    var custId  = document.getElementById('iracingCustId');
-    var lastSync = document.getElementById('iracingLastSync');
+    var openBtn = document.getElementById('iracingOpenBtn');
 
     if (status && status.connected) {
       if (notConn) notConn.style.display = 'none';
       if (conn) conn.style.display = '';
       if (name) name.textContent = status.displayName || 'iRacing Member';
-      if (custId) custId.textContent = status.custId ? 'Customer ID: ' + status.custId : '';
-      if (lastSync && status.lastSync) {
-        var d = new Date(status.lastSync);
-        lastSync.textContent = 'Last synced: ' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
-      }
+      if (openBtn) openBtn.textContent = 'Open iRacing';
     } else {
       if (notConn) notConn.style.display = '';
       if (conn) conn.style.display = 'none';
+      if (openBtn) openBtn.textContent = 'Open iRacing';
     }
   }
 
   async function connectIRacing() {
-    var btn = document.getElementById('iracingConnectBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
+    var btn = document.getElementById('iracingOpenBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
 
     try {
       var result = await window.k10.iracingConnect();
       if (result && result.success) {
-        updateIRacingCard({ connected: true, displayName: result.displayName, custId: result.custId, lastSync: result.exportedAt });
-      } else {
-        // Reset button
-        if (btn) { btn.disabled = false; btn.textContent = 'Sign in to iRacing'; }
-        console.warn('[K10] iRacing connect failed:', result && result.error);
+        updateIRacingCard({ connected: true, displayName: result.displayName, custId: result.custId });
       }
     } catch (e) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Sign in to iRacing'; }
       console.error('[K10] iRacing connect error:', e);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Open iRacing'; }
     }
   }
   window.connectIRacing = connectIRacing;
 
-  async function disconnectIRacing() {
-    try {
-      await window.k10.iracingDisconnect();
-      updateIRacingCard({ connected: false });
-    } catch (e) {
-      console.error('[K10] iRacing disconnect error:', e);
-    }
-  }
-  window.disconnectIRacing = disconnectIRacing;
+  // disconnectIRacing is now handled by the sidebar panel on the iRacing window
 
-  async function syncIRacing() {
-    var btn = document.getElementById('iracingSyncBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
-
-    try {
-      var result = await window.k10.iracingSync();
-      if (result && result.success) {
-        updateIRacingCard({ connected: true, displayName: result.displayName, custId: result.custId, lastSync: result.exportedAt });
-      } else if (result && result.needsLogin) {
-        // Session expired — prompt re-login
-        updateIRacingCard({ connected: false });
-      }
-    } catch (e) {
-      console.error('[K10] iRacing sync error:', e);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Sync Now'; }
-    }
-  }
-  window.syncIRacing = syncIRacing;
+  // syncIRacing is now handled by the sidebar panel on the iRacing window
 
   // Listen for sync events pushed from main process
   if (window.k10 && window.k10.onIRacingSync) {
@@ -671,18 +638,7 @@
     });
   }
 
-  // Pipe iRacing client logs into the iRacing Sync Console in the UI
-  if (window.k10 && window.k10.onIRacingLog) {
-    window.k10.onIRacingLog(function(line) {
-      var console = document.getElementById('iRacingSyncConsole');
-      if (!console) return;
-      var entry = document.createElement('div');
-      entry.className = 'debug-console-entry';
-      entry.textContent = line;
-      console.appendChild(entry);
-      console.scrollTop = console.scrollHeight;
-    });
-  }
+  // iRacing client logs now pipe to the sidebar console on the iRacing window
 
   // Init: load persisted status on startup
   async function initIRacingState() {
@@ -692,6 +648,24 @@
     } catch (e) {
       // Not available yet — leave as disconnected
     }
+  }
+
+  // Auto-connect: main process tries iRacing sync on startup with persisted cookies.
+  // If it succeeds, update the card to show connected state.
+  if (window.k10 && window.k10.onIRacingAutoConnected) {
+    window.k10.onIRacingAutoConnected(function(result) {
+      if (result && result.success) {
+        updateIRacingCard({
+          connected: true,
+          displayName: result.displayName,
+          custId: result.custId,
+          lastSync: result.exportedAt
+        });
+        if (window.debugConsole) {
+          window.debugConsole.logIRacingSync('success', 'Auto-connected to iRacing');
+        }
+      }
+    });
   }
 
   // ─── Logo subtitle ───

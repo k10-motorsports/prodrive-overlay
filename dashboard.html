@@ -1183,60 +1183,26 @@
 
       <!-- ═══ iRacing Data Sync Card ═══ -->
       <div class="conn-card conn-card-iracing" id="iracingDataSyncCard" style="margin-top:8px;">
-        <div class="conn-card-header" style="margin-bottom:6px;">
-          <div class="conn-card-icon iracing" style="width:24px;height:24px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-          </div>
-          <div>
-            <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
-            <div class="conn-card-subtitle" style="font-size:9px;">Session results &amp; rating tracking</div>
-          </div>
-        </div>
-
-        <!-- Not connected state -->
-        <div id="iracingNotConnected">
-          <div class="conn-card-detail" style="font-size:10px;line-height:1.4;color:hsla(0,0%,100%,0.45);padding:0 2px;margin-bottom:8px;">
-            Sign in to iRacing to sync your race results, iRating, safety rating, and career stats to your ProDrive dashboard.
-          </div>
-          <div class="conn-card-actions">
-            <button class="conn-btn iracing-btn" id="iracingConnectBtn" onclick="connectIRacing()">
-              Sign in to iRacing
-            </button>
-          </div>
-        </div>
-
-        <!-- Connected state -->
-        <div id="iracingConnected" style="display:none;">
-          <div class="conn-card-status">
-            <div class="conn-dot green" id="iracingConnDot"></div>
-            <div class="conn-status-text" id="iracingConnText"><strong>Connected</strong></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="conn-card-icon iracing" style="width:24px;height:24px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+            </div>
             <div>
-              <div class="conn-user-name" id="iracingDisplayName" style="font-size:12px;"></div>
-              <div class="conn-user-id" id="iracingCustId" style="font-size:10px;"></div>
+              <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
+              <div id="iracingStatusLine" style="font-size:9px;color:hsla(0,0%,100%,0.4);margin-top:1px;">
+                <span id="iracingNotConnected">Not connected</span>
+                <span id="iracingConnected" style="display:none;">
+                  <span class="conn-dot green" style="display:inline-block;width:6px;height:6px;vertical-align:middle;margin-right:3px;"></span>
+                  <span id="iracingDisplayName" style="color:hsla(0,0%,100%,0.7);"></span>
+                </span>
+              </div>
             </div>
           </div>
-          <div id="iracingLastSync" style="font-size:9px;color:hsla(0,0%,100%,0.35);padding:2px 0;"></div>
-          <div class="conn-card-actions" style="gap:6px;">
-            <button class="conn-btn iracing-sync-btn" id="iracingSyncBtn" onclick="syncIRacing()">
-              Sync Now
-            </button>
-            <button class="conn-btn disconnect-btn" onclick="disconnectIRacing()" style="font-size:10px;padding:4px 10px;">
-              Disconnect
-            </button>
-          </div>
+          <button class="conn-btn iracing-btn" id="iracingOpenBtn" onclick="connectIRacing()" style="font-size:10px;padding:4px 12px;white-space:nowrap;">
+            Open iRacing
+          </button>
         </div>
-
-      <!-- iRacing Data Sync Debug Console -->
-      <div class="debug-console-wrapper">
-        <div class="debug-console-header">
-          <div class="debug-console-title">iRacing Sync Console</div>
-          <button class="debug-console-clear-btn" onclick="window.debugConsole.clearIRacingSync()">Clear</button>
-        </div>
-        <div class="debug-console-body" id="iRacingSyncConsole"></div>
-      </div>
-
       </div>
 
       <!-- Remote Dashboard (stream to iPad / any browser on LAN) -->

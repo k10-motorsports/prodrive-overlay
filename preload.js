@@ -67,6 +67,9 @@ contextBridge.exposeInMainWorld('k10', {
   onIRacingLog: (callback) => {
     ipcRenderer.on('iracing-log', (event, line) => callback(line));
   },
+  onIRacingAutoConnected: (callback) => {
+    ipcRenderer.on('iracing-auto-connected', (event, data) => callback(data));
+  },
   // Remote dashboard server (iPad/tablet access)
   getRemoteServerInfo: () => ipcRenderer.invoke('get-remote-server-info'),
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),

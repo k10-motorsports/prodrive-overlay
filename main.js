@@ -365,6 +365,24 @@ app.whenReady().then(() => {
     return;
   }
 
+  // ── AUTO-CONNECT iRacing ──
+  // Open the iRacing web client and start syncing on app launch.
+  // No clicks needed — just opens the window and goes.
+  logToFile('[K10] Auto-connect: opening iRacing client...');
+  iracingClient.connect().then((result) => {
+    logToFile('[K10] Auto-connect: ' + (result.success ? 'connected' : (result.error || 'closed')));
+    if (result.success || result.discovery) {
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('iracing-auto-connected', result);
+      }
+      if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.webContents.send('iracing-auto-connected', result);
+      }
+    }
+  }).catch((err) => {
+    logToFile('[K10] Auto-connect error: ' + err.message);
+  });
+
   // ── GLOBAL HOTKEYS ──
 
   globalShortcut.register('CommandOrControl+Shift+H', () => {
