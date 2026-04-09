@@ -585,33 +585,114 @@
     if (window.updateGameLogo) window.updateGameLogo(window._currentGameId || 'iracing', !isOn);
   }
 
-  // ─── iRacing Data Sync toggle ───
-  function toggleIRacingSync(el) {
-    var isOn = el.classList.contains('on');
-    var newVal = !isOn;
-    el.classList.toggle('on', newVal);
-    _settings.iracingDataSync = newVal;
+  // ─── iRacing Data Sync (embedded browser login) ───
 
-    var detail = document.getElementById('iracingSyncDetail');
-    var active = document.getElementById('iracingSyncActive');
-    if (detail) detail.style.display = newVal ? 'none' : '';
-    if (active) active.style.display = newVal ? '' : 'none';
+  function updateIRacingCard(status) {
+    var notConn = document.getElementById('iracingNotConnected');
+    var conn    = document.getElementById('iracingConnected');
+    var name    = document.getElementById('iracingDisplayName');
+    var custId  = document.getElementById('iracingCustId');
+    var lastSync = document.getElementById('iracingLastSync');
 
-    saveSettings();
-
-    // If just enabled, trigger sync check now
-    if (newVal && window.checkAndSyncIRacingHistory) {
-      window.checkAndSyncIRacingHistory();
+    if (status && status.connected) {
+      if (notConn) notConn.style.display = 'none';
+      if (conn) conn.style.display = '';
+      if (name) name.textContent = status.displayName || 'iRacing Member';
+      if (custId) custId.textContent = status.custId ? 'Customer ID: ' + status.custId : '';
+      if (lastSync && status.lastSync) {
+        var d = new Date(status.lastSync);
+        lastSync.textContent = 'Last synced: ' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+      }
+    } else {
+      if (notConn) notConn.style.display = '';
+      if (conn) conn.style.display = 'none';
     }
   }
-  window.toggleIRacingSync = toggleIRacingSync;
 
-  // ─── iRacing OAuth Notice ───
-  // Legacy auth retired Dec 2025. Show notice when sync can't authenticate.
-  window.showIRacingOAuthNotice = function() {
-    var notice = document.getElementById('iracingOAuthNotice');
-    if (notice) notice.style.display = '';
-  };
+  async function connectIRacing() {
+    var btn = document.getElementById('iracingConnectBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
+
+    try {
+      var result = await window.k10.iracingConnect();
+      if (result && result.success) {
+        updateIRacingCard({ connected: true, displayName: result.displayName, custId: result.custId, lastSync: result.exportedAt });
+      } else {
+        // Reset button
+        if (btn) { btn.disabled = false; btn.textContent = 'Sign in to iRacing'; }
+        console.warn('[K10] iRacing connect failed:', result && result.error);
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Sign in to iRacing'; }
+      console.error('[K10] iRacing connect error:', e);
+    }
+  }
+  window.connectIRacing = connectIRacing;
+
+  async function disconnectIRacing() {
+    try {
+      await window.k10.iracingDisconnect();
+      updateIRacingCard({ connected: false });
+    } catch (e) {
+      console.error('[K10] iRacing disconnect error:', e);
+    }
+  }
+  window.disconnectIRacing = disconnectIRacing;
+
+  async function syncIRacing() {
+    var btn = document.getElementById('iracingSyncBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
+
+    try {
+      var result = await window.k10.iracingSync();
+      if (result && result.success) {
+        updateIRacingCard({ connected: true, displayName: result.displayName, custId: result.custId, lastSync: result.exportedAt });
+      } else if (result && result.needsLogin) {
+        // Session expired — prompt re-login
+        updateIRacingCard({ connected: false });
+      }
+    } catch (e) {
+      console.error('[K10] iRacing sync error:', e);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Sync Now'; }
+    }
+  }
+  window.syncIRacing = syncIRacing;
+
+  // Listen for sync events pushed from main process
+  if (window.k10 && window.k10.onIRacingSync) {
+    window.k10.onIRacingSync(function(data) {
+      updateIRacingCard({
+        connected: true,
+        displayName: data.displayName,
+        custId: data.custId,
+        lastSync: data.exportedAt,
+      });
+    });
+  }
+
+  // Pipe iRacing client logs into the iRacing Sync Console in the UI
+  if (window.k10 && window.k10.onIRacingLog) {
+    window.k10.onIRacingLog(function(line) {
+      var console = document.getElementById('iRacingSyncConsole');
+      if (!console) return;
+      var entry = document.createElement('div');
+      entry.className = 'debug-console-entry';
+      entry.textContent = line;
+      console.appendChild(entry);
+      console.scrollTop = console.scrollHeight;
+    });
+  }
+
+  // Init: load persisted status on startup
+  async function initIRacingState() {
+    try {
+      var status = await window.k10.getIRacingStatus();
+      updateIRacingCard(status);
+    } catch (e) {
+      // Not available yet — leave as disconnected
+    }
+  }
 
   // ─── Logo subtitle ───
   function updateLogoSubtitle(value) {
@@ -934,15 +1015,6 @@
   initDiscordState();
   initK10State();
   initRemoteDashState();
-
-  // Restore iRacing sync toggle state
-  var syncToggle = document.getElementById('iracingSyncToggle');
-  if (syncToggle && _settings.iracingDataSync) {
-    syncToggle.classList.add('on');
-    var detail = document.getElementById('iracingSyncDetail');
-    var active = document.getElementById('iracingSyncActive');
-    if (detail) detail.style.display = 'none';
-    if (active) active.style.display = '';
-  }
+  initIRacingState();
 
   // ═══════════════════════════════════════════════════════════════

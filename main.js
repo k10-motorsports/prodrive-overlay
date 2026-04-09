@@ -1200,6 +1200,92 @@ ipcMain.handle('verify-k10-token', async () => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// IRACING DATA SYNC
+// Opens an embedded browser window for iRacing login, then
+// fetches career data (recent races, ratings, chart history)
+// from iRacing's Data API using the authenticated session.
+// ═══════════════════════════════════════════════════════════════
+
+const iracingClient = require('./iracing-client');
+
+// Forward ALL iRacing client logs to the renderer debug console + log file
+iracingClient.on('log', (line) => {
+  logToFile(line);
+  // Send to the iRacing Sync Console in the renderer
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('iracing-log', line);
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('iracing-log', line);
+  }
+});
+
+// Forward sync results to the overlay renderer
+iracingClient.on('sync-complete', (data) => {
+  logToFile(`[K10] iRacing sync complete: ${(data.recentRaces || []).length} races, custId=${data.custId}`);
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('iracing-sync', data);
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('iracing-sync', data);
+  }
+});
+
+iracingClient.on('auth-success', (info) => {
+  logToFile(`[K10] iRacing authenticated: ${info.displayName || '(pending)'} (${info.custId || '...'})`);
+});
+
+iracingClient.on('error', (err) => {
+  logToFile(`[K10] iRacing error: ${err.message || err}`);
+});
+
+ipcMain.handle('iracing-connect', async () => {
+  try {
+    // Lower overlay z-level so login window is accessible
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.setAlwaysOnTop(false);
+    }
+
+    const result = await iracingClient.connect();
+
+    // Restore z-level
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+    return result;
+  } catch (err) {
+    // Restore z-level on error
+    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop()) {
+      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('iracing-disconnect', async () => {
+  await iracingClient.disconnect();
+  return { success: true };
+});
+
+ipcMain.handle('iracing-sync', async () => {
+  try {
+    const result = await iracingClient.syncData();
+    return result;
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-iracing-status', async () => {
+  return iracingClient.getStatus();
+});
+
+ipcMain.handle('get-iracing-data', async () => {
+  return iracingClient.getData();
+});
+
+
 // ── IPC: Remote Dashboard Server ──
 ipcMain.handle('get-remote-server-info', async () => {
   return remoteServer.getInfo();

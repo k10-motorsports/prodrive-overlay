@@ -843,7 +843,7 @@
     <div class="settings-titlebar" id="settingsTitlebar">
       <div class="settings-titlebar-logo" id="settingsTitlebarLogo"></div>
       <div style="flex:1">
-        <div class="settings-title">RaceCor</div>
+        <div class="settings-title">RaceCor ProDrive</div>
         <div class="settings-subtitle">Configure the overlay</div>
       </div>
       <button class="settings-popout-btn" id="settingsPopoutBtn" onclick="popoutSettings()" title="Open on secondary display">⧉</button>
@@ -1073,7 +1073,7 @@
         <span class="settings-label">Rally Mode</span>
         <div class="settings-toggle disabled" id="layoutRallyToggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
       </div>
-      <div class="settings-hint" id="layoutRallyHint">Connect K10 Pro to enable</div>
+      <div class="settings-hint" id="layoutRallyHint">Connect RaceCor ProDrive to enable</div>
 
       </div><!-- /settings-two-col -->
     </div>
@@ -1088,7 +1088,7 @@
             <img src="images/branding/logomark.png" alt="RaceCor" style="width:20px;height:20px;object-fit:contain;" />
           </div>
           <div>
-            <div class="conn-card-title">K10 Pro Drive</div>
+            <div class="conn-card-title">RaceCor ProDrive</div>
             <div class="conn-card-subtitle">Connect to unlock all Pro features</div>
           </div>
         </div>
@@ -1100,12 +1100,12 @@
             <div class="conn-status-text" id="connK10Text">Not connected</div>
           </div>
           <div class="conn-card-detail">
-            Sign in with your K10 Pro Drive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
+            Sign in with your RaceCor ProDrive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
           </div>
           <div class="conn-card-actions">
             <button class="conn-btn k10-btn" id="k10ConnectBtn" onclick="connectK10Pro()">
               <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
-              Connect to K10 Pro Drive
+              Connect to RaceCor ProDrive
             </button>
           </div>
         </div>
@@ -1168,7 +1168,7 @@
       <!-- Pro features info (shown when not connected) -->
       <div class="conn-pro-info" id="k10ProInfo">
         <div class="conn-pro-info-title">Pro Features</div>
-        <div class="conn-pro-info-text">Connect your K10 Pro Drive account to enable all premium features. Visit <strong>prodrive.racecor.io</strong> to create your account.</div>
+        <div class="conn-pro-info-text">Connect your RaceCor ProDriveaccount to enable all premium features. Visit <strong>prodrive.racecor.io</strong> to create your account.</div>
         <div class="conn-pro-feature-grid">
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🎙️</span> Commentary</div>
           <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚠️</span> Incidents</div>
@@ -1182,7 +1182,7 @@
       </div>
 
       <!-- ═══ iRacing Data Sync Card ═══ -->
-      <div class="conn-card conn-card-secondary" id="iracingDataSyncCard" style="margin-top:8px;">
+      <div class="conn-card conn-card-iracing" id="iracingDataSyncCard" style="margin-top:8px;">
         <div class="conn-card-header" style="margin-bottom:6px;">
           <div class="conn-card-icon iracing" style="width:24px;height:24px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
@@ -1191,13 +1191,43 @@
             <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
             <div class="conn-card-subtitle" style="font-size:9px;">Session results &amp; rating tracking</div>
           </div>
-          <div style="margin-left:auto;">
-            <div class="settings-toggle" id="iracingSyncToggle" onclick="toggleIRacingSync(this)"></div>
+        </div>
+
+        <!-- Not connected state -->
+        <div id="iracingNotConnected">
+          <div class="conn-card-detail" style="font-size:10px;line-height:1.4;color:hsla(0,0%,100%,0.45);padding:0 2px;margin-bottom:8px;">
+            Sign in to iRacing to sync your race results, iRating, safety rating, and career stats to your ProDrive dashboard.
+          </div>
+          <div class="conn-card-actions">
+            <button class="conn-btn iracing-btn" id="iracingConnectBtn" onclick="connectIRacing()">
+              Sign in to iRacing
+            </button>
           </div>
         </div>
-        <div class="conn-card-detail" id="iracingSyncDetail" style="font-size:10px;line-height:1.4;color:hsla(0,0%,100%,0.45);padding:0 2px;">
-          When enabled, RaceCor.io Pro Drive records your race results — finish position, incidents, lap times, and rating changes — to build your personal performance dashboard. Data is captured at the start and end of each session and synced to your account. No telemetry is stored, only session summaries.
+
+        <!-- Connected state -->
+        <div id="iracingConnected" style="display:none;">
+          <div class="conn-card-status">
+            <div class="conn-dot green" id="iracingConnDot"></div>
+            <div class="conn-status-text" id="iracingConnText"><strong>Connected</strong></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+            <div>
+              <div class="conn-user-name" id="iracingDisplayName" style="font-size:12px;"></div>
+              <div class="conn-user-id" id="iracingCustId" style="font-size:10px;"></div>
+            </div>
+          </div>
+          <div id="iracingLastSync" style="font-size:9px;color:hsla(0,0%,100%,0.35);padding:2px 0;"></div>
+          <div class="conn-card-actions" style="gap:6px;">
+            <button class="conn-btn iracing-sync-btn" id="iracingSyncBtn" onclick="syncIRacing()">
+              Sync Now
+            </button>
+            <button class="conn-btn disconnect-btn" onclick="disconnectIRacing()" style="font-size:10px;padding:4px 10px;">
+              Disconnect
+            </button>
+          </div>
         </div>
+
       <!-- iRacing Data Sync Debug Console -->
       <div class="debug-console-wrapper">
         <div class="debug-console-header">
@@ -1207,16 +1237,6 @@
         <div class="debug-console-body" id="iRacingSyncConsole"></div>
       </div>
 
-        <div class="conn-card-detail" id="iracingSyncActive" style="display:none;font-size:10px;color:hsla(120,60%,60%,0.8);padding:0 2px;">
-          ✓ Session data will sync to your RaceCor.io Pro Drive dashboard
-        </div>
-
-        <!-- iRacing OAuth notice (legacy auth retired Dec 2025) -->
-        <div id="iracingOAuthNotice" style="display:none;padding:6px 2px 2px;">
-          <div style="font-size:10px;line-height:1.4;color:hsla(35,80%,60%,0.85);">
-            iRacing retired legacy authentication in Dec 2025. Data sync requires OAuth2 credentials which are not yet available. This feature will be re-enabled once iRacing reopens OAuth client registration.
-          </div>
-        </div>
       </div>
 
       <!-- Remote Dashboard (stream to iPad / any browser on LAN) -->
