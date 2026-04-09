@@ -43,6 +43,35 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  //  PURGE EMPTY SESSIONS — cleanup errant submissions
+  // ═══════════════════════════════════════════════════════════════
+
+  window.purgeEmptySessions = function() {
+    var token = _getToken();
+    if (!token) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Cannot purge — not signed in');
+      return;
+    }
+    if (window.debugConsole) window.debugConsole.logIRacingSync('info', 'Purging empty sessions...');
+
+    fetch(API_BASE + '/api/sessions?purge=empty', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success) {
+        if (window.debugConsole) window.debugConsole.logIRacingSync('success', 'Purged ' + data.purged + ' empty sessions (of ' + data.total + ' total)');
+      } else {
+        if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Purge failed: ' + (data.error || 'unknown'));
+      }
+    })
+    .catch(function(err) {
+      if (window.debugConsole) window.debugConsole.logIRacingSync('error', 'Purge error: ' + err.message);
+    });
+  };
+
+  // ═══════════════════════════════════════════════════════════════
   //  SESSION START — snapshot pre-race state
   // ═══════════════════════════════════════════════════════════════
 
@@ -149,6 +178,14 @@
     var totalLaps = +_v(p, 'DataCorePlugin.GameData.TotalLaps') || 0;
     var bestLapTime = +_v(p, 'DataCorePlugin.GameData.BestLapTime') || 0;
     var incidentCount = +_v(p, dsPre + 'IncidentCount') || 0;
+
+    // Guard: don't submit sessions with no meaningful race data.
+    // A valid race session should have at least 1 completed lap.
+    if (completedLaps <= 0 && bestLapTime <= 0) {
+      console.warn('[Session Sync] Empty session data (0 laps, no best lap) — skipping submission');
+      if (window.debugConsole) window.debugConsole.logIRacingSync('warn', 'Session skipped — no laps completed (empty session data)');
+      return;
+    }
 
     // Calculate incident delta from session start
     var incidentDelta = incidentCount - (_sessionStartSnapshot.startIncidents || 0);

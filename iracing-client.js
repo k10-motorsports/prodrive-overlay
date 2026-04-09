@@ -814,15 +814,94 @@ function startAuthPolling(resolve) {
         `);
         log('BFF endpoints found in JS source: ' + bffEndpoints);
 
-        // Keep the window open — don't close on discovery
+        // Step 4: Deep scan — look for ALL API-like URLs in every JS bundle
+        // (not just /bff/ — the data API might use a different base path)
+        const deepScan = await wc.executeJavaScript(`
+          (async () => {
+            try {
+              var allScripts = Array.from(document.querySelectorAll('script[src]'));
+              var findings = {
+                apiUrls: [],       // Full URLs containing 'api' or 'data'
+                httpUrls: [],      // Any https:// URLs found in code
+                wsUrls: [],        // WebSocket URLs
+                servicePatterns: [] // Angular service/endpoint patterns
+              };
+
+              for (var i = 0; i < allScripts.length; i++) {
+                try {
+                  var res = await fetch(allScripts[i].src);
+                  var text = await res.text();
+                  var fname = allScripts[i].src.split('/').pop();
+
+                  // Find all https:// URLs
+                  var httpMatches = text.match(/https?:\\/\\/[a-zA-Z0-9._-]+\\.iracing\\.com[a-zA-Z0-9_/.?=&-]*/g) || [];
+                  findings.httpUrls = findings.httpUrls.concat(httpMatches);
+
+                  // Find WebSocket URLs
+                  var wsMatches = text.match(/wss?:\\/\\/[a-zA-Z0-9._/-]+/g) || [];
+                  findings.wsUrls = findings.wsUrls.concat(wsMatches);
+
+                  // Find /data/ endpoint paths (the iRacing API pattern)
+                  var dataMatches = text.match(/["']\\/data\\/[a-zA-Z0-9_/.?=&-]+["']/g) || [];
+                  findings.apiUrls = findings.apiUrls.concat(dataMatches.map(function(m) { return m.replace(/["']/g, ''); }));
+
+                  // Find Angular service injection patterns and HTTP calls
+                  var httpClientMatches = text.match(/\\.(get|post|put|delete)\\s*\\(\\s*["'][^"']+["']/g) || [];
+                  findings.servicePatterns = findings.servicePatterns.concat(
+                    httpClientMatches.map(function(m) { return fname + ': ' + m; })
+                  );
+
+                  // Find environment/config URLs
+                  var envMatches = text.match(/apiUrl['"\\s:]+["'][^"']+["']/gi) || [];
+                  findings.servicePatterns = findings.servicePatterns.concat(
+                    envMatches.map(function(m) { return fname + ': ' + m; })
+                  );
+                  var baseMatches = text.match(/baseUrl['"\\s:]+["'][^"']+["']/gi) || [];
+                  findings.servicePatterns = findings.servicePatterns.concat(
+                    baseMatches.map(function(m) { return fname + ': ' + m; })
+                  );
+                } catch(e) {}
+              }
+
+              // Deduplicate
+              findings.httpUrls = [...new Set(findings.httpUrls)];
+              findings.wsUrls = [...new Set(findings.wsUrls)];
+              findings.apiUrls = [...new Set(findings.apiUrls)];
+              findings.servicePatterns = [...new Set(findings.servicePatterns)];
+
+              return JSON.stringify(findings);
+            } catch (e) {
+              return JSON.stringify({ _error: e.message });
+            }
+          })()
+        `);
+        log('Deep scan results: ' + deepScan);
+
+        // Step 5: Check for active WebSocket connections
+        const wsCheck = await wc.executeJavaScript(`
+          (function() {
+            // Check performance entries for WebSocket connections
+            var wsEntries = performance.getEntriesByType('resource')
+              .filter(function(e) { return e.name.includes('ws:') || e.name.includes('wss:'); });
+            return JSON.stringify({
+              wsEntries: wsEntries.map(function(e) { return e.name; }),
+              // Check if any global WebSocket references exist
+              hasSignalR: !!window.signalR,
+              hasSocketIO: !!window.io,
+              hasSockJS: !!window.SockJS
+            });
+          })()
+        `);
+        log('WebSocket check: ' + wsCheck);
+
+        // Keep the window open
         wc.executeJavaScript(`
           (function() {
             var t = document.querySelector('#k10-iracing-bar span');
-            if (t) t.textContent = 'iRacing — K10 Motorsports (API discovery complete)';
+            if (t) t.textContent = 'iRacing — K10 Motorsports (discovery complete)';
           })();
         `).catch(() => {});
 
-        // Don't close the window — we need it for further exploration
         log('Discovery complete. Window kept open for further exploration.');
         emitter.emit('auth-success', { custId: 'discovery', displayName: 'API Discovery' });
         resolve({ success: true, discovery: true });
