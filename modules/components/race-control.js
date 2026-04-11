@@ -144,7 +144,7 @@
       template.innerHTML = `
         <style>
           :host {
-            --ff: 'Barlow Condensed', 'Corbel', 'Segoe UI', system-ui, sans-serif;
+            --ff: 'neutronic-rounded', sans-serif;
             --ff-semi: inherit;
             display: block;
           }

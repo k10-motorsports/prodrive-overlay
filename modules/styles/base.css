@@ -27,15 +27,15 @@
     --cyan: #00acc1;
     --purple: hsl(280,80%,70%);
 
-    --ff: 'Barlow Condensed', 'Corbel', 'Segoe UI', system-ui, sans-serif;
-    --ff-display: 'Cinzel Decorative', 'Georgia', serif;
+    --ff: 'neutronic-rounded', sans-serif;
+    --ff-display: 'neutronic-rounded-black', sans-serif;
     --ff-mono: 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
     --fs-xl: 20px;
     --fs-lg: 13px;
     --fs-md: 11px;
     --fs-sm: 11px;
     --fs-xs: 10px;
-    --fw-black: 800;
+    --fw-black: 900;
     --fw-bold: 700;
     --fw-semi: 600;
     --fw-medium: 500;

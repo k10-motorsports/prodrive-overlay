@@ -408,7 +408,7 @@
   .settings-title {
     font-family: var(--ff-display);
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 900;
     margin-bottom: 4px;
   }
   .settings-subtitle {
@@ -671,7 +671,7 @@
     border-radius: 6px;
     padding: 8px 10px;
     margin-top: 4px;
-    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 14px;
     line-height: 1.6;
   }

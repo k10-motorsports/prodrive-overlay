@@ -203,7 +203,7 @@
           }
 
           .commentary-text {
-            font-family: 'Barlow Semi Condensed', var(--ff);
+            font-family: 'neutronic-rounded', var(--ff);
             font-size: 14px;
             font-weight: var(--fw-medium);
             line-height: 1.2;

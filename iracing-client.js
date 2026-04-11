@@ -261,6 +261,62 @@ async function fetchViaWebContents(wc, endpoint) {
 }
 
 
+// ── Full race history search ─────────────────────────────────
+
+/**
+ * Search ALL race results for a member via /results/search_series.
+ * Paginates through chunk URLs to get the full history.
+ * @param {Function} fetchFn - fetch function (takes a single path string)
+ * @param {number} custId
+ * @returns {Promise<Array>} All race result objects
+ */
+async function searchAllRaces(fetchFn, custId) {
+  const startBegin = '2008-01-01T00:00:00Z';
+  const startEnd = new Date().toISOString();
+  const path = `/results/search_series?cust_id=${custId}`
+    + `&start_range_begin=${startBegin}&start_range_end=${startEnd}`
+    + '&official_only=false&event_types=2,3,4,5';
+
+  try {
+    const result = await fetchFn(path);
+    const data = result.data || result;
+
+    if (data && data.chunk_info) {
+      // Paginated — fetch each chunk
+      const baseUrl = data.chunk_info.base_download_url || '';
+      const chunks = data.chunk_info.chunk_file_names || [];
+      const allRaces = [];
+
+      for (const chunkFile of chunks) {
+        try {
+          const chunkUrl = baseUrl + chunkFile;
+          const res = await fetch(chunkUrl);
+          if (res.ok) {
+            const chunkData = await res.json();
+            if (Array.isArray(chunkData)) {
+              allRaces.push(...chunkData);
+            }
+          }
+        } catch (e) {
+          log(`Chunk fetch error: ${e.message}`);
+        }
+      }
+
+      log(`SearchAllRaces: ${allRaces.length} results from ${chunks.length} chunks`);
+      return allRaces;
+    }
+
+    // Non-paginated response
+    if (Array.isArray(data)) return data;
+    if (data.results_page) return data.results_page;
+    return [];
+  } catch (e) {
+    log(`SearchAllRaces failed: ${e.message}`);
+    return [];
+  }
+}
+
+
 // ── Data sync ────────────────────────────────────────────────
 
 /**
@@ -276,11 +332,20 @@ async function syncAllData(token) {
   const displayName = memberInfo.display_name;
   log(`Member: ${displayName} (${custId})`);
 
-  // 2. Recent races
-  const recentRaces = await fetchIRacingEndpoint(
-    token,
-    `/stats/member_recent_races?cust_id=${custId}`
-  );
+  // 2. Fetch ALL race results (paginated search), fall back to recent 25
+  let allRaces = await searchAllRaces((p) => fetchIRacingEndpoint(token, p), custId);
+  let recentRaces;
+  if (allRaces.length > 0) {
+    log(`Full history: ${allRaces.length} races found`);
+    recentRaces = allRaces;
+  } else {
+    log('Full search empty, falling back to member_recent_races');
+    const recent = await fetchIRacingEndpoint(
+      token,
+      `/stats/member_recent_races?cust_id=${custId}`
+    );
+    recentRaces = recent.races || recent;
+  }
 
   // 3. Career summary
   const careerSummary = await fetchIRacingEndpoint(
@@ -397,7 +462,16 @@ async function syncAllDataViaDirectData(wc) {
   const displayName = memberInfo.display_name;
   log(`Member: ${displayName} (${custId})`);
 
-  const recentRaces = await fetchDirectData(wc, `/stats/member_recent_races?cust_id=${custId}`);
+  // Fetch ALL race results (paginated search), fall back to recent 25
+  let allRacesDirect = await searchAllRaces((p) => fetchDirectData(wc, p), custId);
+  let recentRaces;
+  if (allRacesDirect.length > 0) {
+    log(`Full history (direct): ${allRacesDirect.length} races found`);
+    recentRaces = allRacesDirect;
+  } else {
+    log('Full search empty (direct), falling back to member_recent_races');
+    recentRaces = await fetchDirectData(wc, `/stats/member_recent_races?cust_id=${custId}`);
+  }
   const careerSummary = await fetchDirectData(wc, `/stats/member_summary?cust_id=${custId}`);
 
   const chartData = {};
@@ -449,7 +523,16 @@ async function syncAllDataViaWebContents(wc) {
   const displayName = memberInfo.display_name;
   log(`Member: ${displayName} (${custId})`);
 
-  const recentRaces = await fetchViaWebContents(wc, `/stats/member_recent_races?cust_id=${custId}`);
+  // Fetch ALL race results (paginated search), fall back to recent 25
+  let allRacesWC = await searchAllRaces((p) => fetchViaWebContents(wc, p), custId);
+  let recentRaces;
+  if (allRacesWC.length > 0) {
+    log(`Full history (wc): ${allRacesWC.length} races found`);
+    recentRaces = allRacesWC;
+  } else {
+    log('Full search empty (wc), falling back to member_recent_races');
+    recentRaces = await fetchViaWebContents(wc, `/stats/member_recent_races?cust_id=${custId}`);
+  }
   const careerSummary = await fetchViaWebContents(wc, `/stats/member_summary?cust_id=${custId}`);
 
   const chartData = {};
@@ -1072,18 +1155,18 @@ async function runSync(wc) {
         var body = document.body.innerText;
 
         // User name from greeting
-        var m = body.match(/Good (?:Morning|Afternoon|Evening),\\\\s*([^\\\\n]+)/);
+        var m = body.match(/Good (?:Morning|Afternoon|Evening),\\s*([^\\n]+)/);
         if (m) r.displayName = m[1].trim();
 
         // Season info
-        m = body.match(/(\\\\d{4}) Season (\\\\d+).*Week (\\\\d+) of (\\\\d+)/);
+        m = body.match(/(\\d{4}) Season (\\d+).*Week (\\d+) of (\\d+)/);
         if (m) r.season = { year: m[1], season: m[2], week: m[3], totalWeeks: m[4] };
 
         // Recent Results — scrape all visible result cards
         r.recentResults = [];
         // Find all elements that look like result entries
         var allText = body;
-        var resultPattern = /(\\\\w{3} \\\\d{2}, \\\\d{4}, \\\\d+:\\\\d+ [AP]M).*?(?:RACE|QUAL|PRACTICE|TIME TRIAL).*?Car\\\\s*([^\\\\n]+?)\\\\s*Track\\\\s*([^\\\\n]+?)\\\\s*Finish\\\\s*(\\\\d+\\\\w+)\\\\s*Start\\\\s*(\\\\d+\\\\w+)/g;
+        var resultPattern = /(\\w{3} \\d{2}, \\d{4}, \\d+:\\d+ [AP]M).*?(?:RACE|QUAL|PRACTICE|TIME TRIAL).*?Car\\s*([^\\n]+?)\\s*Track\\s*([^\\n]+?)\\s*Finish\\s*(\\d+\\w+)\\s*Start\\s*(\\d+\\w+)/g;
         var rm;
         while ((rm = resultPattern.exec(allText)) !== null) {
           r.recentResults.push({
@@ -1093,13 +1176,13 @@ async function runSync(wc) {
         }
 
         // 30 Day Activity
-        m = body.match(/30 Day Activity.*?Days\\\\s*Active\\\\s*(\\\\d+).*?VS\\\\.\\\\s*LAST 30[^\\\\n]*?([^\\\\n]*Days)/s);
+        m = body.match(/30 Day Activity.*?Days\\s*Active\\s*(\\d+).*?VS\\.\\s*LAST 30[^\\n]*?([^\\n]*Days)/s);
         if (m) r.activity30d = { daysActive: m[1], vsLast30: m[2].trim() };
 
         // Licenses — look for license badges (R 2.50, B 1.63, D 3.59, etc.)
         r.licenses = [];
-        var licPattern = /([RABCD])\\\\s*(\\\\d+\\\\.\\\\d+)/g;
-        var licSection = body.match(/Licenses[\\\\s\\\\S]{0,500}/);
+        var licPattern = /([RABCD])\\s*(\\d+\\.\\d+)/g;
+        var licSection = body.match(/Licenses[\\s\\S]{0,500}/);
         if (licSection) {
           var lm;
           while ((lm = licPattern.exec(licSection[0])) !== null) {
@@ -1107,96 +1190,175 @@ async function runSync(wc) {
           }
         }
 
+        // Also try to grab iRating from the dashboard itself
+        // Modern iRacing dashboard may show iRating values directly
+        r.dashboardIRatings = [];
+        var irPat = /(?:iRating|iR)[:\\s]*(\\d[\\d,]*)/gi;
+        var irm;
+        while ((irm = irPat.exec(body)) !== null) {
+          r.dashboardIRatings.push(irm[1].replace(/,/g, ''));
+        }
+
+        // Grab page text for debugging
+        r.dashboardText = body.slice(0, 2000);
+
         return JSON.stringify(r);
       })()
     `);
     log('Dashboard scrape: ' + dashData);
     const dashboard = JSON.parse(dashData || '{}');
+    log('Dashboard displayName: ' + (dashboard.displayName || 'none'));
+    log('Dashboard iRatings: ' + JSON.stringify(dashboard.dashboardIRatings || []));
+    log('Dashboard licenses: ' + JSON.stringify(dashboard.licenses || []));
+    if (dashboard.dashboardText) {
+      log('Dashboard text (first 500): ' + dashboard.dashboardText.slice(0, 500));
+    }
 
-    // Step 2: Navigate to Profile page for iRating and detailed stats
-    log('Navigating to Profile page...');
-    await wc.executeJavaScript(`
-      // Click the Profile link in the sidebar nav
-      var links = document.querySelectorAll('a');
-      for (var i = 0; i < links.length; i++) {
-        if (links[i].textContent.trim() === 'Profile') {
-          links[i].click();
-          break;
-        }
-      }
-    `);
+    // Step 2: Deep-scrape the SAME dashboard page for all data
+    // DO NOT navigate away — iRacing SPA loses auth on navigation.
+    // DO NOT call /data/ API — requires separate auth we don't have.
+    // Everything we need must come from the current page DOM.
+    log('Deep-scraping dashboard page for iRating data...');
 
-    // Wait for the profile page to render
-    await new Promise(r => setTimeout(r, 3000));
-
-    const profileData = await wc.executeJavaScript(`
+    const deepScrape = await wc.executeJavaScript(`
       (function() {
-        var r = {};
+        var r = { ratings: {}, careerStats: {} };
         var body = document.body.innerText;
+        r.url = location.href;
+        r.bodyLen = body.length;
 
-        // iRating values — typically shown as "1,234" or "1234"
-        // Look for patterns near category labels
-        var categories = ['Road', 'Oval', 'Dirt Road', 'Dirt Oval', 'Sports Car'];
-        r.ratings = {};
+        // ══ DUMP PAGE TEXT FOR DEBUGGING ══
+        // Log first 3000 chars so we can see exactly what's on the page
+        r.pageText = body.slice(0, 3000);
 
-        // Try to find iRating values
-        var iratingPattern = /iRating[:\\\\s]*(\\\\d[\\\\d,]*)/gi;
+        // ══ iRATING EXTRACTION — multiple strategies ══
+        r.ratings.irating_raw = [];
+        r.ratings.byCategory = {};
+
+        // Strategy 1: "iRating: 1,234" or "iRating 1234" or "iR: 1234"
+        var irPat1 = /(?:iRating|iR)[:\\s]*(\\d[\\d,]*)/gi;
         var im;
-        while ((im = iratingPattern.exec(body)) !== null) {
-          r.ratings.irating_raw = (r.ratings.irating_raw || []);
-          r.ratings.irating_raw.push(im[1].replace(/,/g, ''));
+        while ((im = irPat1.exec(body)) !== null) {
+          var v = im[1].replace(/,/g, '');
+          if (+v >= 100 && +v <= 15000) r.ratings.irating_raw.push(v);
         }
 
-        // Safety Rating
-        var srPattern = /Safety Rating[:\\\\s]*([RABCD]?)\\\\s*(\\\\d+\\\\.\\\\d+)/gi;
-        var sm;
+        // Strategy 2: Numbers near category labels
+        var categories = ['Road', 'Oval', 'Dirt Road', 'Dirt Oval', 'Sports Car', 'Formula'];
+        for (var ci = 0; ci < categories.length; ci++) {
+          var cat = categories[ci];
+          // Look within 200 chars after category name for a 3-5 digit number
+          var catPat = new RegExp(cat + '[\\\\s\\\\S]{0,200}?(\\\\d[\\\\d,]{2,5})', 'i');
+          var cm = body.match(catPat);
+          if (cm) {
+            // Skip inactive categories: "---" before the number means no real data
+            var textBetween = cm[0].slice(0, cm[0].lastIndexOf(cm[1]));
+            if (textBetween.indexOf('---') !== -1) continue;
+            var val = parseInt(cm[1].replace(/,/g, ''));
+            if (val >= 100 && val <= 15000) {
+              r.ratings.byCategory[cat.toLowerCase()] = val;
+            }
+          }
+        }
+
+        // Strategy 3: All standalone 3-5 digit numbers (iRating candidates)
+        r.ratings.allNumbers = [];
+        var numPat = /\\b(\\d{1,2},\\d{3}|\\d{3,5})\\b/g;
+        var nm;
+        while ((nm = numPat.exec(body)) !== null) {
+          var n = parseInt(nm[1].replace(/,/g, ''));
+          if (n >= 500 && n <= 12000) {
+            r.ratings.allNumbers.push(n);
+          }
+        }
+        // Deduplicate
+        r.ratings.allNumbers = r.ratings.allNumbers.filter(function(v, i, a) { return a.indexOf(v) === i; }).slice(0, 30);
+
+        // ══ SAFETY RATING / LICENSE ══
         r.ratings.sr_raw = [];
-        while ((sm = srPattern.exec(body)) !== null) {
+        r.ratings.licenseMatches = [];
+
+        // "Safety Rating: A 3.41"
+        var srPat = /Safety Rating[:\\s]*([RABCD]?)\\s*(\\d+\\.\\d+)/gi;
+        var sm;
+        while ((sm = srPat.exec(body)) !== null) {
           r.ratings.sr_raw.push({ class: sm[1], rating: sm[2] });
         }
 
-        // Member Since
-        var msm = body.match(/Member Since[:\\\\s]*(\\\\w+ \\\\d{4}|\\\\d{4})/i);
-        if (msm) r.memberSince = msm[1];
-
-        // Customer ID
-        var cidm = body.match(/(?:Customer|Cust\\\\.?|Member)\\\\s*(?:ID|#)[:\\\\s]*(\\\\d+)/i);
-        if (cidm) r.custId = cidm[1];
-
-        // Starts, Wins, Top 5, etc.
-        var statsPattern = /(Starts|Wins|Top 5|Podiums|Laps|Inc(?:idents)?)[:\\\\s]*(\\\\d[\\\\d,]*)/gi;
-        r.careerStats = {};
-        var stm;
-        while ((stm = statsPattern.exec(body)) !== null) {
-          r.careerStats[stm[1].toLowerCase()] = stm[2].replace(/,/g, '');
+        // Standalone "A 3.41" or "B 2.99" patterns
+        var licPat = /\\b([RABCD])\\s+(\\d\\.\\d{2})\\b/g;
+        var lm;
+        while ((lm = licPat.exec(body)) !== null) {
+          r.ratings.licenseMatches.push({ class: lm[1], rating: lm[2] });
         }
 
-        // Grab a large text sample for debugging
-        r.profileText = body.slice(0, 2000);
+        // ══ CUSTOMER ID ══
+        r.custId = '';
+        var cidm = body.match(/(?:Customer|Cust\\.?|Member)\\s*(?:ID|#)[:\\s]*(\\d+)/i);
+        if (cidm) r.custId = cidm[1];
+        if (!r.custId) {
+          var urlCid = location.href.match(/(?:cust_id|custid|member)[=/](\\d+)/i);
+          if (urlCid) r.custId = urlCid[1];
+        }
+
+        // ══ MEMBER SINCE ══
+        var msm = body.match(/Member Since[:\\s]*(\\w+ \\d{4}|\\d{4})/i);
+        if (msm) r.memberSince = msm[1];
+
+        // ══ CAREER STATS ══
+        var statsPat = /(Starts|Wins|Top 5|Podiums|Laps|Inc(?:idents)?|Races|Poles|Top 10)[:\\s]*(\\d[\\d,]*)/gi;
+        var stm;
+        while ((stm = statsPat.exec(body)) !== null) {
+          r.careerStats[stm[1].toLowerCase()] = stm[2].replace(/,/g, '');
+        }
 
         return JSON.stringify(r);
       })()
     `);
-    log('Profile scrape: ' + profileData);
-    const profile = JSON.parse(profileData || '{}');
 
-    // Step 3: Navigate back to saved URL
-    log('Navigating back to: ' + savedUrl);
-    await wc.loadURL(savedUrl).catch((err) => {
-      log('Navigation back failed: ' + err.message);
-    });
+    const profile = JSON.parse(deepScrape || '{}');
+    log('Page URL: ' + (profile.url || 'unknown'));
+    log('Page body length: ' + (profile.bodyLen || 0));
+    log('irating_raw: ' + JSON.stringify(profile.ratings?.irating_raw || []));
+    log('byCategory: ' + JSON.stringify(profile.ratings?.byCategory || {}));
+    log('allNumbers (iR candidates): ' + JSON.stringify(profile.ratings?.allNumbers || []));
+    log('licenseMatches: ' + JSON.stringify(profile.ratings?.licenseMatches || []));
+    log('sr_raw: ' + JSON.stringify(profile.ratings?.sr_raw || []));
+    log('custId: ' + (profile.custId || 'none'));
+    log('careerStats: ' + JSON.stringify(profile.careerStats || {}));
 
-    // Wait for page to load
-    await new Promise(r => setTimeout(r, 2000));
+    // If custId not found in DOM, try BFF /sessions endpoint
+    if (!profile.custId) {
+      try {
+        const sessionsData = await fetchBff('/bff/pub/proxy/api/sessions');
+        if (sessionsData) {
+          const sid = sessionsData.cust_id || sessionsData.custId || sessionsData.custid;
+          if (sid) {
+            profile.custId = String(sid);
+            log('custId from /sessions: ' + profile.custId);
+          }
+        }
+      } catch (e) {
+        log('Could not get custId from /sessions: ' + e.message);
+      }
+    }
 
-    // Step 4: Build sync payload from scraped data
+    // Log page text so we can see what's actually on the page
+    if (profile.pageText) {
+      // Split into chunks to avoid log truncation
+      for (let i = 0; i < profile.pageText.length; i += 500) {
+        log('PAGE[' + i + ']: ' + profile.pageText.slice(i, i + 500));
+      }
+    }
+
     const displayName = dashboard.displayName || '';
     const custId = profile.custId || '';
     log('Member: ' + displayName + ' (#' + custId + ')');
 
+    // Build sync payload — everything from DOM scraping, no API calls
     const payload = {
       custId,
-      displayName,
+      displayName: displayName || '',
       season: dashboard.season,
       recentRaces: dashboard.recentResults || [],
       licenses: dashboard.licenses || [],
@@ -1210,15 +1372,16 @@ async function runSync(wc) {
     saveData(payload);
     saveStatus({ connected: true, lastSync: payload.exportedAt, custId, displayName });
 
-    const raceCount = payload.recentRaces.length;
+    const raceCount = (payload.recentRaces || []).length;
+    const chartCats = payload.chartData ? Object.keys(payload.chartData).length : 0;
     log('Sync complete! ' + displayName + ' — ' + raceCount + ' recent races, '
-      + payload.licenses.length + ' licenses');
+      + payload.licenses.length + ' licenses, ' + chartCats + ' chart categories');
 
     // Hide overlay
     await wc.executeJavaScript(`window.__k10_hideSyncOverlay && window.__k10_hideSyncOverlay();`).catch(() => {});
 
     // Show success toast
-    const toastMsg = 'Synced! ' + displayName + ' — ' + raceCount + ' races';
+    const toastMsg = 'Synced! ' + displayName + ' — ' + raceCount + ' races' + (chartCats > 0 ? ', ' + chartCats + ' rating categories' : '');
     await wc.executeJavaScript(
       `window.__k10_showToast && window.__k10_showToast('success', '${toastMsg.replace(/'/g, "\\'")}');`
     ).catch(() => {});
@@ -1227,7 +1390,9 @@ async function runSync(wc) {
     await wc.executeJavaScript(`window.__k10_hideConsole && window.__k10_hideConsole();`).catch(() => {});
 
     updateSidebarStatus(true, displayName, custId, payload.exportedAt);
+    log('Emitting sync-complete — irating_raw: ' + JSON.stringify(payload.ratings?.irating_raw?.slice(0, 4) || []) + ', byCategory: ' + JSON.stringify(payload.ratings?.byCategory || {}));
     emitter.emit('sync-complete', payload);
+    log('sync-complete emitted — main.js listener should fire now');
 
   } catch (syncErr) {
     log('Sync error: ' + syncErr.message);
@@ -1453,11 +1618,12 @@ async function syncData() {
     }
   }
 
-  // Cookie-based: open a hidden window on the data API domain
+  // Cookie-based: open a hidden window on the dashboard
+  // Use a reasonable viewport so Angular renders the full dashboard DOM
   const hiddenWin = new BrowserWindow({
     show: false,
-    width: 400,
-    height: 300,
+    width: 1280,
+    height: 900,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -1469,8 +1635,8 @@ async function syncData() {
   try {
     await hiddenWin.loadURL('https://members-ng.iracing.com/web/racing/home/dashboard');
 
-    // Give the SPA a moment to initialize and make its BFF calls
-    await new Promise(r => setTimeout(r, 4000));
+    // Give the SPA time to fully render the dashboard (Angular SSR + hydration)
+    await new Promise(r => setTimeout(r, 6000));
 
     // Auth check: use the known-working /sessions endpoint
     const authCheck = await hiddenWin.webContents.executeJavaScript(`
@@ -1495,38 +1661,12 @@ async function syncData() {
     log('/sessions auth check passed. Response keys: ' + Object.keys(authCheck._data || {}).join(', '));
     log('/sessions data: ' + JSON.stringify(authCheck._data).slice(0, 500));
 
-    // Run BFF endpoint discovery: scan JS bundles for all API paths
-    log('Scanning JS bundles for BFF endpoint paths...');
-    const bffEndpoints = await hiddenWin.webContents.executeJavaScript(`
-      (async () => {
-        try {
-          var allScripts = Array.from(document.querySelectorAll('script[src]'));
-          var allPaths = [];
-          for (var i = 0; i < allScripts.length; i++) {
-            try {
-              var res = await fetch(allScripts[i].src);
-              var text = await res.text();
-              // Match /bff/ paths
-              var bffMatches = text.match(/\\/bff\\/[a-zA-Z0-9_/.-]+/g) || [];
-              allPaths = allPaths.concat(bffMatches);
-              // Match /api/ paths (these are likely the relative API paths used by the Angular services)
-              var apiMatches = text.match(/["']\\/api\\/[a-zA-Z0-9_/.?=&-]+["']/g) || [];
-              allPaths = allPaths.concat(apiMatches.map(function(m) { return m.replace(/["']/g, ''); }));
-              // Match proxy patterns
-              var proxyMatches = text.match(/proxy\\/api\\/[a-zA-Z0-9_/.-]+/g) || [];
-              allPaths = allPaths.concat(proxyMatches.map(function(m) { return '/bff/pub/' + m; }));
-            } catch(e) {}
-          }
-          return JSON.stringify([...new Set(allPaths)].sort());
-        } catch (e) {
-          return JSON.stringify({ _error: e.message });
-        }
-      })()
-    `);
-    log('BFF endpoints found in JS bundles: ' + bffEndpoints);
+    // Auth confirmed — run DOM scraping on this window to get iRating data
+    log('Auth confirmed, running DOM scrape on hidden window...');
+    await runSync(hiddenWin.webContents);
 
     hiddenWin.close();
-    return { success: true, discovery: true, endpoints: bffEndpoints };
+    return { success: true };
   } catch (err) {
     hiddenWin.close();
     log(`Re-sync failed: ${err.message}`);
@@ -1580,4 +1720,5 @@ module.exports = Object.assign(emitter, {
   syncData,
   getStatus,
   getData,
+  log,
 });

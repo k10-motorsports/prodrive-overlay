@@ -1259,10 +1259,42 @@ iracingClient.on('log', (line) => {
 
 // Forward sync results to the overlay renderer
 iracingClient.on('sync-complete', (data) => {
-  logToFile(`[K10] iRacing sync complete: ${(data.recentRaces || []).length} races, custId=${data.custId}`);
+  // Use iracingClient.log() so messages appear in BOTH the sync console AND log file
+  const syncLog = (msg) => iracingClient.log('[MAIN] ' + msg);
+
+  syncLog('sync-complete received — forwarding to overlay...');
+
+  const ir = data.ratings?.irating_raw?.[0];
+  const irNum = ir ? parseInt(ir) : 0;
+  const byCat = data.ratings?.byCategory || {};
+  const catIR = byCat['sports car'] || byCat['formula'] || byCat['road']
+    || byCat['oval'] || Object.values(byCat)[0] || 0;
+  const finalIR = irNum || catIR;
+
+  syncLog(`iRating values — raw[0]=${irNum}, byCat=${catIR}, final=${finalIR}`);
+
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('iracing-sync', data);
+    syncLog('Sent iracing-sync IPC to overlay');
+
+    // ── Direct injection backup ──
+    // Also inject iRating directly into the overlay window in case the
+    // IPC → preload → connections.js chain has a gap.
+    if (finalIR > 0) {
+      syncLog(`Direct-injecting iRating=${finalIR} into overlay window`);
+      const irVal = finalIR;
+      overlayWindow.webContents.executeJavaScript(
+        `window._manualIRating = ${irVal}; console.log('[K10-INJECT] Set window._manualIRating = ${irVal}'); ${irVal};`
+      ).then((result) => {
+        syncLog('Direct injection SUCCESS — returned ' + result);
+      }).catch(e => {
+        syncLog('Direct injection FAILED: ' + e.message);
+      });
+    }
+  } else {
+    syncLog('WARNING: overlayWindow not available! Cannot forward sync data.');
   }
+
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.webContents.send('iracing-sync', data);
   }

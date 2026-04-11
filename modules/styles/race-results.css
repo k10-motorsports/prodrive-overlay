@@ -94,7 +94,7 @@
 #rrPosition {
   font-size: 64px;
   font-weight: var(--fw-black, 800);
-  font-family: var(--ff-display, serif);
+  font-family: var(--ff-display, sans-serif);
   line-height: 1;
   min-width: 100px;
 }
@@ -105,8 +105,8 @@
 
 #rrTrack {
   font-size: 24px;
-  font-weight: var(--fw-bold, 700);
-  font-family: var(--ff-display, serif);
+  font-weight: 900;
+  font-family: var(--ff-display, sans-serif);
   color: var(--text, #fff);
   margin: 0;
 }
