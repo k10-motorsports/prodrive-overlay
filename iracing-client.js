@@ -1355,6 +1355,314 @@ async function runSync(wc) {
     const custId = profile.custId || '';
     log('Member: ' + displayName + ' (#' + custId + ')');
 
+    // ══ STEP 3: Navigate to Charts page & intercept JSON for iRating history ══
+    // We can't call iRacing's data APIs ourselves (auth doesn't work from our
+    // context — see CLAUDE.md). But the charts PAGE's Angular code fetches
+    // chart_data JSON using the page's own session cookies.
+    //
+    // Approach: attach Electron's CDP (Chrome DevTools Protocol) debugger to
+    // capture all network response bodies at the browser level. This survives
+    // page navigations (unlike monkey-patching fetch, which gets wiped by
+    // loadURL). After the page loads and Angular fetches the chart data, we
+    // read the response bodies from CDP.
+    let chartData = {};
+    if (custId) {
+      const dbg = wc.debugger;
+      let debuggerAttached = false;
+      // Map of requestId → { url, status } for responses we want bodies of
+      const pendingBodies = new Map();
+      // Collected raw response bodies keyed by URL
+      const capturedBodies = new Map();
+
+      try {
+        // ── Attach CDP debugger & enable Network domain ──
+        try {
+          dbg.attach('1.3');
+          debuggerAttached = true;
+          log('[CHARTS] CDP debugger attached');
+        } catch (attachErr) {
+          log('[CHARTS] CDP attach failed (may already be attached): ' + attachErr.message);
+          // Try to use it anyway — may already be attached
+          debuggerAttached = true;
+        }
+
+        await dbg.sendCommand('Network.enable');
+        log('[CHARTS] CDP Network.enable sent');
+
+        // Listen for network responses — flag chart_data and S3 URLs for body capture
+        const messageHandler = (_event, method, params) => {
+          if (method === 'Network.responseReceived') {
+            const url = params.response?.url || '';
+            const status = params.response?.status || 0;
+            // Capture chart_data responses, S3 data responses, and any JSON from the data API
+            if (url.includes('chart_data') || url.includes('member/chart') ||
+                url.includes('/data/member/') || url.includes('/bff/') ||
+                (url.includes('s3') && url.includes('iRacing')) ||
+                (url.includes('.amazonaws.com') && status === 200)) {
+              pendingBodies.set(params.requestId, { url, status });
+            }
+          }
+          // Also capture loading finished (needed for getResponseBody to work)
+          if (method === 'Network.loadingFinished') {
+            // Request is fully loaded — we can now getResponseBody
+            const pending = pendingBodies.get(params.requestId);
+            if (pending) {
+              pending.loaded = true;
+            }
+          }
+        };
+        dbg.on('message', messageHandler);
+
+        // ── Navigate to charts page ──
+        const chartsUrl = `https://members-ng.iracing.com/web/racing/profile?cust_id=${custId}&tab=charts`;
+        log('[CHARTS] Navigating to: ' + chartsUrl);
+        try {
+          await wc.loadURL(chartsUrl);
+          log('[CHARTS] Navigation complete, current URL: ' + wc.getURL());
+        } catch (navErr) {
+          log('[CHARTS] loadURL error: ' + navErr.message);
+          // loadURL can throw on redirect errors (-3) which are normal for iRacing OAuth
+          log('[CHARTS] Current URL after error: ' + wc.getURL());
+        }
+
+        // Wait for Angular to hydrate and fetch chart data
+        // (up to 5 categories × 2 chart types = ~10 requests, some via S3 redirects)
+        log('[CHARTS] Waiting 12s for Angular data requests...');
+        await new Promise(r => setTimeout(r, 12000));
+        log('[CHARTS] Captured ' + pendingBodies.size + ' relevant network responses');
+
+        // ── Read response bodies via CDP ──
+        for (const [requestId, meta] of pendingBodies) {
+          try {
+            const bodyResult = await dbg.sendCommand('Network.getResponseBody', { requestId });
+            const bodyText = bodyResult.body || '';
+            if (bodyText.length > 10) {
+              capturedBodies.set(meta.url, bodyText);
+              log('[CHARTS] Got body for: ' + meta.url.slice(0, 120) + ' (' + bodyText.length + ' chars)');
+            }
+          } catch (bodyErr) {
+            // Response body may have been evicted or request was a redirect
+            log('[CHARTS] Could not get body for ' + meta.url.slice(0, 80) + ': ' + bodyErr.message);
+          }
+        }
+
+        // Stop listening & detach
+        dbg.removeListener('message', messageHandler);
+        log('[CHARTS] Captured ' + capturedBodies.size + ' response bodies total');
+
+        // ── Parse captured JSON into chartData ──
+        const CAT_ID_MAP = { 1: 'oval', 2: 'road', 3: 'dirt_oval', 4: 'dirt_road', 5: 'sports_car' };
+
+        for (const [url, bodyText] of capturedBodies) {
+          try {
+            let json = JSON.parse(bodyText);
+
+            // S3 link envelope — follow it via a page-context fetch
+            if (json && json.link && typeof json.link === 'string') {
+              log('[CHARTS] Following S3 link from ' + url.slice(0, 80));
+              try {
+                const s3Body = await wc.executeJavaScript(`
+                  (async function() {
+                    try {
+                      var res = await fetch('${json.link.replace(/'/g, "\\'")}');
+                      return await res.text();
+                    } catch(e) { return ''; }
+                  })()
+                `);
+                if (s3Body && s3Body.length > 10) {
+                  json = JSON.parse(s3Body);
+                  log('[CHARTS] S3 data: ' + s3Body.length + ' chars');
+                }
+              } catch (s3Err) {
+                log('[CHARTS] S3 follow failed: ' + s3Err.message);
+                continue;
+              }
+            }
+
+            // Extract data points array — handles multiple shapes:
+            //   [{ when, value }, ...]
+            //   { data: [{ when, value }, ...] }
+            //   { chart_data: [...] }
+            let points = [];
+            if (Array.isArray(json)) {
+              points = json;
+            } else if (json && typeof json === 'object') {
+              points = json.data || json.chart_data || json.points || json.series || [];
+              if (!Array.isArray(points)) points = [];
+            }
+
+            if (points.length === 0) continue;
+            const first = points[0];
+            if (!first || (first.when === undefined && first.value === undefined &&
+                          first.x === undefined && first.y === undefined)) {
+              // Not chart data points
+              log('[CHARTS] Skipping non-chart data from ' + url.slice(0, 80) + ' (keys: ' + (first ? Object.keys(first).join(',') : 'null') + ')');
+              continue;
+            }
+
+            // Normalize to { when, value }
+            const normalized = points.map(p => ({
+              when: p.when || p.date || p.x || '',
+              value: p.value || p.y || p.irating || 0,
+            })).filter(p => p.when && p.value > 0);
+
+            if (normalized.length === 0) continue;
+
+            // Determine category and chart type from URL
+            const catMatch = url.match(/category_id[=:](\d+)/);
+            const typeMatch = url.match(/chart_type[=:](\d+)/);
+            const catId = catMatch ? parseInt(catMatch[1]) : 0;
+            const chartType = typeMatch ? parseInt(typeMatch[1]) : 0;
+            const category = CAT_ID_MAP[catId];
+
+            if (category) {
+              if (!chartData[category]) chartData[category] = { irating: [], sr: [] };
+              if (chartType === 3) {
+                chartData[category].sr = normalized;
+                log('[CHARTS] SR: ' + category + ' — ' + normalized.length + ' points');
+              } else {
+                chartData[category].irating = normalized;
+                log('[CHARTS] iRating: ' + category + ' — ' + normalized.length + ' points');
+              }
+            } else {
+              log('[CHARTS] Uncategorized chart data: ' + normalized.length + ' points from ' + url.slice(0, 100));
+              log('[CHARTS]   sample: ' + JSON.stringify(normalized.slice(0, 2)));
+            }
+          } catch (parseErr) {
+            // Not JSON — skip
+          }
+        }
+
+        // ── Fallback: if CDP captured nothing, try direct page-context fetch ──
+        // The page's Angular code fetches these successfully — we call from the
+        // same page context with the same session cookies.
+        if (Object.keys(chartData).length === 0) {
+          log('[CHARTS] CDP captured no chart data — trying direct page-context fetch...');
+
+          const directRaw = await wc.executeJavaScript(`
+            (async function() {
+              var results = { categories: {}, errors: [], s3Follows: 0 };
+              var catMap = { 1: 'oval', 2: 'road', 3: 'dirt_oval', 4: 'dirt_road', 5: 'sports_car' };
+              var custId = '${custId}';
+
+              for (var catId = 1; catId <= 5; catId++) {
+                for (var chartType of [1, 3]) {
+                  var label = catMap[catId] + '_' + (chartType === 1 ? 'ir' : 'sr');
+                  var paths = [
+                    '/bff/pub/proxy/api/member/chart_data?cust_id=' + custId + '&category_id=' + catId + '&chart_type=' + chartType,
+                    '/data/member/chart_data?cust_id=' + custId + '&category_id=' + catId + '&chart_type=' + chartType
+                  ];
+                  for (var pi = 0; pi < paths.length; pi++) {
+                    try {
+                      var res = await fetch(paths[pi], { credentials: 'same-origin' });
+                      if (!res.ok) { results.errors.push(label + ' → ' + res.status); continue; }
+                      var json = await res.json();
+                      if (json && json.link) {
+                        results.s3Follows++;
+                        var s3 = await fetch(json.link);
+                        json = await s3.json();
+                      }
+                      var pts = Array.isArray(json) ? json : (json.data || json.chart_data || []);
+                      if (pts.length > 0) {
+                        var cat = catMap[catId];
+                        if (!results.categories[cat]) results.categories[cat] = { irating: [], sr: [] };
+                        results.categories[cat][chartType === 1 ? 'irating' : 'sr'] = pts;
+                        break;
+                      }
+                    } catch(e) { results.errors.push(label + ': ' + e.message); }
+                  }
+                }
+              }
+              return JSON.stringify(results);
+            })()
+          `);
+
+          const direct = JSON.parse(directRaw || '{}');
+          log('[CHARTS] Direct fetch: ' + Object.keys(direct.categories || {}).length + ' categories, ' + (direct.s3Follows || 0) + ' S3 follows');
+          for (const err of (direct.errors || [])) log('[CHARTS] direct err: ' + err);
+
+          for (const [category, data] of Object.entries(direct.categories || {})) {
+            const irPts = (data.irating || []).map(p => ({ when: p.when || '', value: p.value || 0 })).filter(p => p.when && p.value > 0);
+            const srPts = (data.sr || []).map(p => ({ when: p.when || '', value: p.value || 0 })).filter(p => p.when && p.value > 0);
+            if (irPts.length > 0 || srPts.length > 0) {
+              chartData[category] = { irating: irPts, sr: srPts };
+              log('[CHARTS] Direct: ' + category + ' — ' + irPts.length + ' iR, ' + srPts.length + ' SR');
+            }
+          }
+        }
+
+        // ── Also check Angular TransferState (SSR-embedded JSON) ──
+        if (Object.keys(chartData).length === 0) {
+          log('[CHARTS] Checking for Angular TransferState...');
+          const transferRaw = await wc.executeJavaScript(`
+            (function() {
+              // Angular Universal embeds SSR data in a script tag
+              var el = document.getElementById('serverApp-state') ||
+                       document.querySelector('script[type="application/json"][id]');
+              if (el) return el.textContent;
+              // Also check for inline JSON in script tags
+              var scripts = document.querySelectorAll('script:not([src])');
+              for (var i = 0; i < scripts.length; i++) {
+                var t = scripts[i].textContent || '';
+                if (t.includes('chart_data') || t.includes('irating') || t.includes('"when"')) {
+                  return t.slice(0, 50000);
+                }
+              }
+              return '';
+            })()
+          `).catch(() => '');
+          if (transferRaw && transferRaw.length > 10) {
+            log('[CHARTS] TransferState found: ' + transferRaw.length + ' chars');
+            log('[CHARTS] TransferState preview: ' + transferRaw.slice(0, 500));
+            // Could parse further here once we see the structure
+          } else {
+            log('[CHARTS] No TransferState found');
+          }
+        }
+
+        // ── Summary ──
+        const totalChartPoints = Object.values(chartData).reduce(
+          (sum, cat) => sum + ((cat && cat.irating) ? cat.irating.length : 0), 0
+        );
+        log('[CHARTS] Total iRating history: ' + totalChartPoints + ' points across ' + Object.keys(chartData).length + ' categories');
+        for (const [cat, data] of Object.entries(chartData)) {
+          const irLen = (data.irating || []).length;
+          const srLen = (data.sr || []).length;
+          if (irLen > 0) {
+            const first = data.irating[0];
+            const last = data.irating[irLen - 1];
+            log('[CHARTS]   ' + cat + ': ' + irLen + ' iR (' + (first.when || '?') + ' → ' + (last.when || '?') + '), ' + srLen + ' SR');
+          }
+        }
+
+        // Navigate back to the dashboard
+        log('[CHARTS] Navigating back...');
+        await wc.loadURL(savedUrl).catch(() => {
+          return wc.loadURL('https://members-ng.iracing.com/web/racing/home/dashboard');
+        });
+        await new Promise(r => setTimeout(r, 3000));
+
+      } catch (chartErr) {
+        log('[CHARTS] Error: ' + chartErr.message + '\n' + chartErr.stack);
+        try {
+          await wc.loadURL(savedUrl).catch(() =>
+            wc.loadURL('https://members-ng.iracing.com/web/racing/home/dashboard')
+          );
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (navErr) {
+          log('[CHARTS] Failed to navigate back: ' + navErr.message);
+        }
+      } finally {
+        // Always detach debugger
+        if (debuggerAttached) {
+          try { dbg.detach(); log('[CHARTS] CDP debugger detached'); }
+          catch (detachErr) { log('[CHARTS] CDP detach: ' + detachErr.message); }
+        }
+      }
+    } else {
+      log('[CHARTS] Skipping — no custId available');
+    }
+
     // Build sync payload — everything from DOM scraping, no API calls
     const payload = {
       custId,
@@ -1364,6 +1672,7 @@ async function runSync(wc) {
       licenses: dashboard.licenses || [],
       ratings: profile.ratings || {},
       careerStats: profile.careerStats || {},
+      chartData: Object.keys(chartData).length > 0 ? chartData : undefined,
       memberSince: profile.memberSince || '',
       exportedAt: new Date().toISOString(),
       source: 'electron-iracing-dom',
@@ -1374,14 +1683,19 @@ async function runSync(wc) {
 
     const raceCount = (payload.recentRaces || []).length;
     const chartCats = payload.chartData ? Object.keys(payload.chartData).length : 0;
+    const chartPoints = Object.values(chartData).reduce(
+      (sum, cat) => sum + ((cat && cat.irating) ? cat.irating.length : 0), 0
+    );
     log('Sync complete! ' + displayName + ' — ' + raceCount + ' recent races, '
-      + payload.licenses.length + ' licenses, ' + chartCats + ' chart categories');
+      + payload.licenses.length + ' licenses, ' + chartCats + ' chart categories, '
+      + chartPoints + ' history points');
 
     // Hide overlay
     await wc.executeJavaScript(`window.__k10_hideSyncOverlay && window.__k10_hideSyncOverlay();`).catch(() => {});
 
     // Show success toast
-    const toastMsg = 'Synced! ' + displayName + ' — ' + raceCount + ' races' + (chartCats > 0 ? ', ' + chartCats + ' rating categories' : '');
+    const toastMsg = 'Synced! ' + displayName + ' — ' + raceCount + ' races'
+      + (chartCats > 0 ? ', ' + chartPoints + ' iRating history points' : '');
     await wc.executeJavaScript(
       `window.__k10_showToast && window.__k10_showToast('success', '${toastMsg.replace(/'/g, "\\'")}');`
     ).catch(() => {});

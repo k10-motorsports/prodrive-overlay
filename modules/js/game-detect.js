@@ -6,7 +6,6 @@
     ac:          { hasIRating: false, hasIncidents: false, hasFlags: true,  hasFormation: false, hasDRS: false, hasERS: false },
     acevo:       { hasIRating: false, hasIncidents: false, hasFlags: true,  hasFormation: false, hasDRS: false, hasERS: false },
     acrally:     { hasIRating: false, hasIncidents: false, hasFlags: false, hasFormation: false, hasDRS: false, hasERS: false },
-    lmu:         { hasIRating: false, hasIncidents: false, hasFlags: true,  hasFormation: true,  hasDRS: true,  hasERS: true  },
     raceroom:    { hasIRating: false, hasIncidents: false, hasFlags: true,  hasFormation: true,  hasDRS: true,  hasERS: false },
     eawrc:       { hasIRating: false, hasIncidents: false, hasFlags: false, hasFormation: false, hasDRS: false, hasERS: false },
     forza:       { hasIRating: false, hasIncidents: false, hasFlags: false, hasFormation: false, hasDRS: false, hasERS: false },
@@ -20,7 +19,6 @@
     if (g.includes('assettocorsaevo')) return 'acevo';
     if (g.includes('assettocorsarally')) return 'acrally';
     if (g.includes('assettocorsa') || g === 'ac') return 'ac';
-    if (g.includes('lemans') || g.includes('lmu') || g.includes('rfactor')) return 'lmu';
     if (g.includes('raceroom') || g === 'rrre' || g === 'r3e') return 'raceroom';
     if (g.includes('wrc') || g.includes('eawrc')) return 'eawrc';
     if (g.includes('forza')) return 'forza';
@@ -235,5 +233,4 @@
     document.body.classList.toggle('game-iracing', _isIRacing);
     document.body.classList.toggle('game-rally', _isRally);
     document.body.classList.toggle('game-acc', _currentGameId === 'acc');
-    document.body.classList.toggle('game-lmu', _currentGameId === 'lmu');
   }

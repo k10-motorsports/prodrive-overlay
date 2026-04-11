@@ -19,8 +19,8 @@
             if (logo.brandColorHex) window.carBrandColors[logo.brandKey] = logo.brandColorHex;
           }
           console.log('[RaceCor] Loaded', data.logos.length, 'logos from cloud');
-          // Still load special local-only logos (generic, none, honda_white, iracing, le-mans-ultimate)
-          const localOnly = ['generic', 'none', 'honda_white', 'iracing', 'le-mans-ultimate'];
+          // Still load special local-only logos (generic, none, honda_white, iracing)
+          const localOnly = ['generic', 'none', 'honda_white', 'iracing'];
           await Promise.allSettled(localOnly.map(async key => {
             if (!window.carLogos[key]) {
               const r = await fetch('images/logos/' + key + '.svg');

@@ -90,7 +90,7 @@ JS modules must load in this exact order (dependency chain):
 
 ```javascript
 // Game state
-let _currentGameId = '';       // 'iracing', 'acc', 'acevo', 'acrally', 'lmu', 'raceroom', 'eawrc', 'forza'
+let _currentGameId = '';       // 'iracing', 'acc', 'acevo', 'acrally', 'raceroom', 'eawrc', 'forza'
 let _isIRacing = true;         // shorthand for _currentGameId === 'iracing'
 let _isRally = false;          // isRallyGame() || _rallyModeEnabled
 let _rallyModeEnabled = false; // user toggle
@@ -433,7 +433,7 @@ SimHub -> Plugin.cs (C#) -> TelemetrySnapshot -> HTTP JSON at :8889/racecor-io-p
 ### CSS Game Mode Classes
 
 Applied to `<body>` by `applyGameMode()`:
-- `game-iracing`, `game-rally`, `game-acc`, `game-lmu`
+- `game-iracing`, `game-rally`, `game-acc`
 - `.ir-only`, `.incident-only`, `.rally-only`, `.circuit-only`
 
 ---

@@ -173,7 +173,7 @@
       template.innerHTML = `
         <style>
           :host {
-            --ff: 'neutronic-rounded', sans-serif;
+            --ff: sofia-pro-comp, sans-serif;
             display: block;
           }
 

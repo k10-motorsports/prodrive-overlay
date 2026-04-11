@@ -206,7 +206,7 @@
     mask-image: none;
   }
   .commentary-text {
-    font-family: 'neutronic-rounded', var(--ff);
+    font-family: sofia-pro-comp, var(--ff);
     font-size: 15px;
     font-weight: var(--fw-medium);
     line-height: 1.2;
@@ -433,7 +433,7 @@
     opacity: 0.96;
   }
   .car-model-label {
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     color: var(--text-secondary);
     text-align: center;
@@ -447,7 +447,7 @@
     line-height: 1.15;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    margin-top: 2px;
+    margin-top: 4px;
   }
   .car-model-label:empty { display: none; }
 
@@ -455,13 +455,12 @@
     display: block;
     text-align: center;
     font-family: var(--ff);
-    font-size: 9px;
-    font-weight: 500;
+    font-size: var(--fs-xs);
+    font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-top: 2px;
-    white-space: nowrap;
+    margin-top: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;

@@ -779,8 +779,8 @@
       }
 
       // ── Forward full Electron sync data to Pro Drive web API ──
-      // Only if we have chartData or recentRaces from the data API
-      // (DOM scraping doesn't provide these, so this only fires for API-based sync)
+      // Forward when we have chartData (historical iRating from chart scraping)
+      // or recentRaces (from API or DOM scraping)
       var token = window._k10Token;
       if (token && data && (data.chartData || (data.recentRaces && data.recentRaces.length > 0))) {
         var API_BASE = (window._k10ApiBase || 'https://prodrive.racecor.io');

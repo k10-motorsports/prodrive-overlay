@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // K10 Motorsports — Game Logo Overlay
-// Shows the current game's logo (iRacing, LMU, etc.) in the
+// Shows the current game's logo (iRacing, etc.) in the
 // corner opposite the main dashboard layout position.
 // ═══════════════════════════════════════════════════════════════
 
@@ -16,8 +16,7 @@
 
   // Map game IDs to SVG filenames
   var GAME_LOGO_FILES = {
-    'iracing': 'iracing.svg',
-    'lmu':     'le-mans-ultimate.svg'
+    'iracing': 'iracing.svg'
   };
 
   // Logo-corner mapping: dashboard position → logo position
@@ -184,7 +183,7 @@
 
   /**
    * Called from poll-engine on each telemetry tick.
-   * @param {string} gameId — current game ID (e.g. 'iracing', 'lmu')
+   * @param {string} gameId — current game ID (e.g. 'iracing')
    * @param {boolean} show — whether the setting is enabled
    */
   window.updateGameLogo = function(gameId, show) {

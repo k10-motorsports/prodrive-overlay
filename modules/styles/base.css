@@ -27,8 +27,8 @@
     --cyan: #00acc1;
     --purple: hsl(280,80%,70%);
 
-    --ff: 'neutronic-rounded', sans-serif;
-    --ff-display: 'neutronic-rounded-black', sans-serif;
+    --ff: sofia-pro-comp, sans-serif;
+    --ff-display: "stolzl", sans-serif;
     --ff-mono: 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
     --fs-xl: 20px;
     --fs-lg: 13px;
