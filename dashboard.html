@@ -55,6 +55,7 @@
 <link rel="stylesheet" href="modules/styles/pitbox.css">
 <link rel="stylesheet" href="modules/styles/race-results.css">
 <link rel="stylesheet" href="modules/styles/incident-coach.css">
+<link rel="stylesheet" href="modules/styles/next-race-ideas.css">
 <!-- drive-mode.css removed — iPad drive mode no longer active -->
 
 </head>
@@ -635,6 +636,12 @@
 <!-- COMPONENT: Idle State Logo (visible when driver is not in-car) -->
 <div class="idle-logo" id="idleLogo">
   <img src="images/branding/logomark.png" alt="RaceCor">
+</div>
+
+<!-- COMPONENT: Next Race Ideas (visible when idle — between races) -->
+<div id="nextRaceIdeas">
+  <div class="nri-title">Next Race Ideas</div>
+  <div class="nri-scroll" id="nriCards"></div>
 </div>
 
 <!-- COMPONENT: Pit Limiter Banner -->
@@ -1498,6 +1505,7 @@
 <!-- drive-mode.js removed — iPad drive mode no longer active -->
 <script src="modules/js/rating-editor.js"></script>
 <script src="modules/js/session-sync.js"></script>
+<script src="modules/js/next-race-ideas.js"></script>
 <script src="modules/js/driver-profile.js"></script>
 <script src="modules/js/drive-hud.js"></script>
 <script src="modules/js/poll-engine.js"></script>

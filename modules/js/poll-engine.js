@@ -202,14 +202,25 @@
       if (nowIdle) {
         document.body.classList.add('idle-state');
         if (idleLogo) idleLogo.classList.add('idle-visible');
+        // Show next race suggestions when idle
+        if (typeof refreshNextRaceIdeas === 'function') refreshNextRaceIdeas();
       } else {
         document.body.classList.remove('idle-state');
         if (idleLogo) idleLogo.classList.remove('idle-visible');
+        // Hide race suggestions when entering a session
+        if (typeof hideNextRaceIdeas === 'function') hideNextRaceIdeas();
         // Session going active — reveal HUD from logo-only startup
         if (typeof revealFromLogoOnly === 'function') revealFromLogoOnly();
       }
     }
     // Skip rest of update in idle (except settings remain responsive)
+    // Periodically refresh race ideas while idle (every 5 min)
+    if (_isIdle && typeof refreshNextRaceIdeas === 'function') {
+      if (!window._nriLastPoll || (Date.now() - window._nriLastPoll > 300000)) {
+        window._nriLastPoll = Date.now();
+        refreshNextRaceIdeas();
+      }
+    }
     if (_isIdle) { _pollActive = false; return; }
 
     // ─── Gear / Speed / RPM ───
