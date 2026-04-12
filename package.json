@@ -1,6 +1,6 @@
 {
   "name": "racecor-overlay",
-  "version": "0.9.26",
+  "version": "0.9.27",
   "description": "RaceCor.io — broadcast-grade transparent HUD overlay for sim racing with WebGL effects, real-time strategy, and AI commentary",
   "main": "main.js",
   "author": "Kevin Conboy",
