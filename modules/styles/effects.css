@@ -234,10 +234,18 @@
     color: hsl(200, 80%, 70%);
   }
   .pit-speed {
-    font-size: 14px;
+    font-family: var(--ff-mono);
+    font-size: var(--fs-sm);
     font-weight: var(--fw-bold);
     color: hsla(0, 0%, 100%, 0.60);
     font-variant-numeric: tabular-nums;
+  }
+  .pit-limit {
+    font-family: var(--ff-mono);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: hsla(0, 0%, 100%, 0.45);
+    margin-left: 4px;
   }
   @keyframes pit-glow {
     0%   { box-shadow: inset 0 0 14px hsla(200, 80%, 60%, 0.15), 0 0 10px hsla(200, 80%, 60%, 0.10); }
@@ -456,7 +464,7 @@
   /* Limit value: pulsing red */
   .pit-banner.pit-bonkers .pit-limit {
     color: hsla(0, 100%, 65%, 0.8) !important;
-    font-size: 14px !important;
+    font-size: var(--fs-sm) !important;
   }
 
   /* ── Spark particles (spawned by JS) ── */

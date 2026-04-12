@@ -220,8 +220,8 @@
     background: hsla(0,0%,100%,0.04); border-radius: 10px; padding: 16px 8px;
   }
   .dp-rating-label { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: hsla(0,0%,100%,0.35); margin-bottom: 4px; }
-  .dp-rating-value { font-family: 'JetBrains Mono', monospace; font-size: 36px; font-weight: 700; }
-  .dp-rating-delta { font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-top: 4px; color: hsla(0,0%,100%,0.35); }
+  .dp-rating-value { font-family: var(--ff-mono); font-size: 36px; font-weight: 700; }
+  .dp-rating-delta { font-family: var(--ff-mono); font-size: 14px; margin-top: 4px; color: hsla(0,0%,100%,0.35); }
   .dp-rating-delta.positive { color: var(--green); }
   .dp-rating-delta.negative { color: var(--red); }
 
@@ -241,7 +241,7 @@
     background: hsla(0,0%,100%,0.04); color: hsla(0,0%,100%,0.5);
     transition: background 0.2s;
   }
-  .dp-hm-cell .dp-hm-count { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; display: block; }
+  .dp-hm-cell .dp-hm-count { font-family: var(--ff-mono); font-size: 14px; font-weight: 700; display: block; }
   .dp-hm-cell .dp-hm-name { font-size: 14px; display: block; color: hsla(0,0%,100%,0.35); }
 
 
@@ -282,8 +282,9 @@
     background: hsla(0,0%,6%,0.97);
     border: 1px solid hsla(0,0%,100%,0.10);
     border-radius: 12px;
-    width: 720px;
-    max-height: 80vh;
+    width: 1300px;
+    max-width: 95vw;
+    max-height: 85vh;
     color: white;
     display: flex;
     flex-direction: column;
@@ -396,14 +397,11 @@
     -webkit-overflow-scrolling: touch;
     min-height: 0;
   }
-  /* Two-column grid for section toggles */
+  /* Single-column layout for section toggles */
   .settings-two-col {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 20px;
-  }
-  .settings-two-col .settings-group-label {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    gap: 0;
   }
   .settings-title {
     font-family: var(--ff-display);
@@ -671,7 +669,7 @@
     border-radius: 6px;
     padding: 8px 10px;
     margin-top: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--ff-mono);
     font-size: 14px;
     line-height: 1.6;
   }

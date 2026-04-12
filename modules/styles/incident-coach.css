@@ -20,7 +20,7 @@
   border-radius: 12px;
   background: hsla(0, 0%, 8%, 0.6);
   backdrop-filter: blur(4px);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -223,7 +223,7 @@
 }
 
 .dh-composure-label {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 7px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -336,7 +336,7 @@
 }
 
 .rr-behavior-title {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -345,7 +345,7 @@
 
 /* Composure score — large number */
 #rrBehaviorScore {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 28px;
   font-weight: 700;
   line-height: 1;
@@ -368,7 +368,7 @@
 }
 
 .rr-bstat-val {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 16px;
   font-weight: 600;
   color: hsla(0, 0%, 100%, 0.85);
@@ -398,7 +398,7 @@
 
 /* Flagged drivers summary */
 .rr-behavior-drivers-title {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -439,19 +439,19 @@
 }
 
 .rr-bd-ir {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 9px;
   color: hsla(0, 0%, 100%, 0.4);
 }
 
 .rr-bd-count {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 9px;
   color: hsla(0, 0%, 100%, 0.5);
 }
 
 .rr-bd-level {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--ff-mono);
   font-size: 8px;
   letter-spacing: 0.1em;
   text-transform: uppercase;

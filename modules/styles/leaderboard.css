@@ -382,16 +382,16 @@
   }
   .lb-row {
     display: grid;
-    grid-template-columns: 24px 1fr 50px 44px 1fr;
+    grid-template-columns: 22px 1fr 48px 42px 1fr;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-variant-numeric: tabular-nums; /* TODO: extract to shared numeric-display class (used 17 times total) */
+    gap: 5px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
     border-bottom: 1px solid hsla(0, 0%, 100%, 0.06);
     transition: background 0.3s ease;
     position: relative;
-    min-height: 20px;
+    min-height: 18px;
   }
   .lb-row:last-child { border-bottom: none; }
   .lb-row.lb-player {
@@ -428,7 +428,7 @@
     font-weight: var(--fw-black);
     color: var(--text-dim);
     text-align: center;
-    font-size: 12px;
+    font-size: 10px;
   }
   .lb-row.lb-player .lb-pos { color: var(--cyan); }
   .lb-row.lb-player.lb-p1 .lb-pos { color: hsla(42, 80%, 60%, 1.0); }
@@ -462,7 +462,7 @@
   }
   .lb-gap {
     font-family: var(--ff-mono);
-    font-size: 11px;
+    font-size: 9px;
     text-align: right;
     font-weight: 600;
     letter-spacing: -0.03em;
@@ -472,7 +472,7 @@
   .lb-gap.gap-player { color: var(--cyan); }
   .lb-lap {
     font-family: var(--ff-mono);
-    font-size: 12px;
+    font-size: 9px;
     text-align: right;
     font-weight: 600;
     color: var(--text-dim);

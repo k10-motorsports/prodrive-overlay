@@ -163,7 +163,7 @@
     position: absolute;
     bottom: 4px;
     right: 6px;
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: var(--fw-medium);
     color: rgba(255,255,255,0.45);
     z-index: 1;
@@ -277,7 +277,7 @@
     bottom: 4px;
     right: 0;
     font-family: var(--ff-mono);
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: var(--fw-bold);
     color: var(--text-primary);
     opacity: 0.85;
@@ -300,7 +300,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: var(--fw-semi);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -484,6 +484,7 @@
     overflow: hidden;
   }
   .tacho-gear {
+    font-family: var(--ff-mono);
     font-size: 96px;
     font-weight: var(--fw-black);
     line-height: 0.85;
@@ -496,9 +497,10 @@
     margin-left: auto;
   }
   .tacho-rpm {
+    font-family: var(--ff-mono);
     font-size: var(--fs-lg);
     font-weight: var(--fw-bold);
-    font-variant-numeric: tabular-nums; /* TODO: extract to shared numeric-display class */
+    font-variant-numeric: tabular-nums;
     transition: color 0.2s ease, text-shadow 0.15s ease-out, transform 0.15s ease-out;
     text-align: right;
     line-height: 1;
@@ -508,10 +510,11 @@
   .tacho-rpm.rpm-pulse-yellow { text-shadow: 0 0 8px var(--amber), 0 0 16px hsla(45, 90%, 55%, 0.3); transform: scale(1.04); }
   .tacho-rpm.rpm-pulse-red    { text-shadow: 0 0 10px var(--red), 0 0 20px hsla(0, 80%, 50%, 0.4); transform: scale(1.06); }
   .speed-value {
+    font-family: var(--ff-mono);
     font-size: 28px;
     font-weight: var(--fw-black);
     line-height: 1;
-    font-variant-numeric: tabular-nums; /* TODO: extract to shared numeric-display class */
+    font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
     text-align: right;
   }
@@ -692,12 +695,15 @@
     flex: 1;
   }
   .rating-value {
+    font-family: var(--ff-mono);
     font-size: 22px;
     font-weight: var(--fw-black);
     line-height: 1;
+    font-variant-numeric: tabular-nums;
     letter-spacing: 0;
   }
   .rating-delta {
+    font-family: var(--ff-mono);
     font-size: var(--fs-sm);
     font-weight: var(--fw-semi);
     margin-top: 2px;
@@ -743,8 +749,10 @@
   .ir-bar-tick-label {
     position: absolute;
     top: 10px;
-    font-size: 14px;
+    font-family: var(--ff-mono);
+    font-size: var(--fs-xs);
     font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
     color: var(--text-dim);
     transform: translateX(-50%);
     font-variant-numeric: tabular-nums;
@@ -783,16 +791,18 @@
     height: 100%;
   }
   .pos-number {
+    font-family: var(--ff-mono);
     font-size: 44px;
     font-weight: var(--fw-black);
     line-height: 1;
+    font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
     text-align: left;
     flex-shrink: 0;
   }
   .skew-accent { transform: skewX(-6deg); display: inline-block; }
   .pos-delta {
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: var(--fw-bold);
     letter-spacing: 0.02em;
     text-align: left;
@@ -820,7 +830,7 @@
     text-align: right;
   }
   .pos-meta-row:first-child {
-    font-size: 14px;
+    font-size: var(--fs-sm);
     font-weight: var(--fw-semi);
     white-space: nowrap;
     overflow: hidden;
@@ -856,7 +866,7 @@
   }
   .pos-meta-row.delta-row .val {
     font-family: var(--ff-mono);
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     letter-spacing: -0.02em;
     display: block;
@@ -895,7 +905,7 @@
     transition: background 0.3s, color 0.3s;
   }
   .sector-label {
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -904,13 +914,13 @@
   }
   .sector-time {
     font-family: var(--ff-mono);
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     color: var(--text-primary);
   }
   .sector-delta {
     font-family: var(--ff-mono);
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     color: hsla(0,0%,100%,0.35);
     margin-top: 1px;
@@ -988,6 +998,7 @@
   .gap-time.ahead { color: var(--green); }
   .gap-time.behind { color: var(--red); }
   .gap-ir {
+    font-family: var(--ff-mono);
     font-size: var(--fs-xs);
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;
@@ -1219,7 +1230,7 @@
   }
   .race-timer-lap {
     font-family: var(--ff-mono);
-    font-size: 14px;
+    font-size: var(--fs-xs);
     font-weight: 500;
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;

@@ -12,6 +12,7 @@ const http   = require('http');
 const https  = require('https');
 const crypto = require('crypto');
 const remoteServer = require('./remote-server');
+const updater      = require('./modules/js/auto-updater');
 
 // ── Crash log ───────────────────────────────────────────────
 // Write a log file next to the app so crash info is visible
@@ -646,6 +647,96 @@ function closeSettingsWindow() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// WEB DASHBOARD WINDOW
+// Normal resizable window loading the live prodrive.racecor.io
+// dashboard (or localhost:3000 in dev mode).
+// Session cookies persist via partition so the user stays signed in.
+// ═══════════════════════════════════════════════════════════════
+
+const isDev = process.argv.includes('--dev');
+
+function getDashboardURL() {
+  return isDev
+    ? (process.env.K10_DASHBOARD_URL || 'http://localhost:3000')
+    : K10_API_BASE;  // https://prodrive.racecor.io — defined later in file
+}
+
+let dashboardWindow = null;
+
+function openDashboardWindow() {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.show();
+    dashboardWindow.moveTop();
+    dashboardWindow.focus();
+    return;
+  }
+
+  const primary = screen.getPrimaryDisplay();
+  const winW = Math.min(1280, primary.workAreaSize.width);
+  const winH = Math.min(900, primary.workAreaSize.height);
+
+  dashboardWindow = new BrowserWindow({
+    width: winW,
+    height: winH,
+    icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
+    frame: true,
+    resizable: true,
+    movable: true,
+    alwaysOnTop: false,
+    transparent: false,
+    backgroundColor: '#0a0a0a',
+    title: 'K10 Pro Drive',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      // Persist cookies so login survives app restarts
+      partition: 'persist:dashboard',
+    },
+  });
+
+  // Open external links in the user's default browser
+  dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  dashboardWindow.on('closed', () => {
+    dashboardWindow = null;
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('dashboard-closed');
+    }
+    logToFile('[K10] Dashboard window closed');
+  });
+
+  const dashURL = getDashboardURL();
+  dashboardWindow.loadURL(dashURL).catch((err) => {
+    logToFile('[K10] Dashboard failed to load: ' + err.message);
+  });
+
+  logToFile(`[K10] Dashboard window opened: ${dashURL}${isDev ? ' (dev)' : ''}`);
+}
+
+function closeDashboardWindow() {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.close();
+    dashboardWindow = null;
+  }
+}
+
+ipcMain.handle('open-dashboard', async () => {
+  openDashboardWindow();
+  return true;
+});
+
+ipcMain.handle('close-dashboard', async () => {
+  closeDashboardWindow();
+  return true;
+});
+
 ipcMain.handle('open-settings-popout', async () => {
   openSettingsWindow();
   return true;
@@ -756,7 +847,7 @@ ipcMain.handle('open-external', async (event, urlStr) => {
 // Checks GitHub Releases for new versions, downloads in background,
 // installs on next restart.
 // ═══════════════════════════════════════════════════════════════
-const updater = require('./modules/js/auto-updater');
+// (require moved to top of file with other imports)
 
 ipcMain.handle('check-for-updates', async () => {
   return updater.checkForUpdates();

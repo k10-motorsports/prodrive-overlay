@@ -74,6 +74,12 @@ contextBridge.exposeInMainWorld('k10', {
   getRemoteServerInfo: () => ipcRenderer.invoke('get-remote-server-info'),
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),
   stopRemoteServer: () => ipcRenderer.invoke('stop-remote-server'),
+  // Web dashboard window (prodrive.racecor.io)
+  openDashboard: () => ipcRenderer.invoke('open-dashboard'),
+  closeDashboard: () => ipcRenderer.invoke('close-dashboard'),
+  onDashboardClosed: (callback) => {
+    ipcRenderer.on('dashboard-closed', () => callback());
+  },
   // Settings popout window (secondary display)
   openSettingsPopout: () => ipcRenderer.invoke('open-settings-popout'),
   closeSettingsPopout: () => ipcRenderer.invoke('close-settings-popout'),

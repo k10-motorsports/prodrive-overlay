@@ -255,7 +255,7 @@
             </div>
             <div class="rating-item">
               <div class="panel-label">SR</div>
-              <div class="rating-value" style="font-size:14px;">—</div>
+              <div class="rating-value">—</div>
               <div class="rating-delta">—</div>
               <div class="sr-pie-container">
                 <svg class="sr-pie-svg" viewBox="0 0 40 40">
@@ -651,7 +651,7 @@
     <div class="pit-icon">P</div>
     <div class="pit-label">Pit Limiter</div>
     <div class="pit-speed" id="pitSpeed"></div>
-    <div class="pit-limit" id="pitLimit" style="font-size:11px;font-weight:600;color:hsla(0,0%,100%,0.45);margin-left:4px;"></div>
+    <div class="pit-limit" id="pitLimit"></div>
   </div>
 </div>
 
@@ -872,7 +872,7 @@
         <div class="settings-sidebar-item" data-tab="effects" onclick="switchSettingsTab(this)">Effects</div>
         <div class="settings-sidebar-item" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
         <div class="settings-sidebar-item" data-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
-        <div class="settings-sidebar-item" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
+        <!-- Connections is now an always-visible right panel -->
         <div class="settings-sidebar-item" data-tab="pedals" onclick="switchSettingsTab(this)">Pedals</div>
         <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
         <div class="settings-sidebar-item" data-tab="system" onclick="switchSettingsTab(this)">System</div>
@@ -884,7 +884,7 @@
       <div class="settings-tab active" data-tab="sections" onclick="switchSettingsTab(this)">Dashboard</div>
       <div class="settings-tab" data-tab="branding" onclick="switchSettingsTab(this)">Branding</div>
       <div class="settings-tab" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
-      <div class="settings-tab" data-tab="connections" onclick="switchSettingsTab(this)">Connections</div>
+      <!-- Connections moved to always-visible panel -->
       <div class="settings-tab" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
       <div class="settings-tab" data-tab="system" onclick="switchSettingsTab(this)">System</div>
     </div>
@@ -1087,228 +1087,7 @@
     </div>
 
     <!-- ── Tab: Connections ── -->
-    <div class="settings-tab-content" id="settingsTabConnections">
-
-      <!-- ═══ K10 Pro Drive Connection Card (primary) ═══ -->
-      <div class="conn-card conn-card-primary" id="k10ProCard">
-        <div class="conn-card-header">
-          <div class="conn-card-icon k10pro">
-            <img src="images/branding/logomark.png" alt="RaceCor" style="width:20px;height:20px;object-fit:contain;" />
-          </div>
-          <div>
-            <div class="conn-card-title">RaceCor ProDrive</div>
-            <div class="conn-card-subtitle">Connect to unlock all Pro features</div>
-          </div>
-        </div>
-
-        <!-- Not connected state -->
-        <div id="k10NotConnected">
-          <div class="conn-card-status">
-            <div class="conn-dot red" id="connK10Dot"></div>
-            <div class="conn-status-text" id="connK10Text">Not connected</div>
-          </div>
-          <div class="conn-card-detail">
-            Sign in with your RaceCor ProDrive account to enable Commentary, Incidents, Spotter, Leaderboard, Datastream, WebGL effects, Reflections, and module customization.
-          </div>
-          <div class="conn-card-actions">
-            <button class="conn-btn k10-btn" id="k10ConnectBtn" onclick="connectK10Pro()">
-              <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
-              Connect to RaceCor ProDrive
-            </button>
-          </div>
-        </div>
-
-        <!-- Connected state -->
-        <div id="k10Connected" style="display:none;">
-          <div class="conn-card-status">
-            <div class="conn-dot green"></div>
-            <div class="conn-status-text"><strong>Connected</strong> — all Pro features enabled</div>
-          </div>
-          <div class="conn-user-info">
-            <div class="conn-user-avatar" id="k10AvatarWrap">
-              <img id="k10Avatar" src="" alt="" />
-            </div>
-            <div>
-              <div class="conn-user-name" id="k10DisplayName"></div>
-              <div class="conn-user-id" id="k10UserId"></div>
-            </div>
-          </div>
-          <div class="conn-pro-features" id="k10FeatureList"></div>
-          <div class="conn-agent-key" id="connAgentKey" style="margin-top:12px;">
-            <div class="conn-card-detail" style="margin-bottom:6px;">
-              <strong>AI Race Coach</strong> — paste your API key to enable AI-powered post-race analysis
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input class="settings-input" id="agentKeyInput" type="password"
-                     placeholder="sk-ant-..."
-                     style="flex:1;font-size:10px;padding:6px 8px;font-family:var(--ff-mono);"
-                     onchange="updateAgentKey(this.value)" />
-            </div>
-            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
-              <div style="flex:1;">
-                <div class="conn-card-detail" style="font-size:9px;margin-bottom:3px;color:var(--text-dim);">Tone</div>
-                <select class="settings-input" id="coachToneSelect"
-                        style="width:100%;font-size:10px;padding:4px 6px;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--border);"
-                        onchange="updateCoachTone(this.value)">
-                  <option value="broadcast">Broadcast Commentator</option>
-                  <option value="coach">Racing Engineer</option>
-                  <option value="mentor">Friendly Mentor</option>
-                </select>
-              </div>
-              <div style="flex:1;">
-                <div class="conn-card-detail" style="font-size:9px;margin-bottom:3px;color:var(--text-dim);">Depth</div>
-                <select class="settings-input" id="coachDepthSelect"
-                        style="width:100%;font-size:10px;padding:4px 6px;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--border);"
-                        onchange="updateCoachDepth(this.value)">
-                  <option value="quick">Quick (~$0.01)</option>
-                  <option value="standard">Standard (~$0.05)</option>
-                  <option value="deep">Deep Dive (~$0.15)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="conn-card-actions">
-            <button class="conn-btn disconnect-btn" onclick="disconnectK10Pro()">Disconnect</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pro features info (shown when not connected) -->
-      <div class="conn-pro-info" id="k10ProInfo">
-        <div class="conn-pro-info-title">Pro Features</div>
-        <div class="conn-pro-info-text">Connect your RaceCor ProDriveaccount to enable all premium features. Visit <strong>prodrive.racecor.io</strong> to create your account.</div>
-        <div class="conn-pro-feature-grid">
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🎙️</span> Commentary</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚠️</span> Incidents</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">👁️</span> Spotter</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🏆</span> Leaderboard</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">📊</span> Datastream</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">✨</span> WebGL Effects</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">🔮</span> Reflections</div>
-          <div class="conn-pro-feature-item"><span class="conn-pro-feature-icon">⚙️</span> Module Config</div>
-        </div>
-      </div>
-
-      <!-- ═══ iRacing Data Sync Card ═══ -->
-      <div class="conn-card conn-card-iracing" id="iracingDataSyncCard" style="margin-top:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="conn-card-icon iracing" style="width:24px;height:24px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-            </div>
-            <div>
-              <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
-              <div id="iracingStatusLine" style="font-size:9px;color:hsla(0,0%,100%,0.4);margin-top:1px;">
-                <span id="iracingNotConnected">Not connected</span>
-                <span id="iracingConnected" style="display:none;">
-                  <span class="conn-dot green" style="display:inline-block;width:6px;height:6px;vertical-align:middle;margin-right:3px;"></span>
-                  <span id="iracingDisplayName" style="color:hsla(0,0%,100%,0.7);"></span>
-                </span>
-              </div>
-            </div>
-          </div>
-          <button class="conn-btn iracing-btn" id="iracingOpenBtn" onclick="connectIRacing()" style="font-size:10px;padding:4px 12px;white-space:nowrap;">
-            Open iRacing
-          </button>
-        </div>
-      </div>
-
-      <!-- Remote Dashboard (stream to iPad / any browser on LAN) -->
-      <div id="remoteDashSection" style="display:none;">
-        <div class="settings-group-label" style="margin-top:12px;">Remote Dashboard</div>
-        <div class="settings-row">
-          <span class="settings-label">Stream to Safari</span>
-          <div class="settings-toggle" id="remoteDashToggle" onclick="toggleRemoteDash(this)"></div>
-        </div>
-        <div id="remoteDashDocs" style="display:none;">
-          <div class="conn-card" style="margin-top:8px;">
-            <div class="conn-card-status">
-              <div class="conn-dot green"></div>
-              <div class="conn-status-text"><strong>Running</strong></div>
-            </div>
-            <div style="display:flex;align-items:center;gap:14px;margin:10px 0 6px;">
-              <canvas id="remoteServerQR" width="120" height="120" style="width:120px;height:120px;border-radius:8px;background:#fff;flex-shrink:0;"></canvas>
-              <div style="flex:1;min-width:0;">
-                <div style="font-family:'JetBrains Mono',monospace;color:#6c5ce7;font-size:14px;font-weight:600;word-break:break-all;" id="remoteServerUrl"></div>
-                <div style="font-size:10px;color:#555;margin-top:4px;">Scan the QR code or type the URL into any browser on the same network.</div>
-              </div>
-            </div>
-            <div style="padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:11px;color:#999;line-height:1.7;">
-              <div style="color:#bbb;font-weight:600;margin-bottom:4px;">Setup</div>
-              <div><span style="color:#6c5ce7;font-weight:700;">1.</span> Make sure your device is on the same Wi-Fi network as this PC.</div>
-              <div><span style="color:#6c5ce7;font-weight:700;">2.</span> Scan the QR code or type the URL into Safari / Chrome.</div>
-              <div><span style="color:#6c5ce7;font-weight:700;">3.</span> Tap <strong>Share → Add to Home Screen</strong> for a full-screen app icon.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Rally Mode (synced with Layout tab toggle) -->
-      <div class="settings-row" style="margin-top:12px;">
-        <span class="settings-label">Rally Mode</span>
-        <div class="settings-toggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
-      </div>
-
-      <!-- ═══ SimHub Connection (secondary, less prominent) ═══ -->
-      <div class="settings-group-label" style="margin-top:16px;font-size:10px;color:hsla(0,0%,100%,0.3);">Telemetry Source</div>
-      <div class="conn-card conn-card-secondary">
-        <div class="conn-card-header" style="margin-bottom:6px;">
-          <div class="conn-card-icon simhub" style="width:24px;height:24px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(210,60%,55%);width:14px;height:14px;"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8h2"/><path d="M15 8h2"/><path d="M7 12h10"/></svg>
-          </div>
-          <div>
-            <div class="conn-card-title" style="font-size:11px;">SimHub Plugin</div>
-            <div class="conn-card-subtitle" style="font-size:9px;">Telemetry server</div>
-          </div>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-            <div class="conn-dot orange" id="connSimhubDot" style="width:6px;height:6px;"></div>
-            <div class="conn-status-text" id="connSimhubText" style="font-size:10px;">Connecting...</div>
-          </div>
-        </div>
-        <div class="conn-card-actions" style="margin-top:4px;">
-          <input class="settings-input" id="settingsSimhubUrl" type="text" value="http://localhost:8889/racecor-io-pro-drive/" onchange="updateSimhubUrl(this.value)" style="flex:1;font-size:10px;padding:4px 8px;"/>
-        </div>
-      </div>
-
-      <!-- Discord (secondary, community only) -->
-      <div class="conn-card conn-card-secondary" style="margin-top:6px;">
-        <div class="conn-card-header" style="margin-bottom:6px;">
-          <div class="conn-card-icon discord" style="width:24px;height:24px;">
-            <svg viewBox="0 0 24 24" fill="currentColor" style="color:#5865F2;width:14px;height:14px;"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.947 2.418-2.157 2.418z"/></svg>
-          </div>
-          <div>
-            <div class="conn-card-title" style="font-size:11px;">Discord</div>
-            <div class="conn-card-subtitle" style="font-size:9px;">Community server</div>
-          </div>
-          <div style="margin-left:auto;" id="discordStatusInline">
-            <!-- Not connected state (inline) -->
-            <div id="discordNotConnected">
-              <button class="conn-btn discord-btn" id="discordConnectBtn" onclick="connectDiscord()" style="font-size:10px;padding:4px 10px;">
-                Connect
-              </button>
-            </div>
-            <!-- Connected state (inline) -->
-            <div id="discordConnected" style="display:none;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div class="conn-dot green" style="width:6px;height:6px;"></div>
-                <span class="conn-user-name" id="discordDisplayName" style="font-size:10px;"></span>
-                <button class="conn-btn disconnect-btn" onclick="disconnectDiscord()" style="font-size:9px;padding:2px 8px;">×</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-            <!-- Network Connection Debug Console -->
-      <div class="debug-console-wrapper" style="margin-top:16px;">
-        <div class="debug-console-header">
-          <div class="debug-console-title">Network Connection Console</div>
-          <button class="debug-console-clear-btn" onclick="window.debugConsole.clearNetwork()">Clear</button>
-        </div>
-        <div class="debug-console-body" id="networkConnectionConsole"></div>
-      </div>
-
-    </div>
+    <!-- Connections tab content removed — now in always-visible right panel -->
 
     <!-- ── Tab: Pedals & Wheel ── -->
     <div class="settings-tab-content" id="settingsTabPedals">
@@ -1463,6 +1242,211 @@
     <button class="settings-close" onclick="toggleSettings()">Close</button>
 
     </div><!-- /settings-content -->
+
+    <!-- ═══ Always-visible Connections Panel (right side) ═══ -->
+    <div class="settings-connections-panel" id="settingsConnectionsPanel">
+      <div class="conn-panel-title">Connections</div>
+
+      <!-- ═══ K10 Pro Drive Connection Card (primary) ═══ -->
+      <div class="conn-card conn-card-primary" id="k10ProCard">
+        <div class="conn-card-header">
+          <div class="conn-card-icon k10pro">
+            <img src="images/branding/logomark.png" alt="RaceCor" style="width:20px;height:20px;object-fit:contain;" />
+          </div>
+          <div>
+            <div class="conn-card-title">RaceCor ProDrive</div>
+            <div class="conn-card-subtitle">Connect to unlock all Pro features</div>
+          </div>
+        </div>
+
+        <!-- Not connected state -->
+        <div id="k10NotConnected">
+          <div class="conn-card-status">
+            <div class="conn-dot red" id="connK10Dot"></div>
+            <div class="conn-status-text" id="connK10Text">Not connected</div>
+          </div>
+          <div class="conn-card-detail">
+            Sign in with your RaceCor ProDrive account to enable all Pro features.
+          </div>
+          <div class="conn-card-actions">
+            <button class="conn-btn k10-btn" id="k10ConnectBtn" onclick="connectK10Pro()">
+              <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
+              Connect
+            </button>
+          </div>
+        </div>
+
+        <!-- Connected state -->
+        <div id="k10Connected" style="display:none;">
+          <div class="conn-card-status">
+            <div class="conn-dot green"></div>
+            <div class="conn-status-text"><strong>Connected</strong></div>
+          </div>
+          <div class="conn-user-info">
+            <div class="conn-user-avatar" id="k10AvatarWrap">
+              <img id="k10Avatar" src="" alt="" />
+            </div>
+            <div>
+              <div class="conn-user-name" id="k10DisplayName"></div>
+              <div class="conn-user-id" id="k10UserId"></div>
+            </div>
+          </div>
+          <div class="conn-pro-features" id="k10FeatureList"></div>
+          <div class="conn-agent-key" id="connAgentKey" style="margin-top:12px;">
+            <div class="conn-card-detail" style="margin-bottom:6px;">
+              <strong>AI Race Coach</strong> — paste your API key
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="settings-input" id="agentKeyInput" type="password"
+                     placeholder="sk-ant-..."
+                     style="flex:1;font-size:10px;padding:6px 8px;font-family:var(--ff-mono);"
+                     onchange="updateAgentKey(this.value)" />
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <div style="flex:1;">
+                <div class="conn-card-detail" style="font-size:9px;margin-bottom:3px;color:var(--text-dim);">Tone</div>
+                <select class="settings-input" id="coachToneSelect"
+                        style="width:100%;font-size:10px;padding:4px 6px;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--border);"
+                        onchange="updateCoachTone(this.value)">
+                  <option value="broadcast">Broadcast Commentator</option>
+                  <option value="coach">Racing Engineer</option>
+                  <option value="mentor">Friendly Mentor</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <div class="conn-card-detail" style="font-size:9px;margin-bottom:3px;color:var(--text-dim);">Depth</div>
+                <select class="settings-input" id="coachDepthSelect"
+                        style="width:100%;font-size:10px;padding:4px 6px;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--border);"
+                        onchange="updateCoachDepth(this.value)">
+                  <option value="quick">Quick (~$0.01)</option>
+                  <option value="standard">Standard (~$0.05)</option>
+                  <option value="deep">Deep Dive (~$0.15)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="conn-card-actions">
+            <button class="conn-btn k10-btn" onclick="openDashboard()" style="margin-right:8px;">
+              <img src="images/branding/logomark.png" alt="" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px;filter:brightness(10);" />
+              Dashboard
+            </button>
+            <button class="conn-btn disconnect-btn" onclick="disconnectK10Pro()">Disconnect</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ iRacing Data Sync Card ═══ -->
+      <div class="conn-card conn-card-iracing" id="iracingDataSyncCard">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="conn-card-icon iracing" style="width:24px;height:24px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(35,90%,55%);width:14px;height:14px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+            </div>
+            <div>
+              <div class="conn-card-title" style="font-size:11px;">iRacing Data Sync</div>
+              <div id="iracingStatusLine" style="font-size:9px;color:hsla(0,0%,100%,0.4);margin-top:1px;">
+                <span id="iracingNotConnected">Not connected</span>
+                <span id="iracingConnected" style="display:none;">
+                  <span class="conn-dot green" style="display:inline-block;width:6px;height:6px;vertical-align:middle;margin-right:3px;"></span>
+                  <span id="iracingDisplayName" style="color:hsla(0,0%,100%,0.7);"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <button class="conn-btn iracing-btn" id="iracingOpenBtn" onclick="connectIRacing()" style="font-size:10px;padding:4px 12px;white-space:nowrap;">
+            Open iRacing
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ SimHub Connection ═══ -->
+      <div class="conn-card conn-card-secondary">
+        <div class="conn-card-header" style="margin-bottom:6px;">
+          <div class="conn-card-icon simhub" style="width:24px;height:24px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:hsl(210,60%,55%);width:14px;height:14px;"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8h2"/><path d="M15 8h2"/><path d="M7 12h10"/></svg>
+          </div>
+          <div>
+            <div class="conn-card-title" style="font-size:11px;">SimHub Plugin</div>
+            <div class="conn-card-subtitle" style="font-size:9px;">Telemetry server</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <div class="conn-dot orange" id="connSimhubDot" style="width:6px;height:6px;"></div>
+            <div class="conn-status-text" id="connSimhubText" style="font-size:10px;">Connecting...</div>
+          </div>
+        </div>
+        <div class="conn-card-actions" style="margin-top:4px;">
+          <input class="settings-input" id="settingsSimhubUrl" type="text" value="http://localhost:8889/racecor-io-pro-drive/" onchange="updateSimhubUrl(this.value)" style="flex:1;font-size:10px;padding:4px 8px;"/>
+        </div>
+      </div>
+
+      <!-- Discord -->
+      <div class="conn-card conn-card-secondary" style="margin-top:6px;">
+        <div class="conn-card-header" style="margin-bottom:6px;">
+          <div class="conn-card-icon discord" style="width:24px;height:24px;">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="color:#5865F2;width:14px;height:14px;"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.947 2.418-2.157 2.418z"/></svg>
+          </div>
+          <div>
+            <div class="conn-card-title" style="font-size:11px;">Discord</div>
+            <div class="conn-card-subtitle" style="font-size:9px;">Community server</div>
+          </div>
+          <div style="margin-left:auto;" id="discordStatusInline">
+            <div id="discordNotConnected">
+              <button class="conn-btn discord-btn" id="discordConnectBtn" onclick="connectDiscord()" style="font-size:10px;padding:4px 10px;">
+                Connect
+              </button>
+            </div>
+            <div id="discordConnected" style="display:none;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <div class="conn-dot green" style="width:6px;height:6px;"></div>
+                <span class="conn-user-name" id="discordDisplayName" style="font-size:10px;"></span>
+                <button class="conn-btn disconnect-btn" onclick="disconnectDiscord()" style="font-size:9px;padding:2px 8px;">×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remote Dashboard -->
+      <div id="remoteDashSection" style="display:none;">
+        <div class="conn-panel-label" style="margin-top:12px;">Remote Dashboard</div>
+        <div class="settings-row">
+          <span class="settings-label">Stream to Safari</span>
+          <div class="settings-toggle" id="remoteDashToggle" onclick="toggleRemoteDash(this)"></div>
+        </div>
+        <div id="remoteDashDocs" style="display:none;">
+          <div class="conn-card" style="margin-top:8px;">
+            <div class="conn-card-status">
+              <div class="conn-dot green"></div>
+              <div class="conn-status-text"><strong>Running</strong></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;margin:10px 0 6px;">
+              <canvas id="remoteServerQR" width="120" height="120" style="width:120px;height:120px;border-radius:8px;background:#fff;flex-shrink:0;"></canvas>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:'JetBrains Mono',monospace;color:#6c5ce7;font-size:14px;font-weight:600;word-break:break-all;" id="remoteServerUrl"></div>
+                <div style="font-size:10px;color:#555;margin-top:4px;">Scan the QR code or type the URL into any browser on the same network.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rally Mode -->
+      <div class="settings-row" style="margin-top:12px;">
+        <span class="settings-label">Rally Mode</span>
+        <div class="settings-toggle" data-key="rallyMode" onclick="toggleLayoutRally(this)"></div>
+      </div>
+
+      <!-- Network Debug Console -->
+      <div class="debug-console-wrapper" style="margin-top:16px;">
+        <div class="debug-console-header">
+          <div class="debug-console-title">Network Console</div>
+          <button class="debug-console-clear-btn" onclick="window.debugConsole.clearNetwork()">Clear</button>
+        </div>
+        <div class="debug-console-body" id="networkConnectionConsole"></div>
+      </div>
+
+    </div><!-- /settings-connections-panel -->
+
     </div><!-- /settings-body -->
 
     <div class="settings-version" id="settingsVersionLabel">K10 Motorsports — Media Overlay</div>

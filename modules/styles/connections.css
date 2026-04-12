@@ -1,5 +1,61 @@
   /* ═══════════════════════════════════════════════
-     CONNECTIONS TAB
+     CONNECTIONS — always-visible right panel
+     ═══════════════════════════════════════════════ */
+  .settings-connections-panel {
+    width: 560px;
+    flex-shrink: 0;
+    background: hsla(0,0%,0%,0.15);
+    border-left: 1px solid hsla(0,0%,100%,0.06);
+    padding: 14px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+  }
+  .conn-panel-title {
+    font-family: var(--ff-display);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: hsla(0,0%,100%,0.35);
+    margin-bottom: 12px;
+  }
+  .conn-panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: hsla(0,0%,100%,0.3);
+    margin-bottom: 6px;
+  }
+  /* Scale down card typography for the narrower panel */
+  .settings-connections-panel .conn-card {
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .settings-connections-panel .conn-card-header {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .settings-connections-panel .conn-card-title { font-size: 12px; }
+  .settings-connections-panel .conn-card-subtitle { font-size: 10px; }
+  .settings-connections-panel .conn-card-status { padding: 6px 0; }
+  .settings-connections-panel .conn-status-text { font-size: 11px; }
+  .settings-connections-panel .conn-card-detail { font-size: 11px; }
+  .settings-connections-panel .conn-card-actions { margin-top: 8px; }
+  .settings-connections-panel .conn-btn { font-size: 11px; padding: 5px 12px; }
+  .settings-connections-panel .conn-user-name { font-size: 12px; }
+  .settings-connections-panel .conn-user-id { font-size: 10px; }
+  .settings-connections-panel .conn-card-icon { width: 28px; height: 28px; }
+  .settings-connections-panel .conn-pro-feature-badge { font-size: 9px; padding: 1px 6px; }
+  /* Scrollbar */
+  .settings-connections-panel::-webkit-scrollbar { width: 4px; }
+  .settings-connections-panel::-webkit-scrollbar-track { background: transparent; }
+  .settings-connections-panel::-webkit-scrollbar-thumb { background: hsla(0,0%,100%,0.1); border-radius: 2px; }
+
+  /* ═══════════════════════════════════════════════
+     CONNECTIONS — card styles
      ═══════════════════════════════════════════════ */
   .conn-card {
     background: hsla(0,0%,100%,0.04);
@@ -315,7 +371,7 @@
   }
 
   .debug-console-title {
-    font-family: 'JetBrains Mono', 'Monaco', monospace;
+    font-family: var(--ff-mono);
     font-size: 11px;
     font-weight: 600;
     color: hsla(120,100%,70%,0.9);
@@ -330,7 +386,7 @@
     border: 1px solid hsla(0,0%,100%,0.1);
     border-radius: 4px;
     color: hsla(0,0%,100%,0.5);
-    font-family: 'JetBrains Mono', 'Monaco', monospace;
+    font-family: var(--ff-mono);
     font-size: 10px;
     font-weight: 600;
     cursor: pointer;
@@ -352,7 +408,7 @@
     overflow-y: auto;
     padding: 0;
     background: #0a0a0a;
-    font-family: 'JetBrains Mono', 'Monaco', monospace;
+    font-family: var(--ff-mono);
     font-size: 10px;
     line-height: 1.5;
   }

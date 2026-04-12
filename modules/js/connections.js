@@ -98,6 +98,15 @@
     if (depthSelect) depthSelect.value = _settings.coachDepth || 'standard';
   }
 
+  function openDashboard() {
+    if (window.k10 && window.k10.openDashboard) {
+      window.k10.openDashboard();
+    } else if (window.k10 && window.k10.openExternal) {
+      // Fallback: open in default browser if not running in Electron
+      window.k10.openExternal('https://prodrive.racecor.io');
+    }
+  }
+
   async function connectK10Pro() {
     if (_k10Connecting) return;
     if (!window.k10 || !window.k10.k10Connect) {
@@ -1109,6 +1118,8 @@
       if (window.k10?.requestInteractive) window.k10.requestInteractive();
       // Start ambient preview when settings open
       if (typeof window.startAmbientPreview === 'function') window.startAmbientPreview();
+      // Refresh the always-visible connections panel
+      updateConnectionsTab();
     }
   }
 

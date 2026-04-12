@@ -138,7 +138,7 @@
           // P1: show their last lap time formatted as mm:ss.fff
           if (last > 0) {
             const m = Math.floor(last / 60), s = last - m * 60;
-            gapStr = m + ':' + (s < 10 ? '0' : '') + s.toFixed(2);
+            gapStr = m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
           }
           gapClass = 'gap-leader';
         } else {
