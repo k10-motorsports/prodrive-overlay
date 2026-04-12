@@ -1737,8 +1737,21 @@ async function runSync(wc) {
 function connect() {
   return new Promise((resolve, reject) => {
     if (_loginWin && !_loginWin.isDestroyed()) {
+      // On Windows, focus() alone won't surface a window that's behind an
+      // always-on-top overlay. We need show() (in case ready-to-show hasn't
+      // fired yet) + moveTop() (win32 z-order) + focus().
+      _loginWin.show();
+      _loginWin.moveTop();
       _loginWin.focus();
-      return resolve({ success: true, message: 'Login window already open' });
+      // Don't resolve immediately — the IPC handler in main.js drops the
+      // overlay's always-on-top while awaiting this promise. If we resolve
+      // now, the overlay snaps back on top and buries the login window.
+      // Instead, wait for the window to close so the overlay stays lowered
+      // while the user interacts with the iRacing login.
+      _loginWin.once('closed', () => {
+        resolve({ success: false, error: 'Login window closed' });
+      });
+      return;
     }
 
     _bearerToken = null;  // reset any previous token

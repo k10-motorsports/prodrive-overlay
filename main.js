@@ -386,8 +386,23 @@ app.whenReady().then(() => {
   logToFile(`[K10] Auto-connect: will open iRacing client in ${autoConnectDelay}ms...`);
   setTimeout(() => {
     logToFile('[K10] Auto-connect: opening iRacing client...');
+
+    // Lower the overlay so the iRacing login window isn't hidden behind it.
+    // On Windows the overlay and login window are both alwaysOnTop at the
+    // 'screen-saver' level, so the login window ends up invisible (and
+    // skipTaskbar:true means it's not in the taskbar either).
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.setAlwaysOnTop(false);
+    }
+
     iracingClient.connect().then((result) => {
       logToFile('[K10] Auto-connect: ' + (result.success ? 'connected' : (result.error || 'closed')));
+
+      // Restore overlay z-level now that the login window is done
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+      }
+
       if (result.success || result.discovery) {
         if (overlayWindow && !overlayWindow.isDestroyed()) {
           overlayWindow.webContents.send('iracing-auto-connected', result);
@@ -398,6 +413,10 @@ app.whenReady().then(() => {
       }
     }).catch((err) => {
       logToFile('[K10] Auto-connect error: ' + err.message);
+      // Restore overlay z-level on error too
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+      }
     });
   }, autoConnectDelay);
 
