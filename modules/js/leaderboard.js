@@ -98,15 +98,32 @@
       // Show from P1, up to maxRows
       visible = raw.slice(0, maxRows);
     } else {
-      // Center on player
+      // ── Relative mode: sort by gap-to-player, center on player ──
       if (playerIdx < 0) {
         visible = raw.slice(0, maxRows);
       } else {
+        // Build sorted copy: drivers ordered by gapToPlayer (ahead at top, behind at bottom)
+        // gapToPlayer (index 5): negative = ahead, 0 = player, positive = behind
+        const sorted = raw.slice().sort((a, b) => {
+          const gA = a[7] === 1 ? 0 : +a[5];
+          const gB = b[7] === 1 ? 0 : +b[5];
+          return gA - gB;
+        });
+
+        // Find player in the sorted array
+        let sortedPlayerIdx = sorted.findIndex(e => e[7] === 1);
+        if (sortedPlayerIdx < 0) sortedPlayerIdx = 0;
+
+        // Hard-center: player is always at exactly floor(maxRows/2)
         const half = Math.floor(maxRows / 2);
-        let start = Math.max(0, playerIdx - half);
+        let start = sortedPlayerIdx - half;
         let end = start + maxRows;
-        if (end > raw.length) { end = raw.length; start = Math.max(0, end - maxRows); }
-        visible = raw.slice(start, end);
+
+        // Clamp to array bounds while keeping player centered
+        if (start < 0) { start = 0; end = Math.min(sorted.length, maxRows); }
+        if (end > sorted.length) { end = sorted.length; start = Math.max(0, end - maxRows); }
+
+        visible = sorted.slice(start, end);
       }
     }
 
@@ -157,18 +174,15 @@
           }
         }
       } else {
-        // 'me' mode: show gap to player (relative to player's last lap)
-        // Calculate gap as: driver.lastLap - player.lastLap
-        if (last > 0 && playerLastLap > 0) {
-          const relativeGap = last - playerLastLap;
-          if (relativeGap > 0) {
-            gapStr = '+' + relativeGap.toFixed(1) + 's';
+        // 'me' mode: show actual on-track gap to player from plugin data
+        const gapToPlayer = +gap;
+        if (gapToPlayer !== 0 && !isNaN(gapToPlayer)) {
+          if (gapToPlayer > 0) {
+            gapStr = '+' + gapToPlayer.toFixed(1) + 's';
             gapClass = 'gap-behind';
-          } else if (relativeGap < 0) {
-            gapStr = '-' + Math.abs(relativeGap).toFixed(1) + 's';
-            gapClass = 'gap-ahead';
           } else {
-            gapStr = '';
+            gapStr = gapToPlayer.toFixed(1) + 's';
+            gapClass = 'gap-ahead';
           }
         } else {
           gapStr = '';
