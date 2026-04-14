@@ -192,10 +192,10 @@
     // Expose rolling/formation start state for leaderboard sparklines
     window._isRollingStart = (sessNum === 2 || sessNum === 3); // Warmup or ParadeLaps
 
-    // Idle detection: use REAL session state (not demo-swapped) so the overlay
-    // stays logo-only when no game is actually running, regardless of demo mode.
+    // Idle detection: show logo-only when no game is running AND not in demo mode.
+    // Demo mode should always show the full HUD so the overlay can be previewed.
     // Pre-race states (1=GetInCar, 2=Warmup, 3=ParadeLaps) keep the HUD active.
-    const nowIdle = !gameRunning || realSessNum === 0;
+    const nowIdle = !_demo && (!gameRunning || realSessNum === 0);
     const idleLogo = document.getElementById('idleLogo');
     if (nowIdle !== _isIdle) {
       _isIdle = nowIdle;

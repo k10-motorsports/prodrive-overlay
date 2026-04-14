@@ -666,10 +666,15 @@ function createLoginWindow() {
     }
   );
 
+  const isWin = process.platform === 'win32';
+
   const win = new BrowserWindow({
     width: 1200,
     height: 900,
-    frame: false,
+    // Windows: use a normal framed window — frameless + show:false + alwaysOnTop
+    // can cause the window to never appear on win32.
+    frame: isWin,
+    autoHideMenuBar: true,
     transparent: false,
     backgroundColor: '#1a1a1a',
     alwaysOnTop: true,

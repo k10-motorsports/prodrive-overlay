@@ -302,7 +302,7 @@
     width: 75%;
     height: auto;
   }
-  /* Hide dashboard + car brand logo in idle (logo-only shows K10 mark only) */
+  /* Hide dashboard + car brand logo in idle (logo-only shows RaceCor mark only) */
   body.idle-state #dashboard,
   body.idle-state .leaderboard-panel,
   body.idle-state .datastream-panel,
@@ -313,6 +313,7 @@
   body.idle-state .rc-banner,
   body.idle-state .grid-module,
   body.idle-state #carLogoSquare,
+  body.idle-state #gameLogoOverlay,
   body.idle-state .game-logo {
     opacity: 0 !important;
     pointer-events: none !important;

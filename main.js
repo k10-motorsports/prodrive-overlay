@@ -4,7 +4,7 @@
 // that renders the HTML dashboard over the sim
 // ═══════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, Menu } = require('electron');
 const path   = require('path');
 const fs     = require('fs');
 const os     = require('os');
@@ -199,11 +199,16 @@ async function createOverlay() {
 
   } else {
     // ── Transparent overlay mode ──
+    // macOS: use workArea to respect the dock and menu bar.
+    // Windows: use full bounds so the overlay covers the entire screen over the game.
+    const isMac = process.platform === 'darwin';
+    const overlayBounds = isMac ? primaryDisplay.workArea : primaryDisplay.bounds;
+
     overlayWindow = new BrowserWindow({
-      width:  screenW,
-      height: screenH,
-      x:      primaryDisplay.bounds.x,
-      y:      primaryDisplay.bounds.y,
+      width:  overlayBounds.width,
+      height: overlayBounds.height,
+      x:      overlayBounds.x,
+      y:      overlayBounds.y,
       icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
       frame: false,
       alwaysOnTop: true,
@@ -232,10 +237,10 @@ async function createOverlay() {
 
   overlayWindow.on('closed', () => { overlayWindow = null; });
 
-  // ── Windows: reflow overlay when taskbar appears / disappears ──
-  // The taskbar auto-hide changes workArea but not bounds.  Listen for
-  // display-metrics-changed so we always fill the entire screen.
-  if (process.platform === 'win32' && !greenScreenMode) {
+  // ── Reflow overlay when system UI changes ──
+  // Windows: taskbar auto-hide changes workArea — reflow to full bounds.
+  // macOS: dock resize/show/hide changes workArea — reflow to workArea.
+  if (!greenScreenMode) {
     screen.on('display-metrics-changed', (_event, display, changedMetrics) => {
       if (!overlayWindow || overlayWindow.isDestroyed()) return;
       if (!changedMetrics.includes('workArea') && !changedMetrics.includes('bounds')) return;
@@ -243,12 +248,13 @@ async function createOverlay() {
       const primary = screen.getPrimaryDisplay();
       if (display.id !== primary.id) return;
 
-      const { x, y, width, height } = primary.bounds;
+      // macOS: respect dock/menu bar via workArea. Windows: cover full screen.
+      const target = process.platform === 'darwin' ? primary.workArea : primary.bounds;
       const cur = overlayWindow.getBounds();
-      if (cur.x === x && cur.y === y && cur.width === width && cur.height === height) return;
+      if (cur.x === target.x && cur.y === target.y && cur.width === target.width && cur.height === target.height) return;
 
-      logToFile(`[K10] Display metrics changed (${changedMetrics.join(', ')}), reflowing overlay to ${width}x${height}`);
-      overlayWindow.setBounds({ x, y, width, height });
+      logToFile(`[K10] Display metrics changed (${changedMetrics.join(', ')}), reflowing overlay to ${target.width}x${target.height}`);
+      overlayWindow.setBounds({ x: target.x, y: target.y, width: target.width, height: target.height });
     });
   }
 
@@ -361,6 +367,9 @@ function exitSettingsMode() {
 logToFile('[K10] App starting...');
 
 app.whenReady().then(() => {
+  // Remove the default Electron menu bar (File/Edit/View/etc) from all windows
+  Menu.setApplicationMenu(null);
+
   logToFile(`[K10] Platform: ${os.platform()} ${os.arch()} | Electron ${process.versions.electron}`);
   logToFile('[K10] Hotkeys: Ctrl+Shift+S/H/G/R/D/M/Q');
   try {
@@ -681,6 +690,7 @@ function openDashboardWindow() {
     height: winH,
     icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
     frame: true,
+    autoHideMenuBar: true,
     resizable: true,
     movable: true,
     alwaysOnTop: false,
