@@ -298,12 +298,6 @@ async function createOverlay() {
   app.on('child-process-gone', (_event, details) => {
     logToFile(`[K10] Child process gone: type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`);
     if (details.type === 'GPU') {
-      // Kill the iRacing window first — it's not critical and keeping it
-      // alive after a GPU crash just risks another crash cycle.
-      try {
-        iracingClient.disconnect().catch(() => {});
-      } catch (e) { /* best-effort */ }
-
       if (overlayWindow && !overlayWindow.isDestroyed()) {
         logToFile('[K10] GPU process crashed — reloading dashboard');
         setTimeout(() => {
@@ -387,49 +381,6 @@ app.whenReady().then(() => {
   // Open the iRacing web client and start syncing on app launch.
   // No clicks needed — just opens the window and goes.
   //
-  // Delay on Windows: let the overlay's WebGL renderer initialize and
-  // the GPU process stabilize before spinning up a second Chromium
-  // renderer for the iRacing Angular SPA. Without this delay, the two
-  // renderers compete for GPU resources on NVIDIA cards (especially
-  // 4090) and can crash the shared GPU process.
-  const autoConnectDelay = process.platform === 'win32' ? 5000 : 500;
-  logToFile(`[K10] Auto-connect: will open iRacing client in ${autoConnectDelay}ms...`);
-  setTimeout(() => {
-    logToFile('[K10] Auto-connect: opening iRacing client...');
-
-    // Lower the overlay so the iRacing login window isn't hidden behind it.
-    // On Windows the overlay and login window are both alwaysOnTop at the
-    // 'screen-saver' level, so the login window ends up invisible (and
-    // skipTaskbar:true means it's not in the taskbar either).
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.setAlwaysOnTop(false);
-    }
-
-    iracingClient.connect().then((result) => {
-      logToFile('[K10] Auto-connect: ' + (result.success ? 'connected' : (result.error || 'closed')));
-
-      // Restore overlay z-level now that the login window is done
-      if (overlayWindow && !overlayWindow.isDestroyed()) {
-        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-      }
-
-      if (result.success || result.discovery) {
-        if (overlayWindow && !overlayWindow.isDestroyed()) {
-          overlayWindow.webContents.send('iracing-auto-connected', result);
-        }
-        if (settingsWindow && !settingsWindow.isDestroyed()) {
-          settingsWindow.webContents.send('iracing-auto-connected', result);
-        }
-      }
-    }).catch((err) => {
-      logToFile('[K10] Auto-connect error: ' + err.message);
-      // Restore overlay z-level on error too
-      if (overlayWindow && !overlayWindow.isDestroyed()) {
-        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-      }
-    });
-  }, autoConnectDelay);
-
   // ── GLOBAL HOTKEYS ──
 
   globalShortcut.register('CommandOrControl+Shift+H', () => {
@@ -1357,123 +1308,6 @@ ipcMain.handle('verify-k10-token', async () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// IRACING DATA SYNC
-// Opens an embedded browser window for iRacing login, then
-// fetches career data (recent races, ratings, chart history)
-// from iRacing's Data API using the authenticated session.
-// ═══════════════════════════════════════════════════════════════
-
-const iracingClient = require('./iracing-client');
-
-// Forward ALL iRacing client logs to the renderer debug console + log file
-iracingClient.on('log', (line) => {
-  logToFile(line);
-  // Send to the iRacing Sync Console in the renderer
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.webContents.send('iracing-log', line);
-  }
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.webContents.send('iracing-log', line);
-  }
-});
-
-// Forward sync results to the overlay renderer
-iracingClient.on('sync-complete', (data) => {
-  // Use iracingClient.log() so messages appear in BOTH the sync console AND log file
-  const syncLog = (msg) => iracingClient.log('[MAIN] ' + msg);
-
-  syncLog('sync-complete received — forwarding to overlay...');
-
-  const ir = data.ratings?.irating_raw?.[0];
-  const irNum = ir ? parseInt(ir) : 0;
-  const byCat = data.ratings?.byCategory || {};
-  const catIR = byCat['sports car'] || byCat['formula'] || byCat['road']
-    || byCat['oval'] || Object.values(byCat)[0] || 0;
-  const finalIR = irNum || catIR;
-
-  syncLog(`iRating values — raw[0]=${irNum}, byCat=${catIR}, final=${finalIR}`);
-
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.webContents.send('iracing-sync', data);
-    syncLog('Sent iracing-sync IPC to overlay');
-
-    // ── Direct injection backup ──
-    // Also inject iRating directly into the overlay window in case the
-    // IPC → preload → connections.js chain has a gap.
-    if (finalIR > 0) {
-      syncLog(`Direct-injecting iRating=${finalIR} into overlay window`);
-      const irVal = finalIR;
-      overlayWindow.webContents.executeJavaScript(
-        `window._manualIRating = ${irVal}; console.log('[K10-INJECT] Set window._manualIRating = ${irVal}'); ${irVal};`
-      ).then((result) => {
-        syncLog('Direct injection SUCCESS — returned ' + result);
-      }).catch(e => {
-        syncLog('Direct injection FAILED: ' + e.message);
-      });
-    }
-  } else {
-    syncLog('WARNING: overlayWindow not available! Cannot forward sync data.');
-  }
-
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.webContents.send('iracing-sync', data);
-  }
-});
-
-iracingClient.on('auth-success', (info) => {
-  logToFile(`[K10] iRacing authenticated: ${info.displayName || '(pending)'} (${info.custId || '...'})`);
-});
-
-iracingClient.on('error', (err) => {
-  logToFile(`[K10] iRacing error: ${err.message || err}`);
-});
-
-ipcMain.handle('iracing-connect', async () => {
-  try {
-    // Lower overlay z-level so login window is accessible
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.setAlwaysOnTop(false);
-    }
-
-    const result = await iracingClient.connect();
-
-    // Restore z-level
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    }
-    return result;
-  } catch (err) {
-    // Restore z-level on error
-    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop()) {
-      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    }
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('iracing-disconnect', async () => {
-  await iracingClient.disconnect();
-  return { success: true };
-});
-
-ipcMain.handle('iracing-sync', async () => {
-  try {
-    const result = await iracingClient.syncData();
-    return result;
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('get-iracing-status', async () => {
-  return iracingClient.getStatus();
-});
-
-ipcMain.handle('get-iracing-data', async () => {
-  return iracingClient.getData();
-});
-
-
 // ── IPC: Remote Dashboard Server ──
 ipcMain.handle('get-remote-server-info', async () => {
   return remoteServer.getInfo();

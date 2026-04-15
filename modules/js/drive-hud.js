@@ -192,7 +192,11 @@
     // Track map — local zoom view centered on player + opponents
     var mapReady = +v('RaceCorProDrive.Plugin.TrackMap.Ready') || 0;
     if (mapReady) {
-      var svgPath = (p['RaceCorProDrive.Plugin.TrackMap.SvgPath'] || '');
+      var _dhTrackName = (p['RaceCorProDrive.Plugin.TrackMap.TrackName']
+                       || p['DataCorePlugin.GameData.TrackName'] || '');
+      // Prefer web API SVG (curated) over plugin's local recording (may be stale/glitchy)
+      var svgPath = (window._trackApiSvgCache && window._trackApiSvgCache[_dhTrackName])
+                 || (p['RaceCorProDrive.Plugin.TrackMap.SvgPath'] || '');
       var dhTrack = document.getElementById('dhMapTrack');
       if (dhTrack && svgPath && dhTrack.getAttribute('d') !== svgPath) {
         dhTrack.setAttribute('d', svgPath);

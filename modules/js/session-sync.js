@@ -104,8 +104,11 @@
 
     // Generate unique session ID — iRacing has subsession ID, others use timestamp + track
     var sessionGameId = '';
+    var subsessionId = '';
     if (isIRacing) {
       sessionGameId = _vs(p, 'IRacingExtraProperties.iRacing_SessionInfo_SessionID') || '';
+      // SubSessionID is the split-specific ID that iRacing's API uses — critical for dedup
+      subsessionId = _vs(p, 'IRacingExtraProperties.iRacing_SessionInfo_SubSessionID') || '';
     } else {
       // Generate a unique ID from timestamp + track + car for deduplication
       var trackForId = _vs(p, 'RaceCorProDrive.Plugin.TrackMap.TrackName')
@@ -124,6 +127,7 @@
       sessionType: _vs(p, pre + 'SessionTypeName') || 'road',
       gameName: gameName,
       gameId: sessionGameId,
+      subsessionId: subsessionId,
       startedAt: new Date().toISOString(),
       startPosition: +_v(p, 'DataCorePlugin.GameData.Position') || 0,
       startIncidents: +_v(p, dsPre + 'IncidentCount') || 0
@@ -200,6 +204,7 @@
       sessionType: _sessionStartSnapshot.sessionType,
       gameName: _sessionStartSnapshot.gameName,
       gameId: _sessionStartSnapshot.gameId,
+      subsessionId: _sessionStartSnapshot.subsessionId || null,
       finishPosition: finishPosition,
       incidentCount: incidentDelta,
       completedLaps: completedLaps,
@@ -509,6 +514,7 @@
       sessionType: startSessionType || sessionModeName,
       gameName: _sessionStartSnapshot.gameName,
       gameId: _sessionStartSnapshot.gameId,
+      subsessionId: _sessionStartSnapshot.subsessionId || null,
       finishPosition: null,  // No finish position in practice
       incidentCount: incidentDelta,
       completedLaps: completedLaps,

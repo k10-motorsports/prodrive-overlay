@@ -55,21 +55,6 @@ contextBridge.exposeInMainWorld('k10', {
   getK10User: () => ipcRenderer.invoke('get-k10-user'),
   getK10Token: () => ipcRenderer.invoke('get-k10-token'),
   verifyK10Token: () => ipcRenderer.invoke('verify-k10-token'),
-  // iRacing Data Sync (embedded browser login → data fetch)
-  iracingConnect: () => ipcRenderer.invoke('iracing-connect'),
-  iracingDisconnect: () => ipcRenderer.invoke('iracing-disconnect'),
-  iracingSync: () => ipcRenderer.invoke('iracing-sync'),
-  getIRacingStatus: () => ipcRenderer.invoke('get-iracing-status'),
-  getIRacingData: () => ipcRenderer.invoke('get-iracing-data'),
-  onIRacingSync: (callback) => {
-    ipcRenderer.on('iracing-sync', (event, data) => callback(data));
-  },
-  onIRacingLog: (callback) => {
-    ipcRenderer.on('iracing-log', (event, line) => callback(line));
-  },
-  onIRacingAutoConnected: (callback) => {
-    ipcRenderer.on('iracing-auto-connected', (event, data) => callback(data));
-  },
   // Remote dashboard server (iPad/tablet access)
   getRemoteServerInfo: () => ipcRenderer.invoke('get-remote-server-info'),
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),

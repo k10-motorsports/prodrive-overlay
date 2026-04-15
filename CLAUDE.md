@@ -29,7 +29,6 @@ This overlay is the **consumer** side of the telemetry pipeline. The plugin (`ra
 | HTML entry | `dashboard.html` |
 | Electron main process | `main.js` |
 | Preload / context bridge | `preload.js` |
-| iRacing client (DOM scraping) | `iracing-client.js` (~1100 lines) |
 | JS modules | `modules/js/*.js` |
 | CSS modules | `modules/styles/*.css` |
 | Reusable UI components | `modules/components/` |
@@ -96,18 +95,14 @@ dashboard.html (renderer — 28+ JS modules, 10 CSS modules, WebGL2 pipeline)
 - **Animations**: driven by CSS transitions triggered by class changes, not JS animation loops
 - **DOM updates**: direct DOM manipulation in `pollUpdate()`, routed from the single `fetchProps()` call
 
-## iRacing Web Scraping — HARD CONSTRAINTS
+## iRacing Data Sync
 
-The `iracing-client.js` file handles iRacing integration. The iRacing member site is an Angular SSR app. **No data API calls work from the embedded Electron BrowserWindow.**
+iRacing data (session results, ratings, track maps) is synced via two mechanisms — both use the SimHub plugin HTTP API, not direct iRacing scraping:
 
-- `/data/` API endpoints require separate OAuth auth the embedded browser doesn't have
-- `/bff/pub/proxy/api/` BFF proxy endpoints return OAuth metadata, NOT member/racing data
-- All fetch helpers (`fetchBff`, `fetchIRacingEndpoint`, `fetchDirectData`, `fetchViaWebContents`) fail for chart/member data
-- The **only working approach** is DOM scraping of server-rendered pages
+1. **Auto-sync** (`session-sync.js`): captures session start/end data automatically, posts to `/api/sessions` with track name resolution and dedup
+2. **Post-race poll** (`/api/iracing/latest`): imports recent races from iRacing's official API, upgrades auto-synced sessions with richer data when matched by `subsessionId`
 
-To get iRating history: navigate BrowserWindow to profile/charts → wait for Angular SSR render → scrape SVG/Canvas chart elements → navigate back. See `runSync(wc)` function (~line 1092).
-
-**Do not attempt API/BFF calls for iRating history. They do not work. Period.**
+The previous approach (Electron BrowserWindow + DOM scraping of iRacing's Angular site) was removed — it never reliably worked on Windows and all its responsibilities are now handled by the plugin API path.
 
 ## Design System
 

@@ -47,7 +47,61 @@
   const _trackDisplayNameCache = {};    // { gameTrackName → displayName }
   const _trackSectorCountCache = {};   // { gameTrackName → sectorCount (3 or 7) }
   const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
+  // Exposed on window so drive-hud.js can also prefer API track maps
+  const _trackApiSvgCache = window._trackApiSvgCache = {}; // { gameTrackName → svgPath from rawCsv }
   const K10_DISPLAY_NAME_API = 'https://prodrive.racecor.io/api/tracks';
+
+  // ─── CSV → SVG conversion (mirrors C# TrackMapProvider + track-svg.ts) ───
+  // When the web API has authoritative rawCsv data, we convert it here so the
+  // overlay can prefer it over the plugin's locally-cached track recording.
+  function _csvToSvgPath(csv) {
+    var lines = csv.trim().split('\n');
+    var pts = [];
+    for (var i = 0; i < lines.length; i++) {
+      var parts = lines[i].split(',');
+      if (parts.length < 3) continue;
+      var x = parseFloat(parts[0]), z = parseFloat(parts[1]), pct = parseFloat(parts[2]);
+      if (isNaN(x) || isNaN(z)) continue;
+      // Skip degenerate sentinel points SimHub writes at lap end
+      if (x === 0 && z === 0 && pct > 0.99) continue;
+      pts.push({ x: x, y: z, p: isNaN(pct) ? 0 : pct });
+    }
+    if (pts.length < 10) return '';
+
+    // Normalize to 0–100 viewBox with 5% padding (uniform scale)
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var j = 0; j < pts.length; j++) {
+      if (pts[j].x < minX) minX = pts[j].x;
+      if (pts[j].x > maxX) maxX = pts[j].x;
+      if (pts[j].y < minY) minY = pts[j].y;
+      if (pts[j].y > maxY) maxY = pts[j].y;
+    }
+    var rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+    var scale = 90.0 / Math.max(rangeX, rangeY);
+    var offX = (100.0 - rangeX * scale) / 2.0;
+    var offY = (100.0 - rangeY * scale) / 2.0;
+    for (var k = 0; k < pts.length; k++) {
+      pts[k].x = (pts[k].x - minX) * scale + offX;
+      pts[k].y = (pts[k].y - minY) * scale + offY;
+    }
+
+    // Catmull-Rom → cubic Bézier spline
+    var f = function(n) { return n.toFixed(2); };
+    var path = 'M ' + f(pts[0].x) + ',' + f(pts[0].y);
+    var len = pts.length;
+    for (var m = 0; m < len; m++) {
+      var p0 = pts[(m - 1 + len) % len];
+      var p1 = pts[m];
+      var p2 = pts[(m + 1) % len];
+      var p3 = pts[(m + 2) % len];
+      var cx1 = p1.x + (p2.x - p0.x) / 6.0;
+      var cy1 = p1.y + (p2.y - p0.y) / 6.0;
+      var cx2 = p2.x - (p3.x - p1.x) / 6.0;
+      var cy2 = p2.y - (p3.y - p1.y) / 6.0;
+      path += ' C ' + f(cx1) + ',' + f(cy1) + ' ' + f(cx2) + ',' + f(cy2) + ' ' + f(p2.x) + ',' + f(p2.y);
+    }
+    return path + ' Z';
+  }
 
   function resolveTrackDisplayName(gameTrackName) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
@@ -59,6 +113,25 @@
         _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
         // Cache sector count from API (default 3 if not present)
         _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 3;
+        // Prefer pre-built SVG from the API (authoritative, curated data).
+        // Falls back to building from rawCsv if svgPath isn't returned.
+        // This overrides the plugin's local track recording (which may be stale/corrupt).
+        if (data && data.svgPath) {
+          _trackApiSvgCache[gameTrackName] = data.svgPath;
+          console.log('[K10] Track map override from web API for:', gameTrackName,
+            '(' + data.svgPath.length + ' chars)');
+        } else if (data && data.rawCsv) {
+          try {
+            var apiSvg = _csvToSvgPath(data.rawCsv);
+            if (apiSvg) {
+              _trackApiSvgCache[gameTrackName] = apiSvg;
+              console.log('[K10] Track map override from rawCsv for:', gameTrackName,
+                '(' + apiSvg.length + ' chars)');
+            }
+          } catch (e) {
+            console.warn('[K10] Failed to convert API rawCsv to SVG for', gameTrackName, e);
+          }
+        }
       })
       .catch(function() {
         // API unreachable — use the game name and default sectors
@@ -1092,12 +1165,17 @@
 
     // ─── Track map ───
     const mapReady = +v('RaceCorProDrive.Plugin.TrackMap.Ready') || 0;
-    const mapPath = mapReady ? (vs('RaceCorProDrive.Plugin.TrackMap.SvgPath') || '') : '';
+    const pluginPath = mapReady ? (vs('RaceCorProDrive.Plugin.TrackMap.SvgPath') || '') : '';
     const mapPX   = +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50;
     const mapPY   = +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50;
     const mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading') || 0;
-    // Use plugin path if available; show no track when map isn't ready
+    // Prefer web API track map over plugin's local recording (which may be stale/corrupt).
+    // The API SVG is built from curated rawCsv in the database, while the plugin may be
+    // using SimHub's local .shtl recording that has glitches (e.g. teleport straight lines).
+    const _curTrackName = vs('RaceCorProDrive.Plugin.TrackMap.TrackName')
+                       || vs('DataCorePlugin.GameData.TrackName') || '';
+    const mapPath = _trackApiSvgCache[_curTrackName] || pluginPath;
     try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
     const fullMapLbl = document.getElementById('fullMapLabel');
