@@ -2,7 +2,11 @@
   "UUID": "com.racecor.overlay",
   "SDKVersion": 2,
   "Author": "RaceCor",
-  "CodePath": "app.html",
+  "CodePath": "bin/plugin.js",
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
   "Description": "Control your RaceCor racing overlay directly from the Stream Deck.",
   "Name": "RaceCor Overlay",
   "Icon": "icons/racecor",

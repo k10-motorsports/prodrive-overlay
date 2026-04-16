@@ -1,9 +1,0 @@
-<svg viewBox="0 0 144 144" xmlns="http://www.w3.org/2000/svg">
-  <rect width="144" height="144" fill="#1a1a2e" rx="16"/>
-  <g transform="translate(72, 52)">
-    <circle cx="0" cy="0" r="20" fill="none" stroke="white" stroke-width="2.5"/>
-    <path d="M0,-20 Q-28,-20 -20,0 Q-12,20 0,20" fill="none" stroke="white" stroke-width="2.5"/>
-    <polygon points="-6,-26 -6,-14 -16,-20" fill="white"/>
-  </g>
-  <text x="72" y="128" font-family="system-ui" font-size="14" fill="rgba(255,255,255,0.6)" text-anchor="middle">Replay</text>
-</svg>

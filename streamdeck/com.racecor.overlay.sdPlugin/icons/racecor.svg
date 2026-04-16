@@ -1,8 +1,0 @@
-<svg viewBox="0 0 144 144" xmlns="http://www.w3.org/2000/svg">
-  <rect width="144" height="144" fill="#1a1a2e" rx="16"/>
-  <g transform="translate(72, 56)">
-    <!-- Stylised R letterform -->
-    <path d="M-16,-24 L-16,24 M-16,-24 L8,-24 Q18,-24 18,-14 Q18,-4 8,-4 L-16,-4 M0,-4 L18,24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
-  <text x="72" y="128" font-family="system-ui" font-size="11" fill="rgba(255,255,255,0.6)" text-anchor="middle">RaceCor</text>
-</svg>
