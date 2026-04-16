@@ -297,6 +297,15 @@
     opacity: 0.5;
     transform: scale(1);
     pointer-events: auto;
+    cursor: pointer;
+  }
+  .idle-logo.idle-visible:hover {
+    opacity: 0.7;
+  }
+  /* When nav bar is expanded, remove left rounding to connect flush */
+  .idle-logo.nav-active {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
   }
   .idle-logo img {
     width: 75%;

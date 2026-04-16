@@ -56,6 +56,8 @@
 <link rel="stylesheet" href="modules/styles/race-results.css">
 <link rel="stylesheet" href="modules/styles/incident-coach.css">
 <link rel="stylesheet" href="modules/styles/next-race-ideas.css">
+<link rel="stylesheet" href="modules/styles/idle-nav.css">
+<link rel="stylesheet" href="modules/styles/moza-settings.css">
 <!-- drive-mode.css removed — iPad drive mode no longer active -->
 
 </head>
@@ -726,6 +728,22 @@
   <img src="images/branding/logomark.png" alt="RaceCor">
 </div>
 
+<!-- COMPONENT: Idle Navigation Bar (visible when idle + expanded via logo click) -->
+<div class="idle-nav-bar" id="idleNavBar">
+  <button class="idle-nav-button" data-action="settings" title="Settings (Ctrl+Shift+S)">
+    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    <span class="nav-label">Settings</span>
+  </button>
+  <button class="idle-nav-button" data-action="webapp" title="Open Web Dashboard">
+    <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <span class="nav-label">ProDrive</span>
+  </button>
+  <button class="idle-nav-button" data-action="moza" title="Moza Wheel Manager">
+    <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="21"/><line x1="3" y1="12" x2="8" y2="12"/><line x1="16" y1="12" x2="21" y2="12"/></svg>
+    <span class="nav-label">Moza</span>
+  </button>
+</div>
+
 <!-- COMPONENT: Next Race Ideas (visible when idle — between races) -->
 <div id="nextRaceIdeas">
   <div class="nri-title">Next Race Ideas</div>
@@ -962,6 +980,7 @@
         <div class="settings-sidebar-item" data-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
         <!-- Connections is now an always-visible right panel -->
         <div class="settings-sidebar-item" data-tab="pedals" onclick="switchSettingsTab(this)">Pedals</div>
+        <div class="settings-sidebar-item" data-tab="mozaHardware" onclick="switchSettingsTab(this)">Moza</div>
         <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
         <div class="settings-sidebar-item" data-tab="system" onclick="switchSettingsTab(this)">System</div>
       </div>
@@ -1201,28 +1220,166 @@
         </div>
       </div>
 
-      <div class="settings-group-label">Moza Pithouse</div>
-      <div class="settings-row">
-        <span class="settings-label" id="mozaStatusLabel">Detecting...</span>
-        <button class="settings-btn" id="mozaImportBtn" onclick="importMozaPedals()" disabled>Import from Moza</button>
-      </div>
-      <div class="settings-info-text" id="mozaInfoText">
-        Moza Pithouse integration lets you save pedal curves per car and auto-load them when you switch cars.
+      <!-- Moza Pithouse section removed — replaced by Moza Hardware tab with direct serial integration -->
+    </div>
+
+    <!-- ── Tab: Moza Hardware ── -->
+    <div class="settings-tab-content" id="settingsTabMozaHardware">
+
+      <!-- Connection Status Bar -->
+      <div class="moza-connection-bar">
+        <span class="moza-status-dot" id="mozaGlobalStatus"></span>
+        <span id="mozaDeviceCountLabel">No devices</span>
+        <button class="settings-btn" id="mozaReconnectBtn">Reconnect</button>
+        <button class="settings-btn" id="mozaRefreshBtn">Refresh</button>
       </div>
 
-      <div class="settings-group-label">Debug</div>
-      <div class="moza-debug-panel" id="mozaDebugPanel">
-        <div class="moza-debug-row"><span class="moza-debug-key">Moza Detected</span><span class="moza-debug-val" id="dbgMozaDetected">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Profile Source</span><span class="moza-debug-val" id="dbgProfileSource">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Profile Name</span><span class="moza-debug-val" id="dbgProfileName">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Car</span><span class="moza-debug-val" id="dbgCarName">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Throttle Curve Pts</span><span class="moza-debug-val" id="dbgThrottlePts">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Brake Curve Pts</span><span class="moza-debug-val" id="dbgBrakePts">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Clutch Curve Pts</span><span class="moza-debug-val" id="dbgClutchPts">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Throttle Deadzone</span><span class="moza-debug-val" id="dbgThrottleDz">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Brake Deadzone</span><span class="moza-debug-val" id="dbgBrakeDz">—</span></div>
-        <div class="moza-debug-row"><span class="moza-debug-key">Raw JSON</span><span class="moza-debug-val moza-debug-json" id="dbgRawJson">—</span></div>
+      <!-- Disconnected message -->
+      <div class="moza-disconnected" id="mozaDisconnectedMsg">
+        <svg class="moza-disconnected-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="21"/></svg>
+        <p>No Moza devices detected.</p>
+        <p>Connect your Moza hardware via USB and click Reconnect.</p>
       </div>
+
+      <!-- Device Panels Container -->
+      <div id="mozaDevicesContainer" style="display:none">
+
+        <!-- Wheelbase -->
+        <div class="moza-device-panel expanded" id="mozaWheelbasePanel" data-device="wheelbase" style="display:none">
+          <div class="moza-device-header">
+            <span class="moza-status-dot"></span>
+            <span>Wheelbase</span>
+            <span class="moza-device-model" id="mozaWheelbaseModelLabel"></span>
+            <span id="mozaFFBStrengthLive" style="margin-left:auto; font-size:10px; color:var(--text-dim)"></span>
+            <svg class="moza-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="moza-device-body">
+            <div class="moza-section-label">Force Feedback</div>
+            <div class="moza-slider-row"><span class="moza-slider-label">FFB Strength</span><input type="range" id="mozaFFBStrength" min="0" max="100" value="50" data-device="Wheelbase" data-key="ffbStrength" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaFFBStrengthVal">50%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Max Torque</span><input type="range" id="mozaMaxTorque" min="0" max="100" value="100" data-device="Wheelbase" data-key="maxTorque" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaMaxTorqueVal">100%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Rotation</span><input type="range" id="mozaRotationRange" min="90" max="2700" value="900" data-device="Wheelbase" data-key="rotationRange" data-suffix="°" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaRotationRangeVal">900°</span></div>
+
+            <div class="moza-section-label">Damping</div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Friction</span><input type="range" id="mozaFriction" min="0" max="100" value="0" data-device="Wheelbase" data-key="friction" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaFrictionVal">0%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Spring</span><input type="range" id="mozaSpring" min="0" max="100" value="0" data-device="Wheelbase" data-key="spring" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaSpringVal">0%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Damper</span><input type="range" id="mozaDamper" min="0" max="100" value="0" data-device="Wheelbase" data-key="damper" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaDamperVal">0%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Inertia</span><input type="range" id="mozaInertia" min="0" max="100" value="0" data-device="Wheelbase" data-key="inertia" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaInertiaVal">0%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Road Feel</span><input type="range" id="mozaRoadSensitivity" min="0" max="100" value="50" data-device="Wheelbase" data-key="roadSensitivity" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaRoadSensitivityVal">50%</span></div>
+
+            <div class="moza-section-label">Equalizer</div>
+            <div class="moza-slider-row"><span class="moza-slider-label">EQ 1</span><input type="range" id="mozaEQ1" min="0" max="100" value="50" data-device="Wheelbase" data-key="eq1" data-suffix="" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaEQ1Val">50</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">EQ 2</span><input type="range" id="mozaEQ2" min="0" max="100" value="50" data-device="Wheelbase" data-key="eq2" data-suffix="" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaEQ2Val">50</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">EQ 3</span><input type="range" id="mozaEQ3" min="0" max="100" value="50" data-device="Wheelbase" data-key="eq3" data-suffix="" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaEQ3Val">50</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">EQ 4</span><input type="range" id="mozaEQ4" min="0" max="100" value="50" data-device="Wheelbase" data-key="eq4" data-suffix="" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaEQ4Val">50</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">EQ 5</span><input type="range" id="mozaEQ5" min="0" max="100" value="50" data-device="Wheelbase" data-key="eq5" data-suffix="" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaEQ5Val">50</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">EQ 6</span><input type="range" id="mozaEQ6" min="0" max="100" value="50" data-device="Wheelbase" data-key="eq6" data-suffix="" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaEQ6Val">50</span></div>
+          </div>
+        </div>
+
+        <!-- Pedals -->
+        <div class="moza-device-panel" id="mozaPedalsPanel" data-device="pedals" style="display:none">
+          <div class="moza-device-header">
+            <span class="moza-status-dot"></span>
+            <span>Pedals</span>
+            <svg class="moza-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="moza-device-body">
+            <div class="moza-section-label">Response Curves</div>
+            <div class="moza-curve-row">
+              <div class="moza-curve-container">
+                <canvas class="moza-curve-canvas" id="mozaThrottleCurve"></canvas>
+              </div>
+              <div class="moza-curve-container">
+                <canvas class="moza-curve-canvas" id="mozaBrakeCurve"></canvas>
+              </div>
+            </div>
+            <div class="moza-curve-container">
+              <canvas class="moza-curve-canvas" id="mozaClutchCurve"></canvas>
+            </div>
+
+            <div class="moza-section-label">Deadzones</div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Throttle DZ</span><input type="range" id="mozaThrottleDeadzone" min="0" max="30" value="0" data-device="Pedals" data-key="throttleDeadzone" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaThrottleDeadzoneVal">0%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Brake DZ</span><input type="range" id="mozaBrakeDeadzone" min="0" max="30" value="0" data-device="Pedals" data-key="brakeDeadzone" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaBrakeDeadzoneVal">0%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Clutch DZ</span><input type="range" id="mozaClutchDeadzone" min="0" max="30" value="0" data-device="Pedals" data-key="clutchDeadzone" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaClutchDeadzoneVal">0%</span></div>
+          </div>
+        </div>
+
+        <!-- Handbrake -->
+        <div class="moza-device-panel" id="mozaHandbrakePanel" data-device="handbrake" style="display:none">
+          <div class="moza-device-header">
+            <span class="moza-status-dot"></span>
+            <span>Handbrake</span>
+            <svg class="moza-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="moza-device-body">
+            <div class="moza-section-label">Response Curve</div>
+            <div class="moza-curve-container">
+              <canvas class="moza-curve-canvas" id="mozaHandbrakeCurve"></canvas>
+            </div>
+            <div class="moza-section-label">Settings</div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Button Threshold</span><input type="range" id="mozaHandbrakeThreshold" min="0" max="100" value="50" data-device="Handbrake" data-key="buttonThreshold" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaHandbrakeThresholdVal">50%</span></div>
+            <div class="moza-slider-row"><span class="moza-slider-label">Deadzone</span><input type="range" id="mozaHandbrakeDeadzone" min="0" max="30" value="0" data-device="Handbrake" data-key="deadzone" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaHandbrakeDeadzoneVal">0%</span></div>
+          </div>
+        </div>
+
+        <!-- Shifter -->
+        <div class="moza-device-panel" id="mozaShifterPanel" data-device="shifter" style="display:none">
+          <div class="moza-device-header">
+            <span class="moza-status-dot"></span>
+            <span>Shifter</span>
+            <svg class="moza-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="moza-device-body">
+            <div class="moza-select-row">
+              <span class="moza-select-label">Direction</span>
+              <select id="mozaShifterDirection" data-device="Shifter" data-key="direction" onchange="mozaSelectChanged(this)">
+                <option value="0">Normal</option>
+                <option value="1">Reversed</option>
+              </select>
+            </div>
+            <div class="moza-select-row">
+              <span class="moza-select-label">HID Mode</span>
+              <select id="mozaShifterHidMode" data-device="Shifter" data-key="hidMode" onchange="mozaSelectChanged(this)">
+                <option value="0">Joypad</option>
+                <option value="1">Keyboard</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="moza-device-panel" id="mozaDashboardPanel" data-device="dashboard" style="display:none">
+          <div class="moza-device-header">
+            <span class="moza-status-dot"></span>
+            <span>Dashboard</span>
+            <svg class="moza-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="moza-device-body">
+            <div class="moza-slider-row"><span class="moza-slider-label">Brightness</span><input type="range" id="mozaDashBrightness" min="0" max="100" value="80" data-device="Dashboard" data-key="brightness" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaDashBrightnessVal">80%</span></div>
+            <div class="moza-select-row">
+              <span class="moza-select-label">RPM Display</span>
+              <select id="mozaDashRpmMode" data-device="Dashboard" data-key="rpmDisplayMode" onchange="mozaSelectChanged(this)">
+                <option value="0">Bar</option>
+                <option value="1">Dot</option>
+                <option value="2">Off</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Steering Wheel -->
+        <div class="moza-device-panel" id="mozaWheelPanel" data-device="wheel" style="display:none">
+          <div class="moza-device-header">
+            <span class="moza-status-dot"></span>
+            <span>Steering Wheel</span>
+            <svg class="moza-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="moza-device-body">
+            <div class="moza-slider-row"><span class="moza-slider-label">RGB Brightness</span><input type="range" id="mozaWheelRGBBrightness" min="0" max="100" value="80" data-device="Wheel" data-key="rgbBrightness" data-suffix="%" oninput="mozaSliderChanged(this)"><span class="moza-slider-val" id="mozaWheelRGBBrightnessVal">80%</span></div>
+          </div>
+        </div>
+
+      </div><!-- /mozaDevicesContainer -->
     </div>
 
     <!-- ── Tab: Key Commands ── -->
@@ -1556,6 +1713,9 @@
 <script src="modules/js/next-race-ideas.js"></script>
 <script src="modules/js/driver-profile.js"></script>
 <script src="modules/js/drive-hud.js"></script>
+<script src="modules/components/moza-curve-editor.js"></script>
+<script src="modules/js/moza-settings.js"></script>
+<script src="modules/js/idle-nav.js"></script>
 <script src="modules/js/poll-engine.js"></script>
 
 </body>

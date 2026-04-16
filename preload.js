@@ -81,6 +81,11 @@ contextBridge.exposeInMainWorld('k10', {
   },
   // Ambient light — screen capture moved to C# plugin (ScreenColorSampler).
   // Color data now arrives via poll JSON (DS.AmbientR/G/B), no IPC needed.
+  // Moza hardware manager window
+  openMozaManager: () => ipcRenderer.invoke('open-moza-manager'),
+  onMozaManagerClosed: (callback) => {
+    ipcRenderer.on('moza-manager-closed', () => callback());
+  },
   // Quit application
   quitApp: () => ipcRenderer.invoke('quit-app'),
 });

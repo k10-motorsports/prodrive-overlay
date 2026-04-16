@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════════════
+   IDLE NAVIGATION BAR
+   Horizontal action-button strip that extends left
+   from the idle logo when clicked. Idle-state only.
+   ═══════════════════════════════════════════════ */
+
+.idle-nav-bar {
+  position: fixed;
+  top: 10px;                      /* same top as idle logo */
+  right: 112px;                   /* 10px + 98px (logo) + 4px gap */
+  z-index: 50;                    /* same z-index as idle logo */
+  height: 98px;                   /* same height as idle logo */
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  opacity: 0;
+  transform: translateX(20px);
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.idle-nav-bar.nav-expanded {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* ── Individual buttons ── */
+.idle-nav-button {
+  width: 72px;
+  height: 98px;
+  background: var(--bg-logo);
+  border: 1px solid var(--border);
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.25s ease, transform 0.25s ease;
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+/* Leftmost button gets left border + rounding */
+.idle-nav-button:first-child {
+  border-left: 1px solid var(--border);
+  border-top-left-radius: var(--corner-r);
+  border-bottom-left-radius: var(--corner-r);
+}
+
+.idle-nav-button:hover {
+  background: hsla(0, 0%, 100%, 0.12);
+  color: var(--text-bright, #fff);
+}
+
+.idle-nav-button:active {
+  background: hsla(0, 0%, 100%, 0.06);
+}
+
+/* Staggered reveal — rightmost (closest to logo) appears first */
+.idle-nav-bar.nav-expanded .idle-nav-button {
+  opacity: 1;
+  transform: translateX(0);
+}
+.idle-nav-bar.nav-expanded .idle-nav-button:nth-last-child(1) { transition-delay: 0.03s; }
+.idle-nav-bar.nav-expanded .idle-nav-button:nth-last-child(2) { transition-delay: 0.06s; }
+.idle-nav-bar.nav-expanded .idle-nav-button:nth-last-child(3) { transition-delay: 0.09s; }
+.idle-nav-bar.nav-expanded .idle-nav-button:nth-last-child(4) { transition-delay: 0.12s; }
+.idle-nav-bar.nav-expanded .idle-nav-button:nth-last-child(5) { transition-delay: 0.15s; }
+
+/* Reset delays when collapsing for a clean fade-out */
+.idle-nav-bar:not(.nav-expanded) .idle-nav-button {
+  transition-delay: 0s;
+}
+
+/* ── Icons inside buttons ── */
+.idle-nav-button .nav-icon {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.idle-nav-button .nav-label {
+  line-height: 1;
+}
+
+/* ── Hide nav bar when not idle ── */
+body:not(.idle-state) .idle-nav-bar {
+  display: none !important;
+}

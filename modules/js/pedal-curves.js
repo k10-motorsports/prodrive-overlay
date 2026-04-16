@@ -78,7 +78,6 @@
     if (_profileLabel) {
       var name = profileData.profileName || '';
       var source = profileData.source || '';
-      if (source === 'moza') name = '⚡ ' + name;
       _profileLabel.textContent = name;
       _profileLabel.title = profileData.carName || '';
     }
@@ -455,79 +454,15 @@ function bindPedalProfileToCar() {
   }).catch(function () {});
 }
 
-function importMozaPedals() {
-  var url = (window._simhubUrlOverride || SIMHUB_URL) + '?action=importMozaPedals';
-  fetch(url).then(function (r) { return r.json(); }).then(function (result) {
-    if (result.ok) {
-      loadPedalProfiles(); // refresh the dropdown
-      var btn = document.getElementById('mozaImportBtn');
-      if (btn) { btn.textContent = 'Imported!'; setTimeout(function () { btn.textContent = 'Import from Moza'; }, 3000); }
-    }
-  }).catch(function () {});
-}
+// Moza Pithouse import and debug removed — replaced by direct
+// hardware integration in moza-settings.js
 
-// Detect Moza status and update UI when the Pedals tab loads
 function updatePedalSettingsUI() {
-  var profile = window.getCurrentPedalProfile ? window.getCurrentPedalProfile() : null;
-  var statusLabel = document.getElementById('mozaStatusLabel');
-  var importBtn = document.getElementById('mozaImportBtn');
-
-  if (profile) {
-    if (profile.mozaDetected) {
-      if (statusLabel) statusLabel.textContent = 'Moza Pithouse detected';
-      if (importBtn) importBtn.disabled = false;
-    } else {
-      if (statusLabel) statusLabel.textContent = 'Moza not detected';
-      if (importBtn) importBtn.disabled = true;
-    }
-  } else {
-    if (statusLabel) statusLabel.textContent = 'No profile data from plugin';
-    if (importBtn) importBtn.disabled = true;
-  }
-
   // Load profile list if not yet loaded
   if (!_pedalProfilesLoaded) loadPedalProfiles();
 
   // Render large curve preview
   renderPedalSettingsCurve();
-
-  // Update debug panel
-  _updateMozaDebug(profile);
-}
-
-function _updateMozaDebug(profile) {
-  var el = function (id) { return document.getElementById(id); };
-
-  if (!profile) {
-    var ids = ['dbgMozaDetected', 'dbgProfileSource', 'dbgProfileName',
-               'dbgCarName', 'dbgThrottlePts', 'dbgBrakePts', 'dbgClutchPts',
-               'dbgThrottleDz', 'dbgBrakeDz'];
-    ids.forEach(function (id) { var e = el(id); if (e) e.textContent = '—'; });
-    var jsonEl = el('dbgRawJson');
-    if (jsonEl) jsonEl.textContent = 'No profile data';
-    return;
-  }
-
-  var set = function (id, val) { var e = el(id); if (e) e.textContent = val; };
-
-  set('dbgMozaDetected', profile.mozaDetected ? 'YES' : 'NO');
-  set('dbgProfileSource', profile.source || '(none)');
-  set('dbgProfileName', profile.profileName || '(unnamed)');
-  set('dbgCarName', profile.carName || '(none)');
-  set('dbgThrottlePts', profile.throttleCurve ? profile.throttleCurve.length + ' pts' : '—');
-  set('dbgBrakePts', profile.brakeCurve ? profile.brakeCurve.length + ' pts' : '—');
-  set('dbgClutchPts', profile.clutchCurve ? profile.clutchCurve.length + ' pts' : '—');
-  set('dbgThrottleDz', profile.throttleDeadzone != null ? (profile.throttleDeadzone * 100).toFixed(1) + '%' : '—');
-  set('dbgBrakeDz', profile.brakeDeadzone != null ? (profile.brakeDeadzone * 100).toFixed(1) + '%' : '—');
-
-  var jsonEl = el('dbgRawJson');
-  if (jsonEl) {
-    try {
-      jsonEl.textContent = JSON.stringify(profile, null, 1);
-    } catch (e) {
-      jsonEl.textContent = '(error)';
-    }
-  }
 }
 
 // Hook into tab switch to refresh pedal settings

@@ -121,6 +121,7 @@ function saveBounds(bounds) {
 // ── State ────────────────────────────────────────────────────
 let overlayWindow = null;
 let settingsWindow = null;   // detached settings on secondary display
+let mozaWindow = null;       // Moza hardware manager window
 let settingsMode = false;
 let greenScreenMode = false;
 let rendererCrashCount = 0;
@@ -695,6 +696,89 @@ ipcMain.handle('open-dashboard', async () => {
 
 ipcMain.handle('close-dashboard', async () => {
   closeDashboardWindow();
+  return true;
+});
+
+// ═══════════════════════════════════════════════════════════════
+// MOZA HARDWARE MANAGER WINDOW
+// Dedicated window for the Moza settings panel. Opens from the
+// idle nav bar or via IPC. Loads the same dashboard with a query
+// flag so the renderer enters Moza-settings-only mode.
+// ═══════════════════════════════════════════════════════════════
+
+function openMozaManagerWindow() {
+  if (mozaWindow && !mozaWindow.isDestroyed()) {
+    mozaWindow.show();
+    mozaWindow.moveTop();
+    mozaWindow.focus();
+    return;
+  }
+
+  const primary = screen.getPrimaryDisplay();
+  const winW = Math.min(560, primary.workAreaSize.width);
+  const winH = Math.min(720, primary.workAreaSize.height);
+
+  mozaWindow = new BrowserWindow({
+    width: winW,
+    height: winH,
+    icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
+    frame: false,
+    autoHideMenuBar: true,
+    resizable: true,
+    movable: true,
+    alwaysOnTop: true,
+    transparent: false,
+    backgroundColor: '#1a1a1a',
+    skipTaskbar: false,
+    title: 'Moza Hardware Manager',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true,
+      sandbox: true,
+    },
+  });
+
+  mozaWindow.setAlwaysOnTop(true, 'screen-saver');
+
+  // Load the dashboard with a query flag for Moza-only mode
+  mozaWindow.loadFile(path.join(__dirname, getDashboardFile()), {
+    query: { mozaManager: '1' }
+  });
+
+  mozaWindow.once('ready-to-show', () => {
+    if (mozaWindow && !mozaWindow.isDestroyed()) {
+      mozaWindow.show();
+      mozaWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+
+  mozaWindow.on('closed', () => {
+    mozaWindow = null;
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('moza-manager-closed');
+    }
+    logToFile('[K10] Moza manager window closed');
+  });
+
+  logToFile('[K10] Moza manager window opened');
+}
+
+function closeMozaManagerWindow() {
+  if (mozaWindow && !mozaWindow.isDestroyed()) {
+    mozaWindow.close();
+    mozaWindow = null;
+  }
+}
+
+ipcMain.handle('open-moza-manager', async () => {
+  openMozaManagerWindow();
+  return true;
+});
+
+ipcMain.handle('close-moza-manager', async () => {
+  closeMozaManagerWindow();
   return true;
 });
 
