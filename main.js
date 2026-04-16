@@ -13,7 +13,8 @@ const https  = require('https');
 const crypto = require('crypto');
 const remoteServer = require('./remote-server');
 const updater      = require('./modules/js/auto-updater');
-const ffmpegEncoder = require('./modules/js/ffmpeg-encoder');
+const ffmpegEncoder  = require('./modules/js/ffmpeg-encoder');
+const replayDirector = require('./modules/js/replay-director');
 
 // ── Crash log ───────────────────────────────────────────────
 // Write a log file next to the app so crash info is visible
@@ -456,6 +457,10 @@ app.whenReady().then(() => {
   globalShortcut.register('CommandOrControl+Shift+B', () => {
     if (overlayWindow) overlayWindow.webContents.send('save-replay-buffer');
   });
+
+  globalShortcut.register('CommandOrControl+Shift+P', () => {
+    if (overlayWindow) overlayWindow.webContents.send('toggle-replay-director');
+  });
 });
 
 app.on('will-quit', () => {
@@ -696,6 +701,67 @@ ipcMain.handle('transcode-recording', async (_event, webmPath, options) => {
   } catch (err) {
     _transcoding = false;
     logToFile(`[K10] Transcode error: ${err.message}`);
+    return { error: err.message };
+  }
+});
+
+// ── IPC: Replay Director (Phase 5) ──
+// Automates iRacing replay recording of TV-view moments identified
+// by the telemetry sidecar. Sends keyboard input to iRacing.
+
+ipcMain.handle('start-replay-director', async (_event, sidecarPath) => {
+  if (replayDirector.isRunning()) {
+    return { error: 'Replay director is already running' };
+  }
+  if (!sidecarPath || !fs.existsSync(sidecarPath)) {
+    return { error: 'Sidecar file not found: ' + sidecarPath };
+  }
+
+  logToFile(`[K10] Replay director starting: ${sidecarPath}`);
+
+  // Run in background — don't await (it takes minutes)
+  replayDirector.run(sidecarPath, {
+    onProgress: function (progress) {
+      // Forward progress to renderer
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('replay-director-progress', progress);
+      }
+      if (progress.status === 'recording_start') {
+        // Tell renderer to start the screen recording
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('replay-director-record', { action: 'start' });
+        }
+      } else if (progress.status === 'recording_stop') {
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('replay-director-record', { action: 'stop' });
+        }
+      }
+      logToFile(`[K10] Replay director: ${progress.status} — ${progress.message || ''}`);
+    },
+  }).then(function (result) {
+    logToFile(`[K10] Replay director finished: ${JSON.stringify(result)}`);
+  }).catch(function (err) {
+    logToFile(`[K10] Replay director error: ${err.message}`);
+  });
+
+  return { success: true, message: 'Replay director started' };
+});
+
+ipcMain.handle('cancel-replay-director', async () => {
+  replayDirector.cancel();
+  return { success: true };
+});
+
+ipcMain.handle('get-replay-director-state', async () => {
+  return replayDirector.getProgress();
+});
+
+ipcMain.handle('parse-sidecar-moments', async (_event, sidecarPath) => {
+  try {
+    const moments = replayDirector.parseSidecar(sidecarPath);
+    const estimatedSec = replayDirector.estimateTime(moments);
+    return { success: true, moments, estimatedSeconds: estimatedSec };
+  } catch (err) {
     return { error: err.message };
   }
 });

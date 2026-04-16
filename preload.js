@@ -111,6 +111,20 @@ contextBridge.exposeInMainWorld('k10', {
   onSaveReplayBuffer: (callback) => {
     ipcRenderer.on('save-replay-buffer', () => callback());
   },
+  // Replay Director (Phase 5)
+  startReplayDirector: (sidecarPath) => ipcRenderer.invoke('start-replay-director', sidecarPath),
+  cancelReplayDirector: () => ipcRenderer.invoke('cancel-replay-director'),
+  getReplayDirectorState: () => ipcRenderer.invoke('get-replay-director-state'),
+  parseSidecarMoments: (sidecarPath) => ipcRenderer.invoke('parse-sidecar-moments', sidecarPath),
+  onReplayDirectorProgress: (callback) => {
+    ipcRenderer.on('replay-director-progress', (_event, progress) => callback(progress));
+  },
+  onReplayDirectorRecord: (callback) => {
+    ipcRenderer.on('replay-director-record', (_event, data) => callback(data));
+  },
+  onToggleReplayDirector: (callback) => {
+    ipcRenderer.on('toggle-replay-director', () => callback());
+  },
   // Quit application
   quitApp: () => ipcRenderer.invoke('quit-app'),
 });

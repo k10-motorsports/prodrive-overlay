@@ -1600,10 +1600,18 @@
         </select>
       </div>
 
+      <div class="settings-group-label">Replay Director</div>
+      <div class="settings-hint">After a race, automatically records TV-view footage of key moments (overtakes, incidents, pit stops) from iRacing's replay system. Requires a telemetry sidecar from a previous recording.</div>
+      <button class="settings-btn" onclick="if(window.startReplayDirector) window.startReplayDirector();" style="margin-top: 4px;">
+        Start Replay Director
+      </button>
+      <div class="settings-hint" style="margin-top: 4px;">Or press <strong>Ctrl+Shift+P</strong> at any time after a race.</div>
+
       <div class="settings-group-label">Hotkeys</div>
       <div class="settings-hint">
         <strong>Ctrl+Shift+V</strong> — Start / stop recording<br>
-        <strong>Ctrl+Shift+B</strong> — Save replay buffer as clip
+        <strong>Ctrl+Shift+B</strong> — Save replay buffer as clip<br>
+        <strong>Ctrl+Shift+P</strong> — Start replay director (post-race)
       </div>
 
       <button class="settings-btn" onclick="refreshRecordingDevices()" style="margin-top: 8px;">Refresh Devices</button>
@@ -1845,6 +1853,7 @@
 <script src="modules/js/telemetry-sidecar.js"></script>
 <script src="modules/js/auto-record.js"></script>
 <script src="modules/js/replay-buffer.js"></script>
+<script src="modules/js/replay-director-ui.js"></script>
 <script src="modules/js/idle-nav.js"></script>
 <script src="modules/js/poll-engine.js"></script>
 
