@@ -88,6 +88,14 @@ contextBridge.exposeInMainWorld('k10', {
   },
   // Idle state — notify main process so it can switch window mode
   notifyIdleState: (isIdle) => ipcRenderer.invoke('notify-idle-state', isIdle),
+  // Screen recording
+  startRecording: (opts) => ipcRenderer.invoke('start-recording', opts),
+  stopRecording: () => ipcRenderer.invoke('stop-recording'),
+  writeRecordingChunk: (buf) => ipcRenderer.invoke('write-recording-chunk', buf),
+  getRecordingState: () => ipcRenderer.invoke('get-recording-state'),
+  onToggleRecording: (callback) => {
+    ipcRenderer.on('toggle-recording', () => callback());
+  },
   // Quit application
   quitApp: () => ipcRenderer.invoke('quit-app'),
 });

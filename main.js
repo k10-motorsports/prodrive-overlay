@@ -440,12 +440,16 @@ app.whenReady().then(() => {
     if (overlayWindow) overlayWindow.webContents.send('toggle-rating-editor');
   });
 
-  globalShortcut.register('CommandOrControl+Shift+V', () => {
+  globalShortcut.register('CommandOrControl+Shift+U', () => {
     if (overlayWindow) overlayWindow.webContents.send('toggle-driver-profile');
   });
 
   globalShortcut.register('CommandOrControl+Shift+F', () => {
     if (overlayWindow) overlayWindow.webContents.send('toggle-drive-mode');
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+V', () => {
+    if (overlayWindow) overlayWindow.webContents.send('toggle-recording');
   });
 });
 
@@ -505,6 +509,81 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
     }
     console.log('[K10] Race mode — always-on-top, taskbar hidden');
   }
+});
+
+// ── IPC: Screen recording ──────────────────────────────────────
+// The renderer handles capture via desktopCapturer + MediaRecorder.
+// Main process owns the file I/O: creates the write stream, receives
+// chunks from the renderer, and finalizes the file on stop.
+let _recordingStream = null;
+let _recordingPath = null;
+let _recordingStartTime = null;
+
+function getRecordingDir() {
+  // Use user-configured directory, fall back to system Videos folder
+  const settings = loadSettingsSync();
+  const dir = settings.recordingDirectory || app.getPath('videos');
+  // Ensure the directory exists
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+ipcMain.handle('start-recording', async (_event, options = {}) => {
+  if (_recordingStream) {
+    return { error: 'Already recording' };
+  }
+  try {
+    const dir = getRecordingDir();
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+    const ext = options.ext || 'webm';
+    const filename = `RaceCor_${ts}.${ext}`;
+    _recordingPath = path.join(dir, filename);
+    _recordingStream = fs.createWriteStream(_recordingPath);
+    _recordingStartTime = Date.now();
+    logToFile(`[K10] Recording started: ${_recordingPath}`);
+    return { success: true, path: _recordingPath, filename };
+  } catch (err) {
+    logToFile(`[K10] Recording start error: ${err.message}`);
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('write-recording-chunk', async (_event, arrayBuffer) => {
+  if (!_recordingStream) return;
+  try {
+    _recordingStream.write(Buffer.from(arrayBuffer));
+  } catch (err) {
+    logToFile(`[K10] Recording write error: ${err.message}`);
+  }
+});
+
+ipcMain.handle('stop-recording', async () => {
+  if (!_recordingStream) {
+    return { error: 'Not recording' };
+  }
+  return new Promise((resolve) => {
+    const filePath = _recordingPath;
+    const duration = Date.now() - _recordingStartTime;
+    _recordingStream.end(() => {
+      let fileSize = 0;
+      try { fileSize = fs.statSync(filePath).size; } catch (e) { /* ok */ }
+      logToFile(`[K10] Recording stopped: ${filePath} (${(fileSize / 1024 / 1024).toFixed(1)} MB, ${(duration / 1000).toFixed(1)}s)`);
+      resolve({ success: true, path: filePath, fileSize, duration });
+    });
+    _recordingStream = null;
+    _recordingPath = null;
+    _recordingStartTime = null;
+  });
+});
+
+ipcMain.handle('get-recording-state', async () => {
+  return {
+    recording: !!_recordingStream,
+    path: _recordingPath,
+    duration: _recordingStartTime ? Date.now() - _recordingStartTime : 0,
+  };
 });
 
 // ── IPC: Detach settings to secondary display ──

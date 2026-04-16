@@ -58,6 +58,7 @@
 <link rel="stylesheet" href="modules/styles/next-race-ideas.css">
 <link rel="stylesheet" href="modules/styles/idle-nav.css">
 <link rel="stylesheet" href="modules/styles/moza-settings.css">
+<link rel="stylesheet" href="modules/styles/recorder.css">
 <!-- drive-mode.css removed — iPad drive mode no longer active -->
 
 </head>
@@ -983,6 +984,7 @@
         <div class="settings-sidebar-item" data-tab="mozaHardware" onclick="switchSettingsTab(this)">Moza</div>
         <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
         <div class="settings-sidebar-item" data-tab="system" onclick="switchSettingsTab(this)">System</div>
+        <div class="settings-sidebar-item" data-tab="recording" onclick="switchSettingsTab(this)">Recording</div>
       </div>
       <div class="settings-content">
 
@@ -1484,6 +1486,27 @@
       </div>
     </div>
 
+    <!-- ── Tab: Recording — screen capture settings ── -->
+    <div class="settings-tab-content" id="settingsTabRecording">
+      <div class="settings-group-label">Capture</div>
+      <div class="settings-row">
+        <span class="settings-label">Quality</span>
+        <select class="settings-select" id="settingsRecordingQuality" onchange="updateSetting('recordingQuality', this.value)">
+          <option value="low">Low (8 Mbps)</option>
+          <option value="medium">Medium (16 Mbps)</option>
+          <option value="high">High (28 Mbps)</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Include Microphone</span>
+        <div class="settings-toggle active" data-key="recordingMic" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="settings-hint">Record your mic audio along with the screen. Game audio requires a virtual audio cable (Phase 2).</div>
+
+      <div class="settings-group-label">Hotkey</div>
+      <div class="settings-hint">Press <strong>Ctrl+Shift+V</strong> to start/stop recording at any time.</div>
+    </div>
+
     <button class="settings-close" onclick="toggleSettings()">Close</button>
 
     </div><!-- /settings-content -->
@@ -1715,6 +1738,8 @@
 <script src="modules/js/drive-hud.js"></script>
 <script src="modules/components/moza-curve-editor.js"></script>
 <script src="modules/js/moza-settings.js"></script>
+<script src="modules/js/recorder.js"></script>
+<script src="modules/js/recorder-ui.js"></script>
 <script src="modules/js/idle-nav.js"></script>
 <script src="modules/js/poll-engine.js"></script>
 

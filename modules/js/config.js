@@ -616,7 +616,11 @@ const _defaultSettings = {
   useRemoteTokens: true,       // fetch CSS token builds from K10 Pro Drive API
   theme: 'dark',               // 'dark' or 'light' — synced with web dashboard preference
   apiBase: 'https://prodrive.racecor.io', // K10 Pro Drive API base URL
-  iracingDataSync: true // Sync race sessions to Pro Drive by default
+  iracingDataSync: true, // Sync race sessions to Pro Drive by default
+  // Screen recording
+  recordingQuality: 'high',     // 'low', 'medium', 'high'
+  recordingMic: true,           // include microphone audio
+  recordingDirectory: '',       // empty = system Videos folder
 };
 
 let _settings = Object.assign({}, _defaultSettings);
