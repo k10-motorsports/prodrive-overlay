@@ -157,9 +157,14 @@
   // then looks for the latest sidecar file.
   function findLatestSidecar() {
     // The sidecar path is derived from the most recent recording.
-    // We check window._lastRecordingPath set by the recorder.
+    // We check window._lastRecordingPath set by the recorder, but also
+    // store the timestamp to detect if it's stale from a previous session.
     var lastPath = window._lastRecordingPath;
-    if (lastPath) {
+    var lastTimestamp = window._lastRecordingTimestamp;
+    var now = Date.now();
+
+    // If the cached path is older than 30 minutes, treat it as stale
+    if (lastPath && lastTimestamp && (now - lastTimestamp) < 1800000) {
       var sidecar = lastPath.replace(/\.(webm|mp4)$/i, '.telemetry.jsonl');
       return sidecar;  // Main process will validate existence
     }
@@ -264,6 +269,7 @@
   window.addEventListener('recording-state-change', function (e) {
     if (e.detail && e.detail.result && e.detail.result.path) {
       window._lastRecordingPath = e.detail.result.path;
+      window._lastRecordingTimestamp = Date.now();  // Mark when this path was set
     }
   });
 

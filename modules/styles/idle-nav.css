@@ -40,7 +40,7 @@
   cursor: pointer;
   color: var(--text-dim);
   font-size: 10px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--ff-mono, monospace);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   transition: background 0.15s ease, color 0.15s ease, opacity 0.25s ease, transform 0.25s ease;

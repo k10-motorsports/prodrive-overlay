@@ -74,9 +74,23 @@
   }
 
   function handleNavClick(action) {
+    // Disable all nav buttons during IPC call to prevent double-clicks
+    var buttons = document.querySelectorAll('.idle-nav-button');
+    buttons.forEach(function (btn) {
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.5';
+    });
+
     // Collapse nav bar after clicking (settings stays open)
     if (action !== 'settings') {
       collapse();
+    }
+
+    function enableButtons() {
+      buttons.forEach(function (btn) {
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+      });
     }
 
     switch (action) {
@@ -89,22 +103,26 @@
           window.toggleSettings();
         }
         collapse();
+        enableButtons();
         break;
 
       case 'webapp':
         if (window.k10 && window.k10.openDashboard) {
           window.k10.openDashboard();
+          enableButtons();
         }
         break;
 
       case 'moza':
         if (window.k10 && window.k10.openMozaManager) {
           window.k10.openMozaManager();
+          enableButtons();
         }
         break;
 
       default:
         console.warn('[IdleNav] Unknown action:', action);
+        enableButtons();
     }
   }
 

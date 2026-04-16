@@ -269,6 +269,8 @@
         if (e.data && e.data.size > 0) {
           e.data.arrayBuffer().then(function (buf) {
             window.k10.writeRecordingChunk(buf);
+          }).catch(function (err) {
+            console.error('[Recorder] Failed to convert blob to arrayBuffer:', err);
           });
         }
       };
@@ -513,8 +515,9 @@
       _webcamStream = null;
     }
     if (_audioContext) {
-      _audioContext.close().catch(function () {});
-      _audioContext = null;
+      _audioContext.close().catch(function () {}).finally(function () {
+        _audioContext = null;
+      });
     }
     _mediaRecorder = null;
   }

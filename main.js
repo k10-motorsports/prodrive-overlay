@@ -617,9 +617,16 @@ ipcMain.handle('sidecar-start', async (_event, filePath) => {
 
 ipcMain.on('sidecar-write', (_event, filePath, chunk) => {
   // Use ipcMain.on (fire-and-forget) for performance — 30 writes/sec
+  // However, check for backpressure: if write() returns false, the internal
+  // buffer is full and we should wait for 'drain' before accepting more.
   var stream = _sidecarStreams[filePath];
   if (stream && !stream.destroyed) {
-    stream.write(chunk);
+    var canWrite = stream.write(chunk);
+    if (!canWrite) {
+      logToFile(`[K10] Sidecar write backpressure on ${filePath} — waiting for drain`);
+      // The renderer will eventually retry or the stream will emit 'drain'
+      // and automatically resume. Log this edge case for monitoring.
+    }
   }
 });
 

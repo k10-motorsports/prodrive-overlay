@@ -190,10 +190,11 @@
 
   // ── Auto-start/stop based on idle state ───────────────────
   // Buffer should run when a game is active, not when idle.
+  var _idleCheckIntervalId = null;
   window.addEventListener('DOMContentLoaded', function () {
     // Listen for idle state changes from poll-engine
     var lastIdle = true;
-    setInterval(function () {
+    _idleCheckIntervalId = setInterval(function () {
       var s = window._settings || {};
       if (!s.replayBufferEnabled) {
         if (_running) stop();
@@ -208,6 +209,14 @@
       }
       lastIdle = idle;
     }, 2000); // check every 2 seconds
+  });
+
+  // ── Cleanup idle check interval on module unload ──────────
+  window.addEventListener('beforeunload', function () {
+    if (_idleCheckIntervalId) {
+      clearInterval(_idleCheckIntervalId);
+      _idleCheckIntervalId = null;
+    }
   });
 
   // ── Hotkey handler ────────────────────────────────────────
