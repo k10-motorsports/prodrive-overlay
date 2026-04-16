@@ -4,7 +4,7 @@
 // that renders the HTML dashboard over the sim
 // ═══════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, Menu, desktopCapturer, session } = require('electron');
 const path   = require('path');
 const fs     = require('fs');
 const os     = require('os');
@@ -352,8 +352,15 @@ function exitSettingsMode() {
   if (!overlayWindow) return;
   settingsMode = false;
   if (!greenScreenMode) {
-    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-    overlayWindow.setFocusable(false);
+    if (isIdleMode) {
+      // Idle: keep window interactive for nav bar buttons
+      overlayWindow.setIgnoreMouseEvents(false);
+      overlayWindow.setFocusable(true);
+    } else {
+      // Race: restore click-through overlay
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+      overlayWindow.setFocusable(false);
+    }
   }
   if (greenScreenMode) {
     saveBounds(overlayWindow.getBounds());
@@ -373,6 +380,24 @@ app.whenReady().then(() => {
   try {
     createOverlay();
     logToFile('[K10] Overlay window created OK');
+
+    // ── Display media handler for screen recording ──
+    // Electron 33+ requires this to allow getDisplayMedia() in the renderer.
+    // Automatically grant access to the primary screen without a picker dialog.
+    session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+      try {
+        const sources = await desktopCapturer.getSources({ types: ['screen'] });
+        if (sources.length > 0) {
+          callback({ video: sources[0], audio: 'loopback' });
+        } else {
+          callback({ video: null });
+        }
+      } catch (err) {
+        logToFile(`[K10] Display media handler error: ${err.message}`);
+        callback({ video: null });
+      }
+    });
+
     maybeStartRemoteServer();
     updater.initAutoUpdater(overlayWindow, logToFile);
   } catch (err) {
@@ -467,6 +492,104 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 
+// ═══════════════════════════════════════════════════════════════
+// STREAM DECK ACTION API
+// Centralized dispatcher for all overlay actions. Called by
+// both global hotkeys and the HTTP action endpoint so Stream
+// Deck can trigger any action via a simple GET request.
+// ═══════════════════════════════════════════════════════════════
+
+const _actionHandlers = {
+  // ── Window / App ──
+  'toggle-overlay': () => {
+    if (!overlayWindow) return { ok: false, reason: 'no window' };
+    if (overlayWindow.isVisible()) overlayWindow.hide();
+    else overlayWindow.show();
+    return { ok: true, visible: overlayWindow.isVisible() };
+  },
+  'toggle-settings': () => {
+    if (!overlayWindow) return { ok: false, reason: 'no window' };
+    if (settingsMode) exitSettingsMode();
+    else enterSettingsMode();
+    return { ok: true, settingsMode };
+  },
+  'reset-window': () => {
+    if (!overlayWindow) return { ok: false, reason: 'no window' };
+    const { width: sw, height: sh } = screen.getPrimaryDisplay().bounds;
+    if (greenScreenMode) {
+      const w = Math.round(sw * 0.6);
+      const h = Math.round(sh * 0.5);
+      overlayWindow.setBounds({ x: Math.round((sw - w) / 2), y: Math.round((sh - h) / 2), width: w, height: h });
+      saveBounds(overlayWindow.getBounds());
+    } else {
+      overlayWindow.setBounds({ x: 0, y: 0, width: sw, height: sh });
+    }
+    return { ok: true };
+  },
+  'toggle-greenscreen': () => {
+    const settings = loadSettingsSync();
+    settings.greenScreen = !settings.greenScreen;
+    saveSettingsSync(settings);
+    app.relaunch();
+    app.exit(0);
+    return { ok: true };
+  },
+  'quit': () => {
+    app.quit();
+    return { ok: true };
+  },
+
+  // ── Renderer IPC passthrough ──
+  'restart-demo':           () => _sendRenderer('restart-demo'),
+  'reset-trackmap':         () => _sendRenderer('reset-trackmap'),
+  'toggle-rating-editor':   () => _sendRenderer('toggle-rating-editor'),
+  'toggle-driver-profile':  () => _sendRenderer('toggle-driver-profile'),
+  'toggle-drive-mode':      () => _sendRenderer('toggle-drive-mode'),
+  'toggle-recording':       () => _sendRenderer('toggle-recording'),
+  'save-replay-buffer':     () => _sendRenderer('save-replay-buffer'),
+  'toggle-replay-director': () => _sendRenderer('toggle-replay-director'),
+
+  // ── New actions (not bound to hotkeys) ──
+  'pitbox-next-tab':     () => _sendRenderer('pitbox-next-tab'),
+  'pitbox-prev-tab':     () => _sendRenderer('pitbox-prev-tab'),
+  'dismiss-commentary':  () => _sendRenderer('dismiss-commentary'),
+  'cycle-rating':        () => _sendRenderer('cycle-rating'),
+  'cycle-car-logo':      () => _sendRenderer('cycle-car-logo'),
+  'zoom-in':             () => _sendRenderer('zoom-in'),
+  'zoom-out':            () => _sendRenderer('zoom-out'),
+  'toggle-leaderboard':  () => _sendRenderer('toggle-leaderboard'),
+
+  // ── Mode presets ──
+  'preset-broadcast': () => _sendRenderer('preset-broadcast'),
+  'preset-practice':  () => _sendRenderer('preset-practice'),
+  'preset-qualifying': () => _sendRenderer('preset-qualifying'),
+};
+
+function _sendRenderer(channel) {
+  if (!overlayWindow) return { ok: false, reason: 'no window' };
+  overlayWindow.webContents.send(channel);
+  return { ok: true };
+}
+
+/**
+ * Execute a named action. Returns a result object.
+ * @param {string} name — action name (e.g. 'toggle-overlay')
+ * @returns {{ ok: boolean, reason?: string }}
+ */
+function dispatchAction(name) {
+  const handler = _actionHandlers[name];
+  if (!handler) return { ok: false, reason: 'unknown action: ' + name };
+  try {
+    return handler();
+  } catch (err) {
+    logToFile(`[K10] Action error (${name}): ${err.message}`);
+    return { ok: false, reason: err.message };
+  }
+}
+
+// Expose dispatcher to remote-server.js for HTTP action API
+remoteServer.setActionDispatcher(dispatchAction);
+
 app.on('window-all-closed', () => {
   app.quit();
 });
@@ -484,8 +607,14 @@ ipcMain.handle('request-interactive', async () => {
 ipcMain.handle('release-interactive', async () => {
   if (!overlayWindow || greenScreenMode) return;
   settingsMode = false;
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  overlayWindow.setFocusable(false);
+  if (isIdleMode) {
+    // Idle: keep interactive for nav bar
+    overlayWindow.setIgnoreMouseEvents(false);
+    overlayWindow.setFocusable(true);
+  } else {
+    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+    overlayWindow.setFocusable(false);
+  }
   console.log('[K10] Interactive mode OFF — click-through restored');
 });
 
@@ -500,15 +629,15 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
   isIdleMode = idle;
 
   if (idle) {
-    // Idle mode: behave like a normal app window
+    // Idle mode: behave like a normal app window — fully interactive
+    // so the idle logo and nav bar buttons can be clicked.
     overlayWindow.setAlwaysOnTop(false);
     overlayWindow.setSkipTaskbar(false);
-    // Keep click-through — only idle logo + nav buttons have pointer-events: auto
     if (!settingsMode) {
-      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-      overlayWindow.setFocusable(false);
+      overlayWindow.setIgnoreMouseEvents(false);
+      overlayWindow.setFocusable(true);
     }
-    console.log('[K10] Idle mode — taskbar visible, not always-on-top');
+    console.log('[K10] Idle mode — taskbar visible, interactive, not always-on-top');
   } else {
     // Race mode: overlay on top of the game
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -522,7 +651,7 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
 });
 
 // ── IPC: Screen recording ──────────────────────────────────────
-// The renderer handles capture via desktopCapturer + MediaRecorder.
+// The renderer handles capture via getDisplayMedia + MediaRecorder.
 // Main process owns the file I/O: creates the write stream, receives
 // chunks from the renderer, and finalizes the file on stop.
 let _recordingStream = null;

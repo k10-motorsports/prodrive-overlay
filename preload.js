@@ -86,6 +86,18 @@ contextBridge.exposeInMainWorld('k10', {
   onMozaManagerClosed: (callback) => {
     ipcRenderer.on('moza-manager-closed', () => callback());
   },
+  // ── Stream Deck actions (new IPC channels) ──
+  onPitboxNextTab: (callback) => { ipcRenderer.on('pitbox-next-tab', () => callback()); },
+  onPitboxPrevTab: (callback) => { ipcRenderer.on('pitbox-prev-tab', () => callback()); },
+  onDismissCommentary: (callback) => { ipcRenderer.on('dismiss-commentary', () => callback()); },
+  onCycleRating: (callback) => { ipcRenderer.on('cycle-rating', () => callback()); },
+  onCycleCarLogo: (callback) => { ipcRenderer.on('cycle-car-logo', () => callback()); },
+  onZoomIn: (callback) => { ipcRenderer.on('zoom-in', () => callback()); },
+  onZoomOut: (callback) => { ipcRenderer.on('zoom-out', () => callback()); },
+  onToggleLeaderboard: (callback) => { ipcRenderer.on('toggle-leaderboard', () => callback()); },
+  onPresetBroadcast: (callback) => { ipcRenderer.on('preset-broadcast', () => callback()); },
+  onPresetPractice: (callback) => { ipcRenderer.on('preset-practice', () => callback()); },
+  onPresetQualifying: (callback) => { ipcRenderer.on('preset-qualifying', () => callback()); },
   // Idle state — notify main process so it can switch window mode
   notifyIdleState: (isIdle) => ipcRenderer.invoke('notify-idle-state', isIdle),
   // Screen recording

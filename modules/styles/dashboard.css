@@ -171,7 +171,7 @@
   }
 
   .commentary-title {
-    font-family: var(--ff);
+    font-family: var(--ff-display);
     font-size: 20px;
     font-weight: 700;
     line-height: 1.0;
@@ -206,9 +206,9 @@
     mask-image: none;
   }
   .commentary-text {
-    font-family: sofia-pro-comp, var(--ff);
+    font-family: var(--ff-display);
     font-size: 15px;
-    font-weight: var(--fw-medium);
+    font-weight: var(--fw-regular);
     line-height: 1.2;
     color: var(--text-primary);
   }
@@ -696,7 +696,7 @@
   }
   .rating-value {
     font-family: var(--ff-mono);
-    font-size: 22px;
+    font-size: 18px;
     font-weight: var(--fw-black);
     line-height: 1;
     font-variant-numeric: tabular-nums;

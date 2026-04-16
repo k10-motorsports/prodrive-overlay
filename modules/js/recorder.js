@@ -113,21 +113,18 @@
 
     try {
       // ── 1. Display capture ─────────────────────────────────
-      var constraints = {
+      // Electron 33+ requires getDisplayMedia (the old getUserMedia +
+      // chromeMediaSource:'desktop' pattern was removed).
+      // The main process has a setDisplayMediaRequestHandler that
+      // auto-grants access to the primary screen.
+      _displayStream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
         video: {
-          mandatory: {
-            chromeMediaSource: 'desktop',
-            minWidth: 1920,
-            minHeight: 1080,
-            maxWidth: 7680,
-            maxHeight: 4320,
-            maxFrameRate: 60,
-          },
+          width: { max: 7680 },
+          height: { max: 4320 },
+          frameRate: { max: 60 },
         },
-      };
-
-      _displayStream = await navigator.mediaDevices.getUserMedia(constraints);
+      });
       console.log('[Recorder] Display stream acquired');
 
       // ── 2. Audio sources ───────────────────────────────────

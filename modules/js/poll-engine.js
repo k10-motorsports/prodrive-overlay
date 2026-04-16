@@ -111,8 +111,8 @@
       .then(function(data) {
         // displayName from API already falls back to trackName server-side
         _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
-        // Cache sector count from API (default 3 if not present)
-        _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 3;
+        // Cache sector count from API (0 if not present — don't assume 3)
+        _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 0;
         // Prefer pre-built SVG from the API (authoritative, curated data).
         // Falls back to building from rawCsv if svgPath isn't returned.
         // This overrides the plugin's local track recording (which may be stale/corrupt).
@@ -134,9 +134,9 @@
         }
       })
       .catch(function() {
-        // API unreachable — use the game name and default sectors
+        // API unreachable — use the game name, no assumed sectors
         _trackDisplayNameCache[gameTrackName] = gameTrackName;
-        _trackSectorCountCache[gameTrackName] = 3;
+        _trackSectorCountCache[gameTrackName] = 0;
       })
       .finally(function() {
         delete _trackDisplayNamePending[gameTrackName];
@@ -298,7 +298,11 @@
         refreshNextRaceIdeas();
       }
     }
-    if (_isIdle) { _pollActive = false; return; }
+    // Moza hardware status must update even when idle — user may open
+    // settings to configure hardware without being in a race session.
+    if (window.updateMozaStatus) window.updateMozaStatus(p);
+
+    if (_isIdle) return;
 
     // ─── Gear / Speed / RPM ───
     const gear = ds('DataCorePlugin.GameData.Gear', 'Demo.Gear') || 'N';
@@ -367,8 +371,7 @@
     // ─── Pedal curve overlay (response curves from active profile) ───
     if (window.updatePedalCurves) window.updatePedalCurves(p);
 
-    // ─── Moza hardware status (connection indicators, live FFB readout) ───
-    if (window.updateMozaStatus) window.updateMozaStatus(p);
+    // Moza status update moved before idle return (see above)
 
     // ─── WebGL FX update ───
     if (window.updateGLFX) window.updateGLFX(rpmRatio, thr, brk, clt);
@@ -807,7 +810,7 @@
     }
 
     const ratVals = document.querySelectorAll('.rating-value');
-    if (ratVals.length >= 2) { ratVals[0].textContent = ir > 0 ? ir : '—'; ratVals[1].textContent = sr > 0 ? sr.toFixed(2) : '—'; }
+    if (ratVals.length >= 2) { ratVals[0].textContent = ir > 0 ? (ir >= 1000 ? (ir / 1000).toFixed(1) + 'k' : String(ir)) : '—'; ratVals[1].textContent = sr > 0 ? sr.toFixed(2) : '—'; }
     updateIRBar(ir);
     updateSRPie(sr);
 
@@ -867,11 +870,11 @@
       const curSector = +(p[dsPre + 'CurrentSector']) || 1;
       const lapDelta = +(p[dsPre + 'LapDelta']) || 0;
 
-      // Sector count: use cloud-configured value from K10 API, fall back to 3
+      // Sector count: use cloud-configured value from K10 API only (no fallback)
       const _gameTrack = p['RaceCorProDrive.Plugin.TrackMap.TrackName']
                       || p['DataCorePlugin.GameData.TrackName'] || '';
       if (_gameTrack) resolveTrackDisplayName(_gameTrack); // ensure API call fires
-      const sectorCount = (_gameTrack && _trackSectorCountCache[_gameTrack]) || 3;
+      const sectorCount = (_gameTrack && _trackSectorCountCache[_gameTrack]) || 0;
 
       // Build sector arrays from plugin data (pad to sectorCount)
       const splits = [], deltas = [], states = [];
@@ -1177,12 +1180,11 @@
     const mapPY   = +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50;
     const mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading') || 0;
-    // Prefer web API track map over plugin's local recording (which may be stale/corrupt).
-    // The API SVG is built from curated rawCsv in the database, while the plugin may be
-    // using SimHub's local .shtl recording that has glitches (e.g. teleport straight lines).
+    // ONLY use web API track maps — never fall back to plugin's local SimHub recording.
+    // SimHub .shtl recordings are often stale/corrupt (e.g. Nordschleife teleport lines).
     const _curTrackName = vs('RaceCorProDrive.Plugin.TrackMap.TrackName')
                        || vs('DataCorePlugin.GameData.TrackName') || '';
-    const mapPath = _trackApiSvgCache[_curTrackName] || pluginPath;
+    const mapPath = _trackApiSvgCache[_curTrackName] || '';
     try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
     const fullMapLbl = document.getElementById('fullMapLabel');

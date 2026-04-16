@@ -30,6 +30,13 @@
   var _fuelStratVisible = false;  // is the strategist suggesting a fuel stop?
   var _fuelAccepted = false;      // user accepted the fuel suggestion
 
+  // ── Pit-lane state for fuel hold ──
+  var _prevInPitLane = null;
+  var _lastFuelFormatted = '—';
+  var _lastFuelPerLap = '—';
+  var _lastFuelLaps = '—';
+  var _lastMaxFuelRaw = 0;  // hold tank capacity across pit resets
+
   // ── Car silhouette state ──
   let _lastCarType = '';  // 'gt' or 'formula'
   // Open-wheel / formula car patterns (case-insensitive substring match on CarModel)
@@ -49,7 +56,7 @@
   let _lastIncrement = -1;
   let _lastDecrement = -1;
   let _lastToggle = -1;
-  var _tabOrder = ['tyres', 'fuel', 'weather', 'adj', 'camera'];
+  var _tabOrder = ['tyres', 'fuel', 'weather'];
   var _pbHidden = false;  // "off" state — pitbox dismissed via tab cycling past the edges
 
   // SVG circle constants — radius 28, circumference = 2πr ≈ 175.93
@@ -218,6 +225,37 @@
     el.classList.add('active');
     var page = document.querySelector('[data-pb-page="' + tab + '"]');
     if (page) page.classList.add('active');
+  };
+
+  // ── Tab cycling (called from IPC / Stream Deck / HTTP action) ──
+  // dir: +1 = next, -1 = prev
+  window.pitboxCycleTab = function(dir) {
+    var panel = document.getElementById('pitBoxPanel');
+    if (_pbHidden) {
+      _pbHidden = false;
+      if (panel) panel.classList.remove('pb-dismissed');
+      var revealIdx = dir === 1 ? 0 : _tabOrder.length - 1;
+      var revealTab = document.querySelector('.pb-tab[data-pb-tab="' + _tabOrder[revealIdx] + '"]');
+      if (revealTab) switchPbTab(revealTab);
+      return;
+    }
+    var activeTab = document.querySelector('.pb-tab.active');
+    var currentKey = activeTab ? activeTab.dataset.pbTab : _tabOrder[0];
+    var idx = _tabOrder.indexOf(currentKey);
+    var atEnd   = (dir === 1  && idx === _tabOrder.length - 1);
+    var atStart = (dir === -1 && idx === 0);
+    if (atEnd || atStart) {
+      _pbHidden = true;
+      if (panel) panel.classList.add('pb-dismissed');
+      var allTabs = document.querySelectorAll('.pb-tab');
+      var allPages = document.querySelectorAll('.pb-page');
+      for (var t = 0; t < allTabs.length; t++) allTabs[t].classList.remove('active');
+      for (var p = 0; p < allPages.length; p++) allPages[p].classList.remove('active');
+    } else {
+      var nextIdx = idx + dir;
+      var nextTab = document.querySelector('.pb-tab[data-pb-tab="' + _tabOrder[nextIdx] + '"]');
+      if (nextTab) switchPbTab(nextTab);
+    }
   };
 
   // ── Flash animation ──
@@ -448,18 +486,35 @@
     //  FUEL TAB
     // ════════════════════════════════════════
 
+    // Detect pit lane state to hold fuel display during pit service
+    var inPitLane = +(d['DataCorePlugin.GameData.IsInPitLane'] || d['DataCorePlugin.GameRawData.Telemetry.IsOnPitRoad']) > 0;
+    if (_demo) inPitLane = false; // demo mode doesn't pit
+
     var fuelPct = parseFloat(ds('FuelPct')) || 0;
-    var fuelFormatted = ds('FuelFormatted') || '—';
-    var fuelPerLap = ds('FuelPerLapFormatted') || '—';
+    var fuelFormattedRaw = ds('FuelFormatted') || '';
+    var fuelPerLapRaw = ds('FuelPerLapFormatted') || '';
     var fuelLaps = parseFloat(ds('FuelLapsRemaining')) || 0;
     var fuelDisplay = pb('FuelDisplay') || '—';
     var fuelRequested = pb('FuelRequested');
     var unitLabel = units === 0 ? 'gal' : 'L';
 
-    // Tank capacity — read from GameData.MaxFuel (liters), convert if imperial
-    var maxFuelRaw = _demo
+    // Hold last-known-good fuel values while in pit lane (telemetry can
+    // momentarily report zeros/blanks during pit service)
+    if (!inPitLane && fuelFormattedRaw) _lastFuelFormatted = fuelFormattedRaw;
+    if (!inPitLane && fuelPerLapRaw) _lastFuelPerLap = fuelPerLapRaw;
+    if (!inPitLane && fuelLaps > 0) _lastFuelLaps = fuelLaps.toFixed(1);
+    var fuelFormatted = fuelFormattedRaw || _lastFuelFormatted;
+    var fuelPerLap = fuelPerLapRaw || _lastFuelPerLap;
+
+    _prevInPitLane = inPitLane;
+
+    // Tank capacity — read from GameData.MaxFuel (liters), convert if imperial.
+    // Hold the last known value: MaxFuel can momentarily drop to 0 during pit service.
+    var maxFuelRawLive = _demo
       ? parseFloat(d['RaceCorProDrive.Plugin.Demo.MaxFuel']) || 0
       : parseFloat(d['DataCorePlugin.GameData.MaxFuel']) || 0;
+    if (maxFuelRawLive > 0) _lastMaxFuelRaw = maxFuelRawLive;
+    var maxFuelRaw = _lastMaxFuelRaw;
     var maxFuelDisplay = units === 0 ? maxFuelRaw / 3.78541 : maxFuelRaw;
 
     // ── Fuel strategist suggestion ──
@@ -525,7 +580,7 @@
     if (_els.fuelPerLap) _els.fuelPerLap.textContent = fuelPerLap;
     if (_els.fuelLaps) {
       _els.fuelLaps.textContent = fuelLaps > 0 && fuelLaps < 99
-        ? fuelLaps.toFixed(1) : '—';
+        ? fuelLaps.toFixed(1) : (inPitLane ? _lastFuelLaps : '—');
     }
     // Pit fuel add
     if (_els.fuelVal) {

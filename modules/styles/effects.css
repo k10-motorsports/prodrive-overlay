@@ -321,12 +321,15 @@
   body.idle-state .pit-banner,
   body.idle-state .rc-banner,
   body.idle-state .grid-module,
-  body.idle-state #carLogoSquare,
   body.idle-state #gameLogoOverlay,
   body.idle-state .game-logo {
     opacity: 0 !important;
     pointer-events: none !important;
     transition: opacity 0.6s ease;
+  }
+  /* Car brand logo: force hidden immediately in idle — no fade delay */
+  body.idle-state #carLogoSquare {
+    display: none !important;
   }
   /* Settings overlay must stay accessible in idle */
   body.idle-state .settings-overlay {

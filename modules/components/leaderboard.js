@@ -77,9 +77,16 @@
       // Parse leaderboard from plugin (raw JSON array)
       let raw = snapshot['RaceCorProDrive.Plugin.Leaderboard'];
       if (typeof raw === 'string') {
-        try { raw = JSON.parse(raw); } catch(e) { return; }
+        try { raw = JSON.parse(raw); } catch(e) { raw = null; }
       }
-      if (!raw || !Array.isArray(raw) || raw.length === 0) return;
+
+      // Hide the leaderboard panel when there's no data
+      const panel = document.getElementById('leaderboardPanel');
+      if (!raw || !Array.isArray(raw) || raw.length === 0) {
+        if (panel) panel.classList.add('section-hidden');
+        return;
+      }
+      if (panel) panel.classList.remove('section-hidden');
 
       this._drivers = raw;
 

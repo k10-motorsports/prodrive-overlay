@@ -93,10 +93,10 @@
       liveDeltaEl.textContent = '';
     }
 
-    // Sectors — prefer cloud-configured count (from poll-engine _sectorData), fall back to plugin prop
+    // Sectors — use cloud-configured count only (no SimHub fallback)
     var curSector = +(p[dsPre + 'CurrentSector']) || 1;
     var cloudSectors = window._sectorData && window._sectorData.sectorCount;
-    var sectorCount = cloudSectors || +(p[dsPre + 'SectorCount']) || 3;
+    var sectorCount = cloudSectors || 0;
     var splitsStr = p[dsPre + 'SectorSplits'] || '';
     var splits, deltas, states;
     if (splitsStr) {
@@ -194,9 +194,8 @@
     if (mapReady) {
       var _dhTrackName = (p['RaceCorProDrive.Plugin.TrackMap.TrackName']
                        || p['DataCorePlugin.GameData.TrackName'] || '');
-      // Prefer web API SVG (curated) over plugin's local recording (may be stale/glitchy)
-      var svgPath = (window._trackApiSvgCache && window._trackApiSvgCache[_dhTrackName])
-                 || (p['RaceCorProDrive.Plugin.TrackMap.SvgPath'] || '');
+      // ONLY use web API SVG — never fall back to plugin's local SimHub recording
+      var svgPath = (window._trackApiSvgCache && window._trackApiSvgCache[_dhTrackName]) || '';
       var dhTrack = document.getElementById('dhMapTrack');
       if (dhTrack && svgPath && dhTrack.getAttribute('d') !== svgPath) {
         dhTrack.setAttribute('d', svgPath);

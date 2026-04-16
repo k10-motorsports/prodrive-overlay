@@ -30,6 +30,7 @@ let _port        = DEFAULT_PORT;
 let _appDir      = __dirname;
 let _simhubBase  = SIMHUB_DEFAULT;
 let _logFn       = console.log;
+let _dispatchAction = null;  // set by main.js via setActionDispatcher()
 
 // ── LAN IP helper ────────────────────────────────────────────
 function getLanAddress() {
@@ -240,6 +241,64 @@ function handleRequest(req, res) {
     return;
   }
 
+  // ── Stream Deck Action API: /api/action/:name ──
+  // Simple GET request triggers an overlay action and returns JSON result.
+  // Example: GET http://192.168.1.100:9090/api/action/toggle-settings
+  if (urlPath.startsWith('/api/action/')) {
+    const actionName = urlPath.replace('/api/action/', '').replace(/\/$/, '');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    if (!_dispatchAction) {
+      res.end(JSON.stringify({ ok: false, reason: 'action dispatcher not initialized' }));
+    } else {
+      const result = _dispatchAction(actionName);
+      res.end(JSON.stringify(result));
+    }
+    return;
+  }
+
+  // ── Stream Deck Action List: /api/actions ──
+  // Returns all available action names for discovery/configuration.
+  if (urlPath === '/api/actions') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({
+      actions: [
+        // Window / App
+        { name: 'toggle-overlay',     label: 'Show / Hide',       category: 'app' },
+        { name: 'toggle-settings',    label: 'Settings',          category: 'app' },
+        { name: 'reset-window',       label: 'Reset Window',      category: 'app' },
+        { name: 'toggle-greenscreen', label: 'Green Screen',      category: 'app' },
+        { name: 'quit',               label: 'Quit',              category: 'app' },
+        // HUD
+        { name: 'toggle-drive-mode',  label: 'Drive Mode',        category: 'hud' },
+        { name: 'toggle-leaderboard', label: 'Leaderboard',       category: 'hud' },
+        { name: 'cycle-rating',       label: 'Cycle Rating/Pos',  category: 'hud' },
+        { name: 'cycle-car-logo',     label: 'Cycle Logo',        category: 'hud' },
+        { name: 'zoom-in',            label: 'Zoom In',           category: 'hud' },
+        { name: 'zoom-out',           label: 'Zoom Out',          category: 'hud' },
+        // Pit Box
+        { name: 'pitbox-next-tab',    label: 'Pit Box Next',      category: 'pitbox' },
+        { name: 'pitbox-prev-tab',    label: 'Pit Box Prev',      category: 'pitbox' },
+        // Commentary
+        { name: 'dismiss-commentary', label: 'Dismiss Commentary', category: 'commentary' },
+        // Recording
+        { name: 'toggle-recording',       label: 'Record',            category: 'recording' },
+        { name: 'save-replay-buffer',     label: 'Save Replay',       category: 'recording' },
+        { name: 'toggle-replay-director', label: 'Replay Director',   category: 'recording' },
+        // Demo
+        { name: 'restart-demo',       label: 'Restart Demo',      category: 'demo' },
+        { name: 'reset-trackmap',     label: 'Reset Track Map',   category: 'demo' },
+        // Editors
+        { name: 'toggle-rating-editor',  label: 'Rating Editor',  category: 'editor' },
+        { name: 'toggle-driver-profile', label: 'Driver Profile', category: 'editor' },
+        // Presets
+        { name: 'preset-broadcast',  label: 'Broadcast Mode',     category: 'preset' },
+        { name: 'preset-practice',   label: 'Practice Mode',      category: 'preset' },
+        { name: 'preset-qualifying', label: 'Qualifying Mode',    category: 'preset' },
+      ]
+    }));
+    return;
+  }
+
   // ── Health/info endpoint
   if (urlPath === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -335,4 +394,8 @@ function getInfo() {
   };
 }
 
-module.exports = { start, stop, isRunning, getInfo, getLanAddress, DEFAULT_PORT };
+function setActionDispatcher(fn) {
+  _dispatchAction = fn;
+}
+
+module.exports = { start, stop, isRunning, getInfo, getLanAddress, DEFAULT_PORT, setActionDispatcher };

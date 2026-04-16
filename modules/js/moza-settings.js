@@ -93,9 +93,13 @@
   window.updateMozaStatus = function (p) {
     if (!_initialized) return;
 
-    var pre = p._demo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
-    var connected = p[pre + 'MozaConnected'] === true || p[pre + 'MozaConnected'] === 'True';
-    var deviceCount = +(p[pre + 'MozaDeviceCount']) || 0;
+    var isDemo = +(p['RaceCorProDrive.Plugin.DemoMode']) || 0;
+    var pre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
+    // Check both DS-prefixed and top-level plugin paths — Moza hardware status
+    // is always reported regardless of session state.
+    var connVal = p[pre + 'MozaConnected'] ?? p['RaceCorProDrive.Plugin.MozaConnected'];
+    var connected = connVal === true || connVal === 'True' || connVal === '1' || connVal === 1;
+    var deviceCount = +(p[pre + 'MozaDeviceCount'] ?? p['RaceCorProDrive.Plugin.MozaDeviceCount']) || 0;
 
     // Update global status dot
     var statusDot = document.getElementById('mozaGlobalStatus');
@@ -141,7 +145,11 @@
   function updateDeviceIndicator(panelId, propKey, p) {
     var panel = document.getElementById(panelId);
     if (!panel) return;
-    var isConnected = p[propKey] === true || p[propKey] === 'True';
+    // Check DS-prefixed key and top-level plugin fallback
+    var fallbackKey = propKey.replace('RaceCorProDrive.Plugin.DS.', 'RaceCorProDrive.Plugin.')
+                             .replace('RaceCorProDrive.Plugin.Demo.DS.', 'RaceCorProDrive.Plugin.');
+    var val = p[propKey] ?? p[fallbackKey];
+    var isConnected = val === true || val === 'True' || val === '1' || val === 1;
     panel.style.display = isConnected ? '' : 'none';
 
     var dot = panel.querySelector('.moza-status-dot');

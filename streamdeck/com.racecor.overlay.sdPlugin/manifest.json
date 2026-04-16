@@ -1,0 +1,288 @@
+{
+  "UUID": "com.racecor.overlay",
+  "SDKVersion": 2,
+  "Author": "RaceCor",
+  "CodePath": "app.html",
+  "Description": "Control your RaceCor racing overlay directly from the Stream Deck.",
+  "Name": "RaceCor Overlay",
+  "Icon": "icons/racecor",
+  "URL": "https://racecor.io",
+  "Version": "1.0.0.0",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Software": {
+    "MinimumVersion": "6.4"
+  },
+  "Category": "RaceCor Overlay",
+  "CategoryIcon": "icons/racecor",
+  "Actions": [
+    {
+      "Icon": "icons/settings",
+      "Name": "Toggle Settings",
+      "States": [
+        {
+          "Image": "icons/settings",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-settings",
+      "Tooltip": "Open/close the overlay settings panel"
+    },
+    {
+      "Icon": "icons/show-hide",
+      "Name": "Show / Hide",
+      "States": [
+        {
+          "Image": "icons/show-hide",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-visibility",
+      "Tooltip": "Show or hide the overlay"
+    },
+    {
+      "Icon": "icons/drive-mode",
+      "Name": "Drive Mode",
+      "States": [
+        {
+          "Image": "icons/drive-mode",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-drive-mode",
+      "Tooltip": "Toggle fullscreen driving HUD"
+    },
+    {
+      "Icon": "icons/profile",
+      "Name": "Driver Profile",
+      "States": [
+        {
+          "Image": "icons/profile",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-driver-profile",
+      "Tooltip": "Open/close driver profile panel"
+    },
+    {
+      "Icon": "icons/iracing",
+      "Name": "Rating Editor",
+      "States": [
+        {
+          "Image": "icons/iracing",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-rating-editor",
+      "Tooltip": "Open/close iRating/SR editor"
+    },
+    {
+      "Icon": "icons/zoom-up",
+      "Name": "Zoom In",
+      "States": [
+        {
+          "Image": "icons/zoom-up",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.zoom-in",
+      "Tooltip": "Zoom the overlay in"
+    },
+    {
+      "Icon": "icons/zoom-down",
+      "Name": "Zoom Out",
+      "States": [
+        {
+          "Image": "icons/zoom-down",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.zoom-out",
+      "Tooltip": "Zoom the overlay out"
+    },
+    {
+      "Icon": "icons/reset-map",
+      "Name": "Reset Track Map",
+      "States": [
+        {
+          "Image": "icons/reset-map",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.reset-trackmap",
+      "Tooltip": "Reset the track map position and zoom"
+    },
+    {
+      "Icon": "icons/demo",
+      "Name": "Restart Demo",
+      "States": [
+        {
+          "Image": "icons/demo",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.restart-demo",
+      "Tooltip": "Restart the demo data sequence"
+    },
+    {
+      "Icon": "icons/cycle-rating",
+      "Name": "Cycle Rating / Pos",
+      "States": [
+        {
+          "Image": "icons/cycle-rating",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.cycle-rating",
+      "Tooltip": "Cycle between iRating, SR, and position pages"
+    },
+    {
+      "Icon": "icons/green-screen",
+      "Name": "Green Screen",
+      "States": [
+        {
+          "Image": "icons/green-screen",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-green-screen",
+      "Tooltip": "Toggle chroma-key green screen mode"
+    },
+    {
+      "Icon": "icons/cycle-logo",
+      "Name": "Cycle Car Logo",
+      "States": [
+        {
+          "Image": "icons/cycle-logo",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.cycle-car-logo",
+      "Tooltip": "Cycle through manufacturer logo display modes"
+    },
+    {
+      "Icon": "icons/leaderboard",
+      "Name": "Toggle Leaderboard",
+      "States": [
+        {
+          "Image": "icons/leaderboard",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-leaderboard",
+      "Tooltip": "Show/hide the leaderboard panel"
+    },
+    {
+      "Icon": "icons/record",
+      "Name": "Toggle Recording",
+      "States": [
+        {
+          "Image": "icons/record",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.toggle-recording",
+      "Tooltip": "Start/stop screen recording"
+    },
+    {
+      "Icon": "icons/replay",
+      "Name": "Save Replay",
+      "States": [
+        {
+          "Image": "icons/replay",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.save-replay-buffer",
+      "Tooltip": "Save the replay buffer to disk"
+    },
+    {
+      "Icon": "icons/pitbox-next",
+      "Name": "Pitbox Next Tab",
+      "States": [
+        {
+          "Image": "icons/pitbox-next",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.pitbox-next-tab",
+      "Tooltip": "Cycle to the next pitbox tab"
+    },
+    {
+      "Icon": "icons/pitbox-prev",
+      "Name": "Pitbox Prev Tab",
+      "States": [
+        {
+          "Image": "icons/pitbox-prev",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.pitbox-prev-tab",
+      "Tooltip": "Cycle to the previous pitbox tab"
+    },
+    {
+      "Icon": "icons/commentary",
+      "Name": "Dismiss Commentary",
+      "States": [
+        {
+          "Image": "icons/commentary",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.dismiss-commentary",
+      "Tooltip": "Dismiss the current commentary card"
+    },
+    {
+      "Icon": "icons/broadcast",
+      "Name": "Preset: Broadcast",
+      "States": [
+        {
+          "Image": "icons/broadcast",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.preset-broadcast",
+      "Tooltip": "Apply broadcast production preset"
+    },
+    {
+      "Icon": "icons/practice",
+      "Name": "Preset: Practice",
+      "States": [
+        {
+          "Image": "icons/practice",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.preset-practice",
+      "Tooltip": "Apply practice session preset"
+    },
+    {
+      "Icon": "icons/qualifying",
+      "Name": "Preset: Qualifying",
+      "States": [
+        {
+          "Image": "icons/qualifying",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.preset-qualifying",
+      "Tooltip": "Apply qualifying session preset"
+    },
+    {
+      "Icon": "icons/quit",
+      "Name": "Quit Overlay",
+      "States": [
+        {
+          "Image": "icons/quit",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "UUID": "com.racecor.overlay.quit",
+      "Tooltip": "Quit the RaceCor overlay application"
+    }
+  ]
+}

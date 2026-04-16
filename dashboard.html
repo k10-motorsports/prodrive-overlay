@@ -154,31 +154,7 @@
         <div class="ctrl-item" id="ctrlABS" style="--ctrl-pct:0%;"><div class="ctrl-label">ABS</div><div class="ctrl-value">—</div></div>
         <div class="ctrl-no-adj" id="ctrlNoAdj">NO ADJUSTMENTS</div>
       </div>
-      <div class="panel pedals-area" id="pedalsArea">
-        <div class="pedal-labels-row">
-          <div class="pedal-label-group">
-            <div class="pedal-channel-label throttle">THROTTLE</div>
-            <div class="pedal-pct" style="color:hsla(0,0%,100%,0.85);">0%</div>
-          </div>
-          <div class="pedal-label-group">
-            <div class="pedal-channel-label brake">BRAKE</div>
-            <div class="pedal-pct" style="color:hsla(0,0%,100%,0.85);">0%</div>
-          </div>
-          <div class="pedal-label-group" id="clutchLabelGroup">
-            <div class="pedal-channel-label clutch">CLUTCH</div>
-            <div class="pedal-pct" style="color:hsla(0,0%,100%,0.85);">0%</div>
-          </div>
-        </div>
-        <div class="pedal-viz-stack">
-          <div class="pedal-viz-layer throttle-layer" id="throttleHist"></div>
-          <div class="pedal-viz-layer brake-layer" id="brakeHist"></div>
-          <div class="pedal-viz-layer clutch-layer" id="clutchHist"></div>
-          <canvas class="pedal-trace-canvas" id="pedalTraceCanvas" width="240" height="80"></canvas>
-          <!-- Pedal curve overlay: response curves fill the histogram space -->
-          <canvas class="pedal-curve-canvas" id="pedalCurveCanvas" width="240" height="80"></canvas>
-        </div>
-        <div class="pedal-profile-label" id="pedalProfileLabel"></div>
-      </div>
+      <!-- Pedals area removed -->
     </div>
 
     <!-- COL: Maps stacked — rendered dynamically from TrackMapProvider -->
@@ -496,8 +472,6 @@
         <div class="pb-tab active" data-pb-tab="tyres" onclick="switchPbTab(this)">Tyres</div>
         <div class="pb-tab" data-pb-tab="fuel" onclick="switchPbTab(this)">Fuel</div>
         <div class="pb-tab" data-pb-tab="weather" onclick="switchPbTab(this)">Weather</div>
-        <div class="pb-tab" data-pb-tab="adj" onclick="switchPbTab(this)">Setup</div>
-        <div class="pb-tab" data-pb-tab="camera" onclick="switchPbTab(this)">Camera</div>
       </div>
 
       <!-- ═══ TYRES TAB ═══ -->
@@ -532,7 +506,7 @@
               </g>
             </svg>
             <!-- Formula / Open-wheel — noun-project icon, nose at top -->
-            <svg class="pb-car-svg pb-car-formula" id="pbCarFormula" viewBox="0 0 110 135" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="display:none">
+            <svg class="pb-car-svg pb-car-formula" id="pbCarFormula" viewBox="38 25 34 65" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="display:none">
               <g opacity="0.2">
                 <path fill-rule="evenodd" d="M51.8,81.7l-.4,1.4h-.9l.2-1.4h-1.1v-1l.3-.5v-.5h-.5v-1h-.9v2.2c0,.2-.2.4-.4.4h-2.4c-.2,0-.4-.2-.4-.4v-6.6c0-.2.2-.4.4-.4h2.4c.2,0,.4.2.4.4v2.6l1.3-.8v.7l-1.1.6v.5h1.1v-2.1h-.5v-2h.5v-.8h-1.3v-.2h-2.3v-11.7s1.1-3.6,1.1-3.6v-.4c3.3-4.3,3.7-4.9,5-6.5h.5v-1.5l-3.2-2.5h-1v2c0,.2-.2.4-.4.4h-2.4c-.2,0-.4-.2-.4-.4v-6.6c0-.2.2-.4.4-.4h2.4c.2,0,.4.2.4.4v2h.6v-1.4h.5l.2.8v2.3l2.5,1.9v-1.8s-1.8,0-2.2,0l-.2-.2v-.7h2.9s0-.9,0-.9h-2.9v-.7h3.1v-1.9l.6-3.4-5.6.7-.6,1.3h-2.4s0-4.5,0-4.5l8.8-1.2v-.3h2.1v.3l8.8,1.2v4.6c0,0-2.3,0-2.3,0l-.6-1.3-5.7-.7.6,3.4v1.9h3.1v.7h-2.9v.9h2.9s0,.6,0,.6l-.2.2c-.4,0-2.2,0-2.2,0v1.8l2.5-1.9v-2.3l.2-.8h.5v1.4h.6v-2c0-.2.2-.4.4-.4h2.4c.2,0,.4.2.4.4v6.6c0,.2-.2.4-.4.4h-2.3c-.2,0-.4-.2-.4-.4v-2h-1l-3.2,2.5v1.5h.5c1.2,1.6,1.7,2.2,5,6.5v.4l1.1,3.6v11.7h-2.3v.2h-1.3v.8h.5v2h-.5v2.1h1.1v-.5s-1.1-.6-1.1-.6v-.7l1.3.8v-2.6c0-.2.2-.4.4-.4h2.4c.2,0,.4.2.4.4v6.6c0,.2-.2.4-.4.4h-2.4c-.2,0-.4-.2-.4-.4v-2.2h-.9v1h-.5v.5l.3.5v1h-1.1l.2,1.4h-.8l-.4-1.4h-6.4ZM55,57.8l-.6.2-.8,2.1v2.1s.5,0,.5,0v1.8c-.1,0-.8.5-.8.5v2h1.8c0,0,1.8,0,1.8,0v-2l-.7-.5v-1.8c-.1,0,.3,0,.3,0v-2.1s-.8-2.1-.8-2.1l-.6-.2Z"/>
                 <path fill-rule="evenodd" d="M49.2,83.2h11.8l1.6,2.6h-14.9l1.6-2.6Z"/>
@@ -640,32 +614,7 @@
         <div class="pb-row"><span class="pb-label">Conditions</span><span class="pb-value" id="pbConditions">Dry</span></div>
       </div>
 
-      <!-- ═══ SETUP / ADJUSTMENTS TAB ═══ -->
-      <div class="pb-page" id="pbPageAdj" data-pb-page="adj">
-        <div class="pb-adj-grid" id="pbAdjGrid">
-          <div class="pb-adj-item" id="pbRowBB"><span class="pb-adj-label">BB</span><span class="pb-adj-val zero" id="pbAdjBB">—</span></div>
-          <div class="pb-adj-item" id="pbRowTC"><span class="pb-adj-label">TC</span><span class="pb-adj-val zero" id="pbAdjTC">—</span></div>
-          <div class="pb-adj-item" id="pbRowABS"><span class="pb-adj-label">ABS</span><span class="pb-adj-val zero" id="pbAdjABS">—</span></div>
-          <div class="pb-adj-item" id="pbRowARBF"><span class="pb-adj-label">ARB F</span><span class="pb-adj-val zero" id="pbAdjARBF">—</span></div>
-          <div class="pb-adj-item" id="pbRowARBR"><span class="pb-adj-label">ARB R</span><span class="pb-adj-val zero" id="pbAdjARBR">—</span></div>
-          <div class="pb-adj-item" id="pbRowEng"><span class="pb-adj-label">ENG</span><span class="pb-adj-val zero" id="pbAdjEng">—</span></div>
-          <div class="pb-adj-item" id="pbRowFuel"><span class="pb-adj-label">FUEL MIX</span><span class="pb-adj-val zero" id="pbAdjFuel">—</span></div>
-          <div class="pb-adj-item" id="pbRowWJL"><span class="pb-adj-label">WJ L</span><span class="pb-adj-val zero" id="pbAdjWJL">—</span></div>
-          <div class="pb-adj-item" id="pbRowWJR"><span class="pb-adj-label">WJ R</span><span class="pb-adj-val zero" id="pbAdjWJR">—</span></div>
-          <div class="pb-adj-item" id="pbRowWingF"><span class="pb-adj-label">WING F</span><span class="pb-adj-val zero" id="pbAdjWingF">—</span></div>
-          <div class="pb-adj-item" id="pbRowWingR"><span class="pb-adj-label">WING R</span><span class="pb-adj-val zero" id="pbAdjWingR">—</span></div>
-        </div>
-      </div>
-
-      <!-- ═══ CAMERA / FFB TAB ═══ -->
-      <div class="pb-page" id="pbPageCamera" data-pb-page="camera">
-        <div class="pb-section-label">Force Feedback</div>
-        <div class="pb-row"><span class="pb-label">Max force</span><span class="pb-value" id="pbFFBMax">—</span></div>
-        <div class="pb-divider"></div>
-        <div class="pb-section-label">Mirrors</div>
-        <div class="pb-row"><span class="pb-label">Rearview</span><span class="pb-value" id="pbMirror">—</span></div>
-        <div class="pb-info">Camera and mirror settings are controlled in-sim</div>
-      </div>
+      <!-- Setup and Camera tabs removed -->
 
     </div>
   </div>
@@ -980,7 +929,7 @@
         <div class="settings-sidebar-item" data-tab="layout" onclick="switchSettingsTab(this)">Layout</div>
         <div class="settings-sidebar-item" data-tab="commentary" onclick="switchSettingsTab(this)">Commentary</div>
         <!-- Connections is now an always-visible right panel -->
-        <div class="settings-sidebar-item" data-tab="pedals" onclick="switchSettingsTab(this)">Pedals</div>
+        <!-- Pedals tab removed -->
         <div class="settings-sidebar-item" data-tab="mozaHardware" onclick="switchSettingsTab(this)">Moza</div>
         <div class="settings-sidebar-item" data-tab="keys" onclick="switchSettingsTab(this)">Keys</div>
         <div class="settings-sidebar-item" data-tab="system" onclick="switchSettingsTab(this)">System</div>
@@ -1015,7 +964,7 @@
         <div class="settings-row"><span class="settings-label">Position &amp; Gaps</span><div class="settings-toggle on" data-section="pos-gaps-col" data-key="showPosition" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Track Maps</span><div class="settings-toggle on" data-section="maps-col" data-key="showMaps" onclick="toggleSetting(this)"></div></div>
         <div class="settings-row"><span class="settings-label">Controls (BB/TC/ABS)</span><div class="settings-toggle on" data-section="car-controls" data-key="showControls" onclick="toggleSetting(this)"></div></div>
-        <div class="settings-row"><span class="settings-label">Pedals</span><div class="settings-toggle on" data-section="pedals-area" data-key="showPedals" onclick="toggleSetting(this)"></div></div>
+        <!-- Pedals toggle removed -->
         <div class="settings-row"><span class="settings-label">Commentary</span><div class="settings-toggle on" data-section="commentary-col" data-key="showCommentary" onclick="toggleSetting(this)"></div></div>
         </div>
       </div>
@@ -1198,32 +1147,7 @@
     <!-- ── Tab: Connections ── -->
     <!-- Connections tab content removed — now in always-visible right panel -->
 
-    <!-- ── Tab: Pedals & Wheel ── -->
-    <div class="settings-tab-content" id="settingsTabPedals">
-      <div class="settings-group-label">Active Profile</div>
-      <div class="settings-row">
-        <span class="settings-label">Profile</span>
-        <select class="settings-select" id="settingsPedalProfile" onchange="switchPedalProfile(this.value)">
-          <option value="">Loading...</option>
-        </select>
-      </div>
-      <div class="settings-row">
-        <span class="settings-label">Bind to this car</span>
-        <button class="settings-btn" id="pedalBindCarBtn" onclick="bindPedalProfileToCar()">Bind</button>
-      </div>
-
-      <div class="settings-group-label">Response Curves</div>
-      <div class="pedal-settings-curve-preview">
-        <canvas id="pedalSettingsCurveCanvas" width="200" height="200"></canvas>
-        <div class="pedal-curve-legend">
-          <span class="curve-legend-item" style="color: #4CAF50">■ Throttle</span>
-          <span class="curve-legend-item" style="color: #F44336">■ Brake</span>
-          <span class="curve-legend-item" style="color: #42A5F5">■ Clutch</span>
-        </div>
-      </div>
-
-      <!-- Moza Pithouse section removed — replaced by Moza Hardware tab with direct serial integration -->
-    </div>
+    <!-- Pedals tab removed -->
 
     <!-- ── Tab: Moza Hardware ── -->
     <div class="settings-tab-content" id="settingsTabMozaHardware">

@@ -12,7 +12,8 @@
   .car-controls {
     display: flex;
     gap: var(--gap);
-    flex: 0 0 auto;
+    flex: 1;
+    min-height: 0;
   }
   .ctrl-item {
     flex: 1;
