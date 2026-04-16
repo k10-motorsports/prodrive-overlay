@@ -1,8 +1,9 @@
 # RaceCor Recorder — Replacing OBS with Built-In Capture
 
-**Status:** Proposal  
+**Status:** Implemented  
 **Author:** kevin  
-**Date:** April 15, 2026
+**Date:** April 15, 2026  
+**Implementation docs:** [RECORDING.md](RECORDING.md), [GETTING_STARTED_RECORDING.md](GETTING_STARTED_RECORDING.md)
 
 ---
 

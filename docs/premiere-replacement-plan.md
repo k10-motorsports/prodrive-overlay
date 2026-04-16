@@ -1,8 +1,9 @@
 # RaceCor Editor — AI-Powered Race Edit Pipeline
 
-**Status:** Proposal  
+**Status:** Implemented  
 **Author:** kevin  
-**Date:** April 15, 2026
+**Date:** April 15, 2026  
+**Implementation docs:** [RACECOR_EDIT.md](RACECOR_EDIT.md), [GETTING_STARTED_RECORDING.md](GETTING_STARTED_RECORDING.md)
 
 ---
 

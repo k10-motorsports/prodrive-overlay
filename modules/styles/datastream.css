@@ -93,6 +93,7 @@
     color: var(--text-secondary);
     letter-spacing: -0.02em;
     text-align: right;
+    font-variant-numeric: tabular-nums;
   }
   .ds-value.ds-positive { color: hsla(0, 70%, 55%, 1.0); }
   .ds-value.ds-negative { color: hsla(145, 65%, 50%, 1.0); }

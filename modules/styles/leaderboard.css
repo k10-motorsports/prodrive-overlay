@@ -12,7 +12,7 @@
   .car-controls {
     display: flex;
     gap: var(--gap);
-    flex: 1;
+    flex: 0 0 auto;
   }
   .ctrl-item {
     flex: 1;
@@ -65,6 +65,7 @@
     z-index: 1;
   }
   .ctrl-value {
+    font-family: var(--ff-mono);
     font-size: 22px;
     font-weight: var(--fw-black);
     position: relative;
@@ -141,6 +142,7 @@
   /* Layered pedals — all three histograms overlaid */
   .pedals-area {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 0;

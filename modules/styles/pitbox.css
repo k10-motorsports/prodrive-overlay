@@ -91,6 +91,7 @@
     font-weight: 600;
     color: hsla(0, 0%, 100%, 0.9);
     text-align: right;
+    font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
@@ -207,6 +208,7 @@
     font-weight: 700;
     color: hsla(0, 0%, 100%, 0.9);
     line-height: 1.1;
+    font-variant-numeric: tabular-nums;
   }
   .pb-circle-temp {
     font-family: var(--ff-mono);
@@ -306,6 +308,7 @@
     font-weight: 700;
     color: white;
     line-height: 1.1;
+    font-variant-numeric: tabular-nums;
   }
   .pb-fuel-tank-cap {
     font-size: var(--fs-xs);
@@ -350,6 +353,7 @@
     font-weight: 700;
     color: white;
     line-height: 1.1;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Car adjustments compact grid ── */
@@ -376,6 +380,7 @@
     font-size: var(--fs-xs);
     font-weight: 600;
     color: hsla(0, 0%, 100%, 1);
+    font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;

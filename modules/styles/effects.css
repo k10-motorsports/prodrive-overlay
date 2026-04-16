@@ -668,6 +668,7 @@
     font-size: 18px;
     font-weight: var(--fw-bold);
     color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
   }
   /* Tinted stat items */
   .re-tint-gold .re-stat   { border-color: hsla(45, 100%, 50%, 0.18); background: hsla(45, 100%, 50%, 0.06); }
