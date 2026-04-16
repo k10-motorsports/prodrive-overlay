@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-// RECORDER UI — Recording indicator, timer, and controls
+// RECORDER UI — Recording indicator, timer, settings helpers
 // Shows a red recording dot + elapsed time in the overlay corner.
-// Listens for recording-state-change events from recorder.js.
+// Also handles recording settings panel: device enumeration,
+// facecam config, and settings persistence.
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
@@ -91,5 +92,140 @@
 
   function pad(n) {
     return n < 10 ? '0' + n : '' + n;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RECORDING SETTINGS — device enumeration + persistence
+  // ═══════════════════════════════════════════════════════════
+
+  // ── Update a recording setting and persist ─────────────────
+  function updateRecSetting(key, value) {
+    if (!window._settings) return;
+    window._settings[key] = value;
+    if (typeof window.saveSettings === 'function') {
+      window.saveSettings();
+    }
+  }
+  window.updateRecSetting = updateRecSetting;
+
+  // ── Facecam size helper ────────────────────────────────────
+  var FACECAM_SIZES = {
+    small:  { width: 240, height: 180 },
+    medium: { width: 320, height: 240 },
+    large:  { width: 480, height: 360 },
+  };
+
+  function updateRecFacecamSize(sizeKey) {
+    if (!window._settings) return;
+    var size = FACECAM_SIZES[sizeKey] || FACECAM_SIZES.medium;
+    if (!window._settings.recordingFacecam) {
+      window._settings.recordingFacecam = {};
+    }
+    window._settings.recordingFacecam.width = size.width;
+    window._settings.recordingFacecam.height = size.height;
+    window._settings.recordingFacecamSize = sizeKey;
+    if (typeof window.saveSettings === 'function') window.saveSettings();
+  }
+  window.updateRecFacecamSize = updateRecFacecamSize;
+
+  // ── Facecam position helper ────────────────────────────────
+  function updateRecFacecamPos(posKey) {
+    if (!window._settings) return;
+    var parts = posKey.split('-');
+    if (!window._settings.recordingFacecam) {
+      window._settings.recordingFacecam = {};
+    }
+    window._settings.recordingFacecam.y = parts[0] || 'bottom';
+    window._settings.recordingFacecam.x = parts[1] || 'right';
+    window._settings.recordingFacecamPos = posKey;
+    if (typeof window.saveSettings === 'function') window.saveSettings();
+  }
+  window.updateRecFacecamPos = updateRecFacecamPos;
+
+  // ── Enumerate devices and populate dropdowns ───────────────
+  async function refreshRecordingDevices() {
+    if (typeof window.recorderEnumerateDevices !== 'function') return;
+
+    var result = await window.recorderEnumerateDevices();
+    var audioInputs = result.audioInputs || [];
+    var videoInputs = result.videoInputs || [];
+    var settings = window._settings || {};
+
+    // Mic device dropdown
+    var micSelect = document.getElementById('settingsRecMicDevice');
+    if (micSelect) {
+      var micVal = settings.recordingMicDevice || '';
+      micSelect.innerHTML = '<option value="">Default</option>';
+      audioInputs.forEach(function (d) {
+        var opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label;
+        if (d.deviceId === micVal) opt.selected = true;
+        micSelect.appendChild(opt);
+      });
+    }
+
+    // System audio device dropdown (virtual audio cable appears here)
+    var sysSelect = document.getElementById('settingsRecSystemAudioDevice');
+    if (sysSelect) {
+      var sysVal = settings.recordingSystemAudioDevice || '';
+      sysSelect.innerHTML = '<option value="">None</option>';
+      audioInputs.forEach(function (d) {
+        var opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label;
+        if (d.deviceId === sysVal) opt.selected = true;
+        sysSelect.appendChild(opt);
+      });
+    }
+
+    // Webcam device dropdown
+    var camSelect = document.getElementById('settingsRecWebcamDevice');
+    if (camSelect) {
+      var camVal = settings.recordingWebcamDevice || '';
+      camSelect.innerHTML = '<option value="">None</option>';
+      videoInputs.forEach(function (d) {
+        var opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label;
+        if (d.deviceId === camVal) opt.selected = true;
+        camSelect.appendChild(opt);
+      });
+    }
+
+    // Quality dropdown
+    var qualSelect = document.getElementById('settingsRecordingQuality');
+    if (qualSelect) {
+      qualSelect.value = settings.recordingQuality || 'high';
+    }
+
+    // Facecam size/position dropdowns
+    var sizeSelect = document.getElementById('settingsRecFacecamSize');
+    if (sizeSelect) {
+      sizeSelect.value = settings.recordingFacecamSize || 'medium';
+    }
+
+    var posSelect = document.getElementById('settingsRecFacecamPos');
+    if (posSelect) {
+      posSelect.value = settings.recordingFacecamPos || 'bottom-right';
+    }
+
+    console.log('[RecorderUI] Devices refreshed:', audioInputs.length, 'audio,', videoInputs.length, 'video');
+  }
+  window.refreshRecordingDevices = refreshRecordingDevices;
+
+  // Auto-enumerate when the Recording tab is first opened
+  var _devicesLoaded = false;
+  var origSwitchTab = window.switchSettingsTab;
+  if (typeof origSwitchTab === 'function') {
+    // Wrap the existing tab switcher to detect when Recording tab opens
+    window.switchSettingsTab = function (tab) {
+      origSwitchTab(tab);
+      var tabName = tab && (tab.dataset ? tab.dataset.tab : null);
+      if (tabName === 'recording' && !_devicesLoaded) {
+        _devicesLoaded = true;
+        refreshRecordingDevices();
+      }
+    };
   }
 })();

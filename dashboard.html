@@ -1491,20 +1491,63 @@
       <div class="settings-group-label">Capture</div>
       <div class="settings-row">
         <span class="settings-label">Quality</span>
-        <select class="settings-select" id="settingsRecordingQuality" onchange="updateSetting('recordingQuality', this.value)">
+        <select class="settings-select" id="settingsRecordingQuality" onchange="updateRecSetting('recordingQuality', this.value)">
           <option value="low">Low (8 Mbps)</option>
           <option value="medium">Medium (16 Mbps)</option>
           <option value="high">High (28 Mbps)</option>
         </select>
       </div>
+
+      <div class="settings-group-label">Microphone</div>
       <div class="settings-row">
-        <span class="settings-label">Include Microphone</span>
+        <span class="settings-label">Enable Mic</span>
         <div class="settings-toggle active" data-key="recordingMic" onclick="toggleSetting(this)"></div>
       </div>
-      <div class="settings-hint">Record your mic audio along with the screen. Game audio requires a virtual audio cable (Phase 2).</div>
+      <div class="settings-row">
+        <span class="settings-label">Mic Device</span>
+        <select class="settings-select" id="settingsRecMicDevice" onchange="updateRecSetting('recordingMicDevice', this.value)">
+          <option value="">Default</option>
+        </select>
+      </div>
+
+      <div class="settings-group-label">Game Audio</div>
+      <div class="settings-row">
+        <span class="settings-label">Audio Device</span>
+        <select class="settings-select" id="settingsRecSystemAudioDevice" onchange="updateRecSetting('recordingSystemAudioDevice', this.value)">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div class="settings-hint">To capture game audio, install a virtual audio cable (e.g. VB-Audio CABLE) and set it as the Windows default output. It will appear here as an audio input device.</div>
+
+      <div class="settings-group-label">Facecam</div>
+      <div class="settings-row">
+        <span class="settings-label">Camera</span>
+        <select class="settings-select" id="settingsRecWebcamDevice" onchange="updateRecSetting('recordingWebcamDevice', this.value)">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Size</span>
+        <select class="settings-select" id="settingsRecFacecamSize" onchange="updateRecFacecamSize(this.value)">
+          <option value="small">Small (240×180)</option>
+          <option value="medium">Medium (320×240)</option>
+          <option value="large">Large (480×360)</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Position</span>
+        <select class="settings-select" id="settingsRecFacecamPos" onchange="updateRecFacecamPos(this.value)">
+          <option value="bottom-right">Bottom Right</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="top-right">Top Right</option>
+          <option value="top-left">Top Left</option>
+        </select>
+      </div>
 
       <div class="settings-group-label">Hotkey</div>
       <div class="settings-hint">Press <strong>Ctrl+Shift+V</strong> to start/stop recording at any time.</div>
+
+      <button class="settings-btn" onclick="refreshRecordingDevices()" style="margin-top: 8px;">Refresh Devices</button>
     </div>
 
     <button class="settings-close" onclick="toggleSettings()">Close</button>
