@@ -86,6 +86,8 @@ contextBridge.exposeInMainWorld('k10', {
   onMozaManagerClosed: (callback) => {
     ipcRenderer.on('moza-manager-closed', () => callback());
   },
+  // Idle state — notify main process so it can switch window mode
+  notifyIdleState: (isIdle) => ipcRenderer.invoke('notify-idle-state', isIdle),
   // Quit application
   quitApp: () => ipcRenderer.invoke('quit-app'),
 });

@@ -124,6 +124,7 @@ let settingsWindow = null;   // detached settings on secondary display
 let mozaWindow = null;       // Moza hardware manager window
 let settingsMode = false;
 let greenScreenMode = false;
+let isIdleMode = false;          // true when driver is not in car (overlay → normal app)
 let rendererCrashCount = 0;
 // Single dashboard: vanilla TypeScript build (Vite-bundled, single-file HTML)
 const DASHBOARD_FILE = 'dashboard.html';
@@ -264,7 +265,7 @@ async function createOverlay() {
   // screen-saver level windows. Re-assert every 5 seconds.
   if (process.platform === 'win32') {
     setInterval(() => {
-      if (overlayWindow && !overlayWindow.isDestroyed() && !settingsMode) {
+      if (overlayWindow && !overlayWindow.isDestroyed() && !settingsMode && !isIdleMode) {
         overlayWindow.setAlwaysOnTop(false);
         overlayWindow.setAlwaysOnTop(true, 'screen-saver');
       }
@@ -472,6 +473,38 @@ ipcMain.handle('release-interactive', async () => {
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   overlayWindow.setFocusable(false);
   console.log('[K10] Interactive mode OFF — click-through restored');
+});
+
+// ── IPC: Idle/race window mode switching ──
+// When idle (not in car): normal app behavior — visible in taskbar, not always-on-top,
+// focusable via alt-tab. When racing: overlay mode — always-on-top, skip taskbar,
+// click-through. The nav bar buttons use pointer-events:auto on individual elements,
+// so the window itself stays click-through in both modes.
+ipcMain.handle('notify-idle-state', async (_event, idle) => {
+  if (!overlayWindow || greenScreenMode) return;
+  if (idle === isIdleMode) return;   // no change
+  isIdleMode = idle;
+
+  if (idle) {
+    // Idle mode: behave like a normal app window
+    overlayWindow.setAlwaysOnTop(false);
+    overlayWindow.setSkipTaskbar(false);
+    // Keep click-through — only idle logo + nav buttons have pointer-events: auto
+    if (!settingsMode) {
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+      overlayWindow.setFocusable(false);
+    }
+    console.log('[K10] Idle mode — taskbar visible, not always-on-top');
+  } else {
+    // Race mode: overlay on top of the game
+    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    overlayWindow.setSkipTaskbar(true);
+    if (!settingsMode) {
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+      overlayWindow.setFocusable(false);
+    }
+    console.log('[K10] Race mode — always-on-top, taskbar hidden');
+  }
 });
 
 // ── IPC: Detach settings to secondary display ──
@@ -1100,8 +1133,8 @@ ipcMain.handle('discord-connect', async () => {
     // Wait for the callback
     const result = await callbackPromise;
 
-    // Restore z-level
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
+    // Restore z-level (respect idle mode — don't go always-on-top when not racing)
+    if (overlayWindow && !overlayWindow.isDestroyed() && !isIdleMode) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
 
@@ -1142,8 +1175,8 @@ ipcMain.handle('discord-connect', async () => {
     };
   } catch (err) {
     console.error('[K10] Discord connect error:', err);
-    // Restore z-level if it was lowered
-    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop()) {
+    // Restore z-level if it was lowered (respect idle mode)
+    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop() && !isIdleMode) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
     return { success: false, error: err.message };
@@ -1272,8 +1305,8 @@ ipcMain.handle('k10-connect', async () => {
     // Wait for the callback
     const result = await callbackPromise;
 
-    // Restore z-level
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
+    // Restore z-level (respect idle mode — don't go always-on-top when not racing)
+    if (overlayWindow && !overlayWindow.isDestroyed() && !isIdleMode) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
 
@@ -1323,7 +1356,7 @@ ipcMain.handle('k10-connect', async () => {
     };
   } catch (err) {
     console.error('[K10] K10 Pro connect error:', err);
-    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop()) {
+    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop() && !isIdleMode) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
     return { success: false, error: err.message };

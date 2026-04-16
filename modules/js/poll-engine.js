@@ -285,6 +285,10 @@
         // Session going active — reveal HUD from logo-only startup
         if (typeof revealFromLogoOnly === 'function') revealFromLogoOnly();
       }
+      // Notify main process so it can switch window mode (taskbar, always-on-top)
+      if (window.k10 && window.k10.notifyIdleState) {
+        window.k10.notifyIdleState(nowIdle);
+      }
     }
     // Skip rest of update in idle (except settings remain responsive)
     // Periodically refresh race ideas while idle (every 5 min)
