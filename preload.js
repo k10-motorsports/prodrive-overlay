@@ -102,6 +102,15 @@ contextBridge.exposeInMainWorld('k10', {
   onTranscodeProgress: (callback) => {
     ipcRenderer.on('transcode-progress', (_event, progress) => callback(progress));
   },
+  // Telemetry sidecar (JSONL alongside video)
+  sidecarStart: (filePath) => ipcRenderer.invoke('sidecar-start', filePath),
+  sidecarWrite: (filePath, chunk) => ipcRenderer.send('sidecar-write', filePath, chunk),
+  sidecarStop: (filePath) => ipcRenderer.invoke('sidecar-stop', filePath),
+  // Replay buffer
+  saveReplayBuffer: (opts) => ipcRenderer.invoke('save-replay-buffer', opts),
+  onSaveReplayBuffer: (callback) => {
+    ipcRenderer.on('save-replay-buffer', () => callback());
+  },
   // Quit application
   quitApp: () => ipcRenderer.invoke('quit-app'),
 });

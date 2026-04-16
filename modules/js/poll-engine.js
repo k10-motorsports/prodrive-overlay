@@ -1274,6 +1274,20 @@
     // ─── Drive HUD ───
     try { if (window.updateDriveHud) window.updateDriveHud(p, !!_demo); } catch(e) { console.error('[K10] Drive HUD error:', e); }
 
+    // ─── Telemetry sidecar (write frame when recording) ───
+    try {
+      if (typeof window.sidecarCaptureFrame === 'function' && typeof window.recorderIsRecording === 'function' && window.recorderIsRecording()) {
+        window.sidecarCaptureFrame(p, !!_demo);
+      }
+    } catch(e) { console.error('[K10] Sidecar error:', e); }
+
+    // ─── Auto-record triggers (Phase 4) ───
+    try {
+      if (typeof window.checkAutoRecordTriggers === 'function') {
+        window.checkAutoRecordTriggers(p, !!_demo, _inPitLane, sessNum, serverEndOfRace);
+      }
+    } catch(e) { console.error('[K10] Auto-record error:', e); }
+
     } catch (err) {
       console.error('[K10 render] Error in frame #' + _pollFrame + ':', err);
     }

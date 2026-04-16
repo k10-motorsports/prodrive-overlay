@@ -61,6 +61,44 @@
         updateTranscodeProgress(progress);
       });
     }
+
+    // Auto-record events (Phase 4)
+    window.addEventListener('auto-record-event', function (e) {
+      if (!_indicator || !_timer) return;
+      var detail = e.detail || {};
+      if (detail.event === 'auto-start') {
+        _timer.dataset.autoReason = detail.reason || '';
+      } else if (detail.event === 'auto-stop') {
+        // Brief label showing why auto-stop triggered
+        var reasons = { pit_entry: 'Pit stop', end_of_race: 'Finish', session_change: 'Session end' };
+        var label = reasons[detail.reason] || 'Auto-stopped';
+        showFlash(label, 'hsl(200, 70%, 55%)', 2500);
+      }
+    });
+
+    // Replay buffer saved (Phase 4)
+    window.addEventListener('replay-buffer-saved', function (e) {
+      var detail = e.detail || {};
+      var mb = detail.fileSize ? (detail.fileSize / 1024 / 1024).toFixed(0) : '?';
+      showFlash('Clip saved (' + mb + ' MB)', 'hsl(280, 60%, 60%)', 2500);
+    });
+  }
+
+  // ── Flash notification on the indicator ────────────────────
+  function showFlash(text, color, durationMs) {
+    if (!_indicator || !_dot || !_timer) return;
+    _indicator.classList.add('rec-active');
+    _dot.style.background = color;
+    _dot.style.boxShadow = '0 0 6px ' + color.replace(')', ', 0.6)').replace('hsl', 'hsla');
+    _timer.style.color = color;
+    _timer.textContent = text;
+    setTimeout(function () {
+      _indicator.classList.remove('rec-active');
+      _dot.style.background = '';
+      _dot.style.boxShadow = '';
+      _timer.style.color = '';
+      _timer.textContent = '0:00';
+    }, durationMs || 2500);
   }
 
   // ── Show/hide ──────────────────────────────────────────────
@@ -287,6 +325,42 @@
       } else {
         delToggle.classList.remove('active');
       }
+    }
+
+    // Auto-record toggle
+    var autoToggle = document.querySelector('[data-key="recordingAutoRecord"]');
+    if (autoToggle) {
+      if (settings.recordingAutoRecord) {
+        autoToggle.classList.add('active');
+      } else {
+        autoToggle.classList.remove('active');
+      }
+    }
+
+    // Auto-stop on pit toggle
+    var pitToggle = document.querySelector('[data-key="recordingAutoStopOnPit"]');
+    if (pitToggle) {
+      if (settings.recordingAutoStopOnPit !== false) {
+        pitToggle.classList.add('active');
+      } else {
+        pitToggle.classList.remove('active');
+      }
+    }
+
+    // Replay buffer toggle
+    var bufToggle = document.querySelector('[data-key="replayBufferEnabled"]');
+    if (bufToggle) {
+      if (settings.replayBufferEnabled) {
+        bufToggle.classList.add('active');
+      } else {
+        bufToggle.classList.remove('active');
+      }
+    }
+
+    // Replay buffer duration dropdown
+    var bufDur = document.getElementById('settingsReplayBufferDuration');
+    if (bufDur) {
+      bufDur.value = '' + (settings.replayBufferDuration || 60);
     }
 
     console.log('[RecorderUI] Devices refreshed:', audioInputs.length, 'audio,', videoInputs.length, 'video');

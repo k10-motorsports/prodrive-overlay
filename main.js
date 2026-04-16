@@ -452,6 +452,10 @@ app.whenReady().then(() => {
   globalShortcut.register('CommandOrControl+Shift+V', () => {
     if (overlayWindow) overlayWindow.webContents.send('toggle-recording');
   });
+
+  globalShortcut.register('CommandOrControl+Shift+B', () => {
+    if (overlayWindow) overlayWindow.webContents.send('save-replay-buffer');
+  });
 });
 
 app.on('will-quit', () => {
@@ -585,6 +589,63 @@ ipcMain.handle('get-recording-state', async () => {
     path: _recordingPath,
     duration: _recordingStartTime ? Date.now() - _recordingStartTime : 0,
   };
+});
+
+// ── IPC: Telemetry sidecar (.telemetry.jsonl alongside video) ──
+// The renderer writes frame-synced telemetry data as JSON Lines.
+// We keep a write stream open per-sidecar for efficient appending.
+let _sidecarStreams = {};  // path → fs.WriteStream
+
+ipcMain.handle('sidecar-start', async (_event, filePath) => {
+  try {
+    if (_sidecarStreams[filePath]) {
+      _sidecarStreams[filePath].end();
+    }
+    _sidecarStreams[filePath] = fs.createWriteStream(filePath, { flags: 'w' });
+    logToFile(`[K10] Sidecar started: ${filePath}`);
+    return { success: true, path: filePath };
+  } catch (err) {
+    logToFile(`[K10] Sidecar start error: ${err.message}`);
+    return { error: err.message };
+  }
+});
+
+ipcMain.on('sidecar-write', (_event, filePath, chunk) => {
+  // Use ipcMain.on (fire-and-forget) for performance — 30 writes/sec
+  var stream = _sidecarStreams[filePath];
+  if (stream && !stream.destroyed) {
+    stream.write(chunk);
+  }
+});
+
+ipcMain.handle('sidecar-stop', async (_event, filePath) => {
+  var stream = _sidecarStreams[filePath];
+  if (stream) {
+    stream.end();
+    delete _sidecarStreams[filePath];
+    logToFile(`[K10] Sidecar stopped: ${filePath}`);
+  }
+  return { success: true };
+});
+
+// ── IPC: Replay buffer save ──
+// Saves a chunk of buffered recording data to a timestamped clip file.
+ipcMain.handle('save-replay-buffer', async (_event, options) => {
+  try {
+    const dir = getRecordingDir();
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+    const filename = `RaceCor_Replay_${ts}.webm`;
+    const filePath = path.join(dir, filename);
+    // options.data is an ArrayBuffer from the renderer
+    const buf = Buffer.from(options.data);
+    fs.writeFileSync(filePath, buf);
+    const fileSize = fs.statSync(filePath).size;
+    logToFile(`[K10] Replay buffer saved: ${filePath} (${(fileSize / 1024 / 1024).toFixed(1)} MB)`);
+    return { success: true, path: filePath, filename, fileSize };
+  } catch (err) {
+    logToFile(`[K10] Replay buffer save error: ${err.message}`);
+    return { error: err.message };
+  }
 });
 
 // ── IPC: FFmpeg transcode (.webm → .mp4) ──

@@ -632,6 +632,12 @@ const _defaultSettings = {
   recordingOutputFormat: 'mp4', // 'mp4' (transcode) or 'webm' (raw)
   recordingEncoder: 'auto',    // 'auto', 'h264_nvenc', 'h264_qsv', 'h264_amf', 'libx264'
   recordingDeleteSource: true,  // delete .webm after successful MP4 transcode
+  // Phase 4: Smart recording
+  recordingAutoRecord: false,   // auto-start/stop based on pit lane + session
+  recordingAutoStopOnPit: true, // stop recording on pit entry (stint split)
+  // Phase 4: Replay buffer
+  replayBufferEnabled: false,   // keep rolling buffer in memory
+  replayBufferDuration: 60,     // buffer length in seconds (30–120)
 };
 
 let _settings = Object.assign({}, _defaultSettings);

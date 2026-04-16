@@ -294,6 +294,11 @@
         detail: { recording: true, filename: result.filename },
       }));
 
+      // Start telemetry sidecar alongside video
+      if (typeof window.sidecarStart === 'function' && result.path) {
+        window.sidecarStart(result.path);
+      }
+
       console.log('[Recorder] Recording started → ' + result.filename);
       return { success: true, filename: result.filename };
 
@@ -400,6 +405,11 @@
         window.dispatchEvent(new CustomEvent('recording-state-change', {
           detail: { recording: false, result: result },
         }));
+
+        // Stop telemetry sidecar
+        if (typeof window.sidecarStop === 'function') {
+          window.sidecarStop();
+        }
 
         console.log('[Recorder] Recording saved');
 
