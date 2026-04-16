@@ -13,6 +13,7 @@ const https  = require('https');
 const crypto = require('crypto');
 const remoteServer = require('./remote-server');
 const updater      = require('./modules/js/auto-updater');
+const ffmpegEncoder = require('./modules/js/ffmpeg-encoder');
 
 // ── Crash log ───────────────────────────────────────────────
 // Write a log file next to the app so crash info is visible
@@ -584,6 +585,58 @@ ipcMain.handle('get-recording-state', async () => {
     path: _recordingPath,
     duration: _recordingStartTime ? Date.now() - _recordingStartTime : 0,
   };
+});
+
+// ── IPC: FFmpeg transcode (.webm → .mp4) ──
+// After recording stops, the renderer can request a transcode to MP4
+// with hardware-accelerated encoding (NVENC on the 4090).
+let _transcoding = false;
+
+ipcMain.handle('get-ffmpeg-info', async () => {
+  const ffmpegPath = ffmpegEncoder.getFfmpegPath();
+  const encoder = ffmpegEncoder.detectEncoder();
+  return {
+    available: !!ffmpegPath,
+    path: ffmpegPath,
+    encoder: encoder,
+    hardware: encoder && encoder !== 'libx264',
+  };
+});
+
+ipcMain.handle('transcode-recording', async (_event, webmPath, options) => {
+  if (_transcoding) {
+    return { error: 'Transcode already in progress' };
+  }
+  if (!webmPath || !fs.existsSync(webmPath)) {
+    return { error: 'Source file not found: ' + webmPath };
+  }
+
+  _transcoding = true;
+  logToFile(`[K10] Transcode starting: ${webmPath}`);
+
+  try {
+    var result = await ffmpegEncoder.transcode(webmPath, options, function (progress) {
+      // Forward progress to renderer
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('transcode-progress', progress);
+      }
+    });
+
+    logToFile(`[K10] Transcode complete: ${result.outputPath} (${(result.fileSize / 1024 / 1024).toFixed(1)} MB, encoder: ${result.encoder})`);
+
+    // Delete source .webm if transcode succeeded and setting allows
+    if (options && options.deleteSource !== false) {
+      ffmpegEncoder.cleanupSource(webmPath);
+      logToFile(`[K10] Deleted source .webm: ${webmPath}`);
+    }
+
+    _transcoding = false;
+    return result;
+  } catch (err) {
+    _transcoding = false;
+    logToFile(`[K10] Transcode error: ${err.message}`);
+    return { error: err.message };
+  }
 });
 
 // ── IPC: Detach settings to secondary display ──

@@ -629,6 +629,9 @@ const _defaultSettings = {
   recordingFacecamSize: 'medium', // 'small', 'medium', 'large'
   recordingFacecamPos: 'bottom-right', // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
   recordingDirectory: '',       // empty = system Videos folder
+  recordingOutputFormat: 'mp4', // 'mp4' (transcode) or 'webm' (raw)
+  recordingEncoder: 'auto',    // 'auto', 'h264_nvenc', 'h264_qsv', 'h264_amf', 'libx264'
+  recordingDeleteSource: true,  // delete .webm after successful MP4 transcode
 };
 
 let _settings = Object.assign({}, _defaultSettings);

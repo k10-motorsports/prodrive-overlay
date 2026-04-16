@@ -1544,6 +1544,34 @@
         </select>
       </div>
 
+      <div class="settings-group-label">Output</div>
+      <div class="settings-row">
+        <span class="settings-label">Format</span>
+        <select class="settings-select" id="settingsRecOutputFormat" onchange="updateRecSetting('recordingOutputFormat', this.value)">
+          <option value="mp4">MP4 (H.264) — recommended</option>
+          <option value="webm">WebM (VP8) — no transcode</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Encoder</span>
+        <select class="settings-select" id="settingsRecEncoder" onchange="updateRecSetting('recordingEncoder', this.value)">
+          <option value="auto">Auto-detect (best available)</option>
+          <option value="h264_nvenc">NVIDIA NVENC</option>
+          <option value="h264_qsv">Intel Quick Sync</option>
+          <option value="h264_amf">AMD AMF</option>
+          <option value="libx264">Software (x264)</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Delete Source</span>
+        <div class="settings-toggle active" data-key="recordingDeleteSource" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="settings-hint">Delete the original .webm file after converting to MP4.</div>
+      <div class="settings-row" id="settingsRecEncoderInfo" style="margin-top: 4px;">
+        <span class="settings-label">Detected</span>
+        <span class="settings-value" id="settingsRecDetectedEncoder" style="color: var(--text-secondary, #999); font-size: 11px;">Checking...</span>
+      </div>
+
       <div class="settings-group-label">Hotkey</div>
       <div class="settings-hint">Press <strong>Ctrl+Shift+V</strong> to start/stop recording at any time.</div>
 

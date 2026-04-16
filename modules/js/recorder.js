@@ -402,11 +402,67 @@
         }));
 
         console.log('[Recorder] Recording saved');
+
+        // Auto-transcode .webm → .mp4 if FFmpeg is available
+        if (result && result.success && result.path) {
+          autoTranscode(result.path);
+        }
+
         resolve(result);
       };
 
       _mediaRecorder.stop();
     });
+  }
+
+  // ── Auto-transcode ─────────────────────────────────────────
+  // Fire-and-forget transcode from .webm → .mp4 using FFmpeg.
+  // Runs in the background after recording stops. Progress is
+  // forwarded to the UI via 'transcode-progress' IPC events.
+  async function autoTranscode(webmPath) {
+    var settings = window._settings || {};
+
+    // If user chose WebM output, skip transcode entirely
+    if (settings.recordingOutputFormat === 'webm') {
+      console.log('[Recorder] Output format is WebM — skipping transcode');
+      return;
+    }
+
+    if (!window.k10 || !window.k10.getFfmpegInfo) return;
+
+    var info = await window.k10.getFfmpegInfo();
+    if (!info.available) {
+      console.log('[Recorder] FFmpeg not available — keeping .webm');
+      return;
+    }
+
+    console.log('[Recorder] Auto-transcode starting (' + info.encoder + ')...');
+    window.dispatchEvent(new CustomEvent('transcode-state-change', {
+      detail: { transcoding: true, encoder: info.encoder },
+    }));
+
+    var opts = {
+      quality: settings.recordingQuality || 'high',
+      encoder: settings.recordingEncoder || 'auto',
+      deleteSource: settings.recordingDeleteSource !== false,
+    };
+
+    try {
+      var result = await window.k10.transcodeRecording(webmPath, opts);
+      if (result.error) {
+        console.warn('[Recorder] Transcode failed:', result.error);
+      } else {
+        console.log('[Recorder] Transcode complete → ' + result.outputPath);
+      }
+      window.dispatchEvent(new CustomEvent('transcode-state-change', {
+        detail: { transcoding: false, result: result },
+      }));
+    } catch (err) {
+      console.error('[Recorder] Transcode error:', err);
+      window.dispatchEvent(new CustomEvent('transcode-state-change', {
+        detail: { transcoding: false, error: err.message },
+      }));
+    }
   }
 
   // ── Toggle ─────────────────────────────────────────────────

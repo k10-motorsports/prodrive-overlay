@@ -45,6 +45,22 @@
         hide();
       }
     });
+
+    // Transcode state
+    window.addEventListener('transcode-state-change', function (e) {
+      if (e.detail.transcoding) {
+        showTranscode(e.detail.encoder);
+      } else {
+        hideTranscode(e.detail.result, e.detail.error);
+      }
+    });
+
+    // Transcode progress (from main process via IPC)
+    if (window.k10 && window.k10.onTranscodeProgress) {
+      window.k10.onTranscodeProgress(function (progress) {
+        updateTranscodeProgress(progress);
+      });
+    }
   }
 
   // ── Show/hide ──────────────────────────────────────────────
@@ -92,6 +108,47 @@
 
   function pad(n) {
     return n < 10 ? '0' + n : '' + n;
+  }
+
+  // ── Transcode progress indicator ───────────────────────────
+  // Reuses the recording indicator but switches to a blue/amber
+  // color scheme and shows "Converting... 45%"
+  function showTranscode(encoder) {
+    if (!_indicator || !_dot || !_timer) return;
+    _indicator.classList.add('rec-active', 'rec-transcoding');
+    _dot.style.background = 'hsl(35, 80%, 55%)';
+    _dot.style.boxShadow = '0 0 6px hsla(35, 80%, 55%, 0.6)';
+    _timer.style.color = 'hsl(35, 70%, 65%)';
+    _timer.textContent = 'Converting...';
+  }
+
+  function updateTranscodeProgress(progress) {
+    if (!_timer || !_indicator) return;
+    if (!_indicator.classList.contains('rec-transcoding')) return;
+    _timer.textContent = 'Converting ' + progress.percent + '%';
+  }
+
+  function hideTranscode(result, error) {
+    if (!_indicator || !_dot || !_timer) return;
+    // Brief success/fail flash
+    if (result && result.success) {
+      _dot.style.background = 'hsl(140, 70%, 45%)';
+      _dot.style.boxShadow = '0 0 6px hsla(140, 70%, 45%, 0.6)';
+      _timer.style.color = 'hsl(140, 60%, 55%)';
+      _timer.textContent = 'MP4 ready';
+    } else {
+      _timer.textContent = error ? 'Convert failed' : 'Done';
+    }
+
+    // Fade out after 3 seconds
+    setTimeout(function () {
+      _indicator.classList.remove('rec-active', 'rec-transcoding');
+      // Reset colors for next recording
+      _dot.style.background = '';
+      _dot.style.boxShadow = '';
+      _timer.style.color = '';
+      _timer.textContent = '0:00';
+    }, 3000);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -210,9 +267,61 @@
       posSelect.value = settings.recordingFacecamPos || 'bottom-right';
     }
 
+    // Output format dropdown
+    var fmtSelect = document.getElementById('settingsRecOutputFormat');
+    if (fmtSelect) {
+      fmtSelect.value = settings.recordingOutputFormat || 'mp4';
+    }
+
+    // Encoder dropdown
+    var encSelect = document.getElementById('settingsRecEncoder');
+    if (encSelect) {
+      encSelect.value = settings.recordingEncoder || 'auto';
+    }
+
+    // Delete-source toggle
+    var delToggle = document.querySelector('[data-key="recordingDeleteSource"]');
+    if (delToggle) {
+      if (settings.recordingDeleteSource !== false) {
+        delToggle.classList.add('active');
+      } else {
+        delToggle.classList.remove('active');
+      }
+    }
+
     console.log('[RecorderUI] Devices refreshed:', audioInputs.length, 'audio,', videoInputs.length, 'video');
   }
   window.refreshRecordingDevices = refreshRecordingDevices;
+
+  // ── Detect available encoder and show in settings ──────────
+  async function detectAndShowEncoder() {
+    var label = document.getElementById('settingsRecDetectedEncoder');
+    if (!label) return;
+    if (!window.k10 || !window.k10.getFfmpegInfo) {
+      label.textContent = 'FFmpeg not available';
+      label.style.color = 'hsl(0, 60%, 55%)';
+      return;
+    }
+    try {
+      var info = await window.k10.getFfmpegInfo();
+      if (info && info.encoder) {
+        var names = {
+          h264_nvenc: 'NVIDIA NVENC',
+          h264_qsv: 'Intel Quick Sync',
+          h264_amf: 'AMD AMF',
+          libx264: 'Software (x264)'
+        };
+        label.textContent = (names[info.encoder] || info.encoder) + (info.path ? '' : ' (no FFmpeg)');
+        label.style.color = info.encoder !== 'libx264' ? 'hsl(140, 60%, 55%)' : 'hsl(35, 70%, 65%)';
+      } else {
+        label.textContent = 'No encoder found';
+        label.style.color = 'hsl(0, 60%, 55%)';
+      }
+    } catch (err) {
+      label.textContent = 'Detection failed';
+      label.style.color = 'hsl(0, 60%, 55%)';
+    }
+  }
 
   // Auto-enumerate when the Recording tab is first opened
   var _devicesLoaded = false;
@@ -225,6 +334,7 @@
       if (tabName === 'recording' && !_devicesLoaded) {
         _devicesLoaded = true;
         refreshRecordingDevices();
+        detectAndShowEncoder();
       }
     };
   }

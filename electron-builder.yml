@@ -12,9 +12,13 @@ files:
   - data/**/*
   - streamdeck/**/*
   - "!**/node_modules/**/*"
+  - node_modules/ffmpeg-static/**/*
   - "!**/tests/**/*"
   - "!**/test-results/**/*"
   - "!playwright.config.*"
+
+asarUnpack:
+  - node_modules/ffmpeg-static/**/*
 
 icon: images/branding/icon.png
 
