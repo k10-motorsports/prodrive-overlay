@@ -103,10 +103,16 @@
     return path + ' Z';
   }
 
-  function resolveTrackDisplayName(gameTrackName) {
+  function resolveTrackDisplayName(gameTrackName, trackSlug) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
     _trackDisplayNamePending[gameTrackName] = true;
-    fetch(K10_DISPLAY_NAME_API + '?trackName=' + encodeURIComponent(gameTrackName))
+    // Pass the raw SimHub TrackId as a config hint so the API can disambiguate
+    // multi-config venues (e.g. Nürburgring Nordschleife → GP vs Combined).
+    var url = K10_DISPLAY_NAME_API + '?trackName=' + encodeURIComponent(gameTrackName);
+    if (trackSlug && trackSlug !== gameTrackName) {
+      url += '&config=' + encodeURIComponent(trackSlug);
+    }
+    fetch(url)
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) {
         // displayName from API already falls back to trackName server-side
@@ -1184,6 +1190,7 @@
     // SimHub .shtl recordings are often stale/corrupt (e.g. Nordschleife teleport lines).
     const _curTrackName = vs('RaceCorProDrive.Plugin.TrackMap.TrackName')
                        || vs('DataCorePlugin.GameData.TrackName') || '';
+    const _curTrackSlug = vs('RaceCorProDrive.Plugin.TrackMap.TrackSlug') || '';
     const mapPath = _trackApiSvgCache[_curTrackName] || '';
     try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
@@ -1199,7 +1206,7 @@
         } else {
           // Show game name immediately, then upgrade if K10 returns a display name
           if (trackName !== fullMapLbl.textContent) fullMapLbl.textContent = trackName;
-          resolveTrackDisplayName(trackName);
+          resolveTrackDisplayName(trackName, _curTrackSlug);
         }
       }
     }

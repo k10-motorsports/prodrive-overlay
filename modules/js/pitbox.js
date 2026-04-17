@@ -338,13 +338,15 @@
     if (!_els || !_els.panel) return;
 
     // Show/hide based on game detection
-    var isIRacing = typeof _isIRacing !== 'undefined' ? _isIRacing : false;
-    if (isIRacing !== _lastIsIRacing) {
-      _lastIsIRacing = isIRacing;
-      if (_els.noData) _els.noData.style.display = isIRacing ? 'none' : '';
-      if (_els.content) _els.content.style.display = isIRacing ? '' : 'none';
+    // Show pit box for games with pit/strategy data: iRacing, ACC, AC, AC EVO
+    var gameId = typeof window._currentGameId !== 'undefined' ? window._currentGameId : 'iracing';
+    var hasPitData = gameId === 'iracing' || gameId === 'acc' || gameId === 'ac' || gameId === 'acevo';
+    if (hasPitData !== _lastIsIRacing) {
+      _lastIsIRacing = hasPitData;
+      if (_els.noData) _els.noData.style.display = hasPitData ? 'none' : '';
+      if (_els.content) _els.content.style.display = hasPitData ? '' : 'none';
     }
-    if (!isIRacing) return;
+    if (!hasPitData) return;
 
     var _demo = +d['RaceCorProDrive.Plugin.DemoMode'] || 0;
     var pb = function(key) { return d['RaceCorProDrive.Plugin.PitBox.' + key]; };

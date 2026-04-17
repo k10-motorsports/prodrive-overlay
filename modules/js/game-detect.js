@@ -233,4 +233,5 @@
     document.body.classList.toggle('game-iracing', _isIRacing);
     document.body.classList.toggle('game-rally', _isRally);
     document.body.classList.toggle('game-acc', _currentGameId === 'acc');
+    document.body.classList.toggle('game-acevo', _currentGameId === 'acevo');
   }
