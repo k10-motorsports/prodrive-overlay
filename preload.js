@@ -98,6 +98,8 @@ contextBridge.exposeInMainWorld('k10', {
   onPresetBroadcast: (callback) => { ipcRenderer.on('preset-broadcast', () => callback()); },
   onPresetPractice: (callback) => { ipcRenderer.on('preset-practice', () => callback()); },
   onPresetQualifying: (callback) => { ipcRenderer.on('preset-qualifying', () => callback()); },
+  // Stream Deck plugin install
+  installStreamDeckPlugin: () => ipcRenderer.invoke('install-streamdeck-plugin'),
   // Idle state — notify main process so it can switch window mode
   notifyIdleState: (isIdle) => ipcRenderer.invoke('notify-idle-state', isIdle),
   // Screen recording

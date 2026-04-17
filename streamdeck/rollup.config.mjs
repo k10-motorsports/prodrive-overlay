@@ -21,5 +21,15 @@ export default {
       exportConditions: ["node"],
     }),
     commonjs(),
+    {
+      name: "emit-module-package-file",
+      generateBundle() {
+        this.emitFile({
+          fileName: "package.json",
+          source: `{"type":"commonjs"}`,
+          type: "asset",
+        });
+      },
+    },
   ],
 };

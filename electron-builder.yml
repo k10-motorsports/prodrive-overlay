@@ -10,7 +10,8 @@ files:
   - modules/**/*
   - images/**/*
   - data/**/*
-  - streamdeck/**/*
+  - streamdeck/racecor/com.k10motorsports.racecor.overlay.sdPlugin/**/*
+  - "!streamdeck/racecor/com.k10motorsports.racecor.overlay.sdPlugin/logs/**/*"
   - "!**/node_modules/**/*"
   - node_modules/ffmpeg-static/**/*
   - "!**/tests/**/*"

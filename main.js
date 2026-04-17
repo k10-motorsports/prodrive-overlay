@@ -171,7 +171,7 @@ async function createOverlay() {
       icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
       frame: false,
       alwaysOnTop: true,
-      skipTaskbar: true,
+      skipTaskbar: false,
       resizable: true,
       movable: true,
       hasShadow: false,
@@ -216,7 +216,7 @@ async function createOverlay() {
       icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
       frame: false,
       alwaysOnTop: true,
-      skipTaskbar: true,
+      skipTaskbar: false,
       resizable: false,
       hasShadow: false,
       focusable: false,
@@ -400,6 +400,9 @@ app.whenReady().then(() => {
 
     maybeStartRemoteServer();
     updater.initAutoUpdater(overlayWindow, logToFile);
+
+    // ── Auto-install Stream Deck plugin on first run ──
+    autoInstallStreamDeckPlugin();
   } catch (err) {
     logToFile(`[K10] FATAL: createOverlay() threw: ${err.stack || err.message}`);
     app.quit();
@@ -594,6 +597,98 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
+// ── Stream Deck plugin auto-install on first run ──
+// Checks if the plugin is already installed; if not, installs it silently.
+// Tracked via settings.streamDeckPluginInstalled so it only runs once.
+function autoInstallStreamDeckPlugin() {
+  if (process.platform !== 'win32' && process.platform !== 'darwin') return;
+  const fs = require('fs');
+  const os = require('os');
+  const settings = loadSettingsSync();
+  if (settings.streamDeckPluginInstalled) return;
+
+  // Check if Stream Deck is installed by looking for its plugin directory
+  let sdPluginsDir;
+  if (process.platform === 'win32') {
+    sdPluginsDir = path.join(process.env.APPDATA || '', 'Elgato', 'StreamDeck', 'Plugins');
+  } else {
+    sdPluginsDir = path.join(os.homedir(), 'Library', 'Application Support',
+      'com.elgato.StreamDeck', 'Plugins');
+  }
+
+  if (!fs.existsSync(sdPluginsDir)) {
+    logToFile('[K10] Stream Deck not found — skipping plugin install');
+    return;
+  }
+
+  // Check if already installed
+  const installedDir = path.join(sdPluginsDir, 'com.k10motorsports.racecor.overlay.sdPlugin');
+  if (fs.existsSync(installedDir)) {
+    logToFile('[K10] Stream Deck plugin already installed');
+    settings.streamDeckPluginInstalled = true;
+    saveSettingsSync(settings);
+    return;
+  }
+
+  // Copy the plugin directory into Stream Deck's Plugins folder
+  const srcDir = path.join(__dirname, 'streamdeck', 'racecor',
+    'com.k10motorsports.racecor.overlay.sdPlugin');
+  if (!fs.existsSync(srcDir)) {
+    logToFile('[K10] Stream Deck plugin source not found in app bundle');
+    return;
+  }
+
+  try {
+    fs.cpSync(srcDir, installedDir, { recursive: true });
+    settings.streamDeckPluginInstalled = true;
+    saveSettingsSync(settings);
+    logToFile('[K10] Stream Deck plugin installed to: ' + installedDir);
+  } catch (err) {
+    logToFile('[K10] Stream Deck plugin install failed: ' + err.message);
+  }
+}
+
+// ── IPC: Stream Deck plugin install ──
+// Zips the bundled .sdPlugin directory into a .streamDeckPlugin file
+// and opens it, which triggers the Stream Deck app to install the plugin.
+ipcMain.handle('install-streamdeck-plugin', async () => {
+  const fs = require('fs');
+  const os = require('os');
+  const { execSync } = require('child_process');
+  const sdPluginDir = path.join(__dirname, 'streamdeck', 'racecor',
+    'com.k10motorsports.racecor.overlay.sdPlugin');
+
+  if (!fs.existsSync(sdPluginDir)) {
+    logToFile('[K10] Stream Deck plugin not found at: ' + sdPluginDir);
+    return { ok: false, reason: 'Plugin files not found in app bundle' };
+  }
+
+  const tmpFile = path.join(os.tmpdir(),
+    'com.k10motorsports.racecor.overlay.streamDeckPlugin');
+
+  try {
+    if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+
+    const parentDir = path.dirname(sdPluginDir);
+    const dirName = path.basename(sdPluginDir);
+
+    if (process.platform === 'win32') {
+      execSync(`powershell -Command "Compress-Archive -Path '${dirName}' -DestinationPath '${tmpFile}' -Force"`,
+        { cwd: parentDir, timeout: 15000 });
+    } else {
+      execSync(`zip -r "${tmpFile}" "${dirName}"`,
+        { cwd: parentDir, timeout: 15000 });
+    }
+
+    await shell.openPath(tmpFile);
+    logToFile('[K10] Stream Deck plugin install triggered');
+    return { ok: true };
+  } catch (err) {
+    logToFile('[K10] Stream Deck plugin install error: ' + err.message);
+    return { ok: false, reason: err.message };
+  }
+});
+
 // ── IPC: Interactive mode (for connection banner / settings) ──
 ipcMain.handle('request-interactive', async () => {
   if (!overlayWindow || greenScreenMode) return;
@@ -632,7 +727,6 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
     // Idle mode: behave like a normal app window — fully interactive
     // so the idle logo and nav bar buttons can be clicked.
     overlayWindow.setAlwaysOnTop(false);
-    overlayWindow.setSkipTaskbar(false);
     if (!settingsMode) {
       overlayWindow.setIgnoreMouseEvents(false);
       overlayWindow.setFocusable(true);
@@ -641,7 +735,6 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
   } else {
     // Race mode: overlay on top of the game
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    overlayWindow.setSkipTaskbar(true);
     if (!settingsMode) {
       overlayWindow.setIgnoreMouseEvents(true, { forward: true });
       overlayWindow.setFocusable(false);
