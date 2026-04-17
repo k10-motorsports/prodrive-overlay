@@ -154,7 +154,30 @@
         <div class="ctrl-item" id="ctrlABS" style="--ctrl-pct:0%;"><div class="ctrl-label">ABS</div><div class="ctrl-value">—</div></div>
         <div class="ctrl-no-adj" id="ctrlNoAdj">NO ADJUSTMENTS</div>
       </div>
-      <!-- Pedals area removed -->
+      <div class="pedals-area" id="pedalsArea">
+        <div class="pedal-labels-row">
+          <div class="pedal-label-group">
+            <div class="pedal-channel-label throttle">THROTTLE</div>
+            <div class="pedal-pct">—%</div>
+          </div>
+          <div class="pedal-label-group">
+            <div class="pedal-channel-label brake">BRAKE</div>
+            <div class="pedal-pct">—%</div>
+          </div>
+          <div class="pedal-label-group">
+            <div class="pedal-channel-label clutch">CLUTCH</div>
+            <div class="pedal-pct">—%</div>
+          </div>
+        </div>
+        <div class="pedal-viz-stack">
+          <div class="pedal-viz-layer throttle-layer" id="throttleHist"></div>
+          <div class="pedal-viz-layer brake-layer" id="brakeHist"></div>
+          <div class="pedal-viz-layer clutch-layer" id="clutchHist"></div>
+          <canvas id="pedalTraceCanvas" class="pedal-trace-canvas"></canvas>
+          <canvas id="pedalCurveCanvas" class="pedal-curve-canvas"></canvas>
+          <div id="pedalProfileLabel" class="pedal-profile-label"></div>
+        </div>
+      </div>
     </div>
 
     <!-- COL: Maps stacked — rendered dynamically from TrackMapProvider -->
