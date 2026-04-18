@@ -686,7 +686,11 @@
     try {
       await _buildSuggestions();
       _render();
-      showNextRaceIdeas();
+      if (_suggestions.length > 0) {
+        showNextRaceIdeas();
+      } else {
+        hideNextRaceIdeas();
+      }
     } catch (e) {
       console.error('next-race-ideas: refresh failed', e);
     }
