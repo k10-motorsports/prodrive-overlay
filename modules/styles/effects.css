@@ -355,12 +355,12 @@
   body.logo-only .controls-pedals-block,
   body.logo-only .tacho-block,
   body.logo-only .pos-gaps-col,
-  body.logo-only .maps-col,
-  body.logo-only .pedals-area {
+  body.logo-only .maps-col {
     opacity: 0 !important;
     pointer-events: none !important;
   }
-  /* Reveal transition: panels fade in when session starts */
+  /* Reveal transition: panels fade in when session starts.
+     .pedals-area is a .panel so the first selector already covers it. */
   body.logo-only-reveal #dashboard .panel,
   body.logo-only-reveal .leaderboard-panel,
   body.logo-only-reveal .datastream-panel,
@@ -372,8 +372,7 @@
   body.logo-only-reveal .controls-pedals-block,
   body.logo-only-reveal .tacho-block,
   body.logo-only-reveal .pos-gaps-col,
-  body.logo-only-reveal .maps-col,
-  body.logo-only-reveal .pedals-area {
+  body.logo-only-reveal .maps-col {
     transition: opacity 1s ease-out;
   }
   /* Settings always accessible */
