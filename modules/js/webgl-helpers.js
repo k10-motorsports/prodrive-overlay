@@ -659,6 +659,8 @@
   // G-force animation trail on player dot — ring buffer of recent positions
   let _fullMapTrailEl = null;
   let _zoomMapTrailEl = null;
+  // One-shot flag: did we log whether the trail polylines attached?
+  let _trailCheckDone = false;
 
   // Parsed track path coordinates for snapping and off-track detection
   let _trackPathCoords = []; // [{x, y}, ...]
@@ -824,8 +826,9 @@
     _mapHasInit = false;
     _trackPathCoords = [];
     _trailStartIdx = -1;
-    ['fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner',
-     'zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner'].forEach(function(id) {
+    // Clear the source paths only — the three <use> layers pointing at
+    // each one follow automatically.
+    ['fullMapTrackSrc', 'zoomMapTrackSrc'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.setAttribute('d', '');
     });
@@ -886,8 +889,9 @@
       _mapLastPath = '';
       _mapHasInit = false;
       _trackPathCoords = [];
-      ['fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner',
-       'zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner'].forEach(function(id) {
+      // Clear the source paths — the <use> layers pointing at them
+      // (outer/middle/inner × full/zoom) clear in lockstep.
+      ['fullMapTrackSrc', 'zoomMapTrackSrc'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.setAttribute('d', '');
       });
@@ -909,12 +913,51 @@
       _mapHasInit = false;
       // Parse coordinates for snapping and off-track detection
       _trackPathCoords = _parsePathCoords(svgPath);
-      // Set path on all three layers (outer, gap, inner) for both maps
-      ['fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner',
-       'zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner'].forEach(function(id) {
+      // The three rendered layers (outer / middle / inner) are <use>
+      // elements that reference a single source <path> in <defs>. Update
+      // the two source paths (full + zoom) and all six rendered layers
+      // follow automatically — one source of truth per map.
+      var _SRC_IDS = ['fullMapTrackSrc', 'zoomMapTrackSrc'];
+      _SRC_IDS.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.setAttribute('d', svgPath);
       });
+      // IDs of the rendered layers, used by the self-check below to
+      // verify the path is visible (not just the defs source).
+      var _LAYER_IDS = ['fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner',
+       'zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner'];
+
+      // Self-check: a non-empty svgPath that produces zero-sized bboxes
+      // on every layer means the browser couldn't parse it as an SVG
+      // path (no M/L/C commands, or just raw "x,y x,y" with no verbs).
+      // This is the exact class of bug where dots drive around a correct
+      // track shape but no line ever renders — the coord parser is
+      // happy with "0,0 1,2" but the browser refuses to render it.
+      try {
+        var _anyRendered = false;
+        var _missingEls = [];
+        var _zeroBbox = [];
+        for (var _i = 0; _i < _LAYER_IDS.length; _i++) {
+          var _el = document.getElementById(_LAYER_IDS[_i]);
+          if (!_el) { _missingEls.push(_LAYER_IDS[_i]); continue; }
+          var _bb = _el.getBBox && _el.getBBox();
+          if (_bb && (_bb.width > 0 || _bb.height > 0)) { _anyRendered = true; }
+          else { _zeroBbox.push(_LAYER_IDS[_i]); }
+        }
+        if (!_anyRendered) {
+          console.warn('[K10 track-map] svgPath set but nothing rendered — likely malformed path.',
+            '\n  path prefix:', svgPath.slice(0, 80),
+            '\n  path length:', svgPath.length,
+            '\n  has M command:', /(^|\s)[Mm]\s*[\d-]/.test(svgPath),
+            '\n  missing elements:', _missingEls,
+            '\n  zero-bbox elements:', _zeroBbox,
+            '\n  parsed coord pairs:', _trackPathCoords.length);
+        } else if (_zeroBbox.length > 0) {
+          console.warn('[K10 track-map] Partial render — some layers zero-sized:', _zeroBbox);
+        }
+      } catch (e) {
+        // getBBox throws if element is detached from DOM — ignore silently
+      }
 
       // Split path into N sector sub-paths using native iRacing boundaries
       const boundaryPcts = Array.isArray(window._sectorBoundaries) ? window._sectorBoundaries : null;
@@ -1074,6 +1117,20 @@
     if (!_zoomMapTrailEl) _zoomMapTrailEl = _ensureTrailPolyline('zoomMapRotateGroup', 'zoomMapOpponents', 'zoomMapTrail');
     _renderTrackTrail(_fullMapTrailEl, 5, playerIdx);    // matches .map-track-outer stroke-width
     _renderTrackTrail(_zoomMapTrailEl, 2.5, playerIdx);  // matches .map-zoom-svg .map-track-outer stroke-width
+
+    // Self-check: warn once if trail polylines couldn't be created.
+    // Their absence means _renderTrackTrail is silently no-op'ing and
+    // the trail feature is dead for this session.
+    if (!_trailCheckDone && _trackPathCoords.length > 10) {
+      _trailCheckDone = true;
+      if (!_fullMapTrailEl || !_zoomMapTrailEl) {
+        console.warn('[K10 track-map] Trail polyline(s) failed to attach.',
+          '\n  fullMapTrail:', !!_fullMapTrailEl,
+          '\n  zoomMapTrail:', !!_zoomMapTrailEl,
+          '\n  fullMapSvg present:', !!document.getElementById('fullMapSvg'),
+          '\n  zoomMapRotateGroup present:', !!document.getElementById('zoomMapRotateGroup'));
+      }
+    }
 
     // Update zoom map — player always centered, track rotates so
     // driving direction always points UP. Zoom in when slow (corners),

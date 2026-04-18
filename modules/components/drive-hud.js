@@ -474,7 +474,7 @@
           this._headingSmooth += diff * alpha;
         }
 
-        this._headingSmooth = ((_headingSmooth % 360) + 360) % 360;
+        this._headingSmooth = ((this._headingSmooth % 360) + 360) % 360;
 
         const rotDeg = (-this._headingSmooth).toFixed(2);
         this._mapRotateGroup.setAttribute('transform',

@@ -176,7 +176,7 @@
           }
 
           .dp-rating-value {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 700;
             font-family: var(--ff-mono);
             font-variant-numeric: tabular-nums;

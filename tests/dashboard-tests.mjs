@@ -600,6 +600,267 @@ test.describe('Track map', () => {
     const pitDot = fullOpponents.nth(2);
     await expect(pitDot).toHaveCSS('display', 'none');
   });
+
+  // Regression: poll-engine.js used to ONLY read from _trackApiSvgCache.
+  // Without an API override the track line stayed empty even though the
+  // plugin sent a perfectly good SvgPath, so the dots drove around on a
+  // blank canvas. The track must render from the plugin path when the
+  // API hasn't supplied a curated override.
+  test('track renders from plugin SvgPath when API cache is empty', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'Unknown Track Not In API',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': 'M5 5 L 95 5 L 95 95 L 5 95 Z',
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+
+    // The API cache should be empty for this fictional track name
+    const apiCacheEmpty = await page.evaluate((name) => {
+      return !window._trackApiSvgCache || !window._trackApiSvgCache[name];
+    }, 'Unknown Track Not In API');
+    expect(apiCacheEmpty).toBe(true);
+
+    // All three layers of the full map should have the plugin path applied
+    for (const id of ['fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner']) {
+      const d = await page.locator('#' + id).getAttribute('d');
+      expect(d, `#${id} should render the plugin SvgPath`).toContain('M5 5');
+    }
+    // Same for the zoom map
+    for (const id of ['zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner']) {
+      const d = await page.locator('#' + id).getAttribute('d');
+      expect(d, `#${id} should render the plugin SvgPath`).toContain('M5 5');
+    }
+  });
+
+  test('API cache override wins over plugin SvgPath', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'Override Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': 'M0 0 L 50 50',
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+
+    // Inject a curated path into the API cache as if the K10 API returned it
+    await page.evaluate(() => {
+      window._trackApiSvgCache['Override Track'] = 'M11 22 L 88 99 Z';
+    });
+    // Wait a poll cycle so the new cache entry is picked up
+    await page.waitForTimeout(100);
+
+    const d = await page.locator('#fullMapTrack').getAttribute('d');
+    expect(d).toContain('M11 22');
+    expect(d).not.toContain('M0 0');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TRACK MAP VISIBILITY
+//
+// These regression tests catch the class of bug where the SVG path's
+// `d` attribute is set correctly but the path is not actually visible:
+// malformed path syntax (no M/L verbs), zero-sized bbox, transparent
+// stroke, path outside viewBox, missing trail elements, etc.
+//
+// This is what burned us most recently — dots followed the right
+// track shape but no line ever rendered. Asserting `d` was set wasn't
+// enough; we need to assert the layers actually paint pixels.
+// ═══════════════════════════════════════════════════════════════
+
+test.describe('Track map visibility', () => {
+  // Build a realistic curved Bathurst-shaped path using cubic Béziers
+  // — same M/C structure that the C# TrackMapProvider and _csvToSvgPath
+  // produce in production.
+  function bathurstShapedPath() {
+    // 12 points around a stretched closed loop, joined as a cubic spline
+    const pts = [
+      [20, 10], [50, 8],  [80, 12], [90, 35],
+      [85, 60], [70, 75], [50, 80], [30, 78],
+      [15, 65], [10, 45], [12, 28], [16, 18],
+    ];
+    const f = (n) => n.toFixed(2);
+    const len = pts.length;
+    let path = `M ${f(pts[0][0])},${f(pts[0][1])}`;
+    for (let i = 0; i < len; i++) {
+      const p0 = pts[(i - 1 + len) % len];
+      const p1 = pts[i];
+      const p2 = pts[(i + 1) % len];
+      const p3 = pts[(i + 2) % len];
+      const cx1 = p1[0] + (p2[0] - p0[0]) / 6;
+      const cy1 = p1[1] + (p2[1] - p0[1]) / 6;
+      const cx2 = p2[0] - (p3[0] - p1[0]) / 6;
+      const cy2 = p2[1] - (p3[1] - p1[1]) / 6;
+      path += ` C ${f(cx1)},${f(cy1)} ${f(cx2)},${f(cy2)} ${f(p2[0])},${f(p2[1])}`;
+    }
+    return path + ' Z';
+  }
+
+  test('rendered path has non-zero bounding box on every layer', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'BBox Test Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': bathurstShapedPath(),
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+
+    const layerIds = [
+      'fullMapTrack', 'fullMapTrackOuter', 'fullMapTrackInner',
+      'zoomMapTrack', 'zoomMapTrackOuter', 'zoomMapTrackInner',
+    ];
+    const bboxes = await page.evaluate((ids) => {
+      return ids.map((id) => {
+        const el = document.getElementById(id);
+        if (!el) return { id, missing: true };
+        const bb = el.getBBox();
+        return { id, w: bb.width, h: bb.height };
+      });
+    }, layerIds);
+
+    for (const b of bboxes) {
+      expect(b.missing, `#${b.id} element should exist in DOM`).toBeFalsy();
+      expect(b.w, `#${b.id} bbox width should be > 0`).toBeGreaterThan(0);
+      expect(b.h, `#${b.id} bbox height should be > 0`).toBeGreaterThan(0);
+    }
+  });
+
+  test('rendered path bbox sits inside the SVG viewBox', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'ViewBox Test Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': bathurstShapedPath(),
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+
+    const overlap = await page.evaluate(() => {
+      const svg = document.getElementById('fullMapSvg');
+      const path = document.getElementById('fullMapTrack');
+      const vb = svg.viewBox.baseVal; // {x, y, width, height}
+      const bb = path.getBBox();
+      const insideX = bb.x >= vb.x && (bb.x + bb.width) <= (vb.x + vb.width);
+      const insideY = bb.y >= vb.y && (bb.y + bb.height) <= (vb.y + vb.height);
+      return { insideX, insideY, vb: { x: vb.x, y: vb.y, w: vb.width, h: vb.height },
+               bb: { x: bb.x, y: bb.y, w: bb.width, h: bb.height } };
+    });
+
+    expect(overlap.insideX, `path bbox X out of viewBox: ${JSON.stringify(overlap)}`).toBe(true);
+    expect(overlap.insideY, `path bbox Y out of viewBox: ${JSON.stringify(overlap)}`).toBe(true);
+  });
+
+  test('rendered path layers have visible (non-transparent) computed strokes', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'Stroke Test Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': bathurstShapedPath(),
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+
+    // Outer layer must have a visible stroke (it's the dominant track edge).
+    // Center .map-track is intentionally near-black for the gap effect, so
+    // we don't assert on it — outer is what makes the track visible.
+    for (const id of ['fullMapTrackOuter', 'zoomMapTrackOuter']) {
+      const stroke = await page.locator('#' + id).evaluate(
+        (el) => getComputedStyle(el).stroke
+      );
+      expect(stroke, `#${id} stroke must not be transparent / none`).not.toBe('none');
+      expect(stroke, `#${id} stroke must not be rgba(0,0,0,0)`).not.toBe('rgba(0, 0, 0, 0)');
+      expect(stroke).toMatch(/^rgb/);
+    }
+  });
+
+  test('renderer does not log "nothing rendered" warning for a valid path', async ({ page }) => {
+    const warnings = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'warning' || msg.type() === 'warn') {
+        warnings.push(msg.text());
+      }
+    });
+
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'No Warn Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': bathurstShapedPath(),
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+    await page.waitForTimeout(200);
+
+    const trackWarnings = warnings.filter((w) => w.includes('[K10 track-map]'));
+    expect(trackWarnings, `unexpected track-map warnings: ${trackWarnings.join('\n')}`).toHaveLength(0);
+  });
+
+  test('renderer DOES warn when given a malformed path with no M/L verbs', async ({ page }) => {
+    const warnings = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'warning' || msg.type() === 'warn') {
+        warnings.push(msg.text());
+      }
+    });
+
+    // Coordinate pairs only — no M/L/C verbs. _parsePathCoords picks
+    // them up but the browser refuses to render them as a path.
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'Malformed Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': '20,10 50,8 80,12 90,35 70,75',
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+    await page.waitForTimeout(200);
+
+    const got = warnings.find((w) => w.includes('[K10 track-map]') && w.includes('nothing rendered'));
+    expect(got, 'expected a "nothing rendered" warning for malformed path').toBeTruthy();
+  });
+
+  test('trail polylines attach to both maps once track data is loaded', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'Trail Test Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': bathurstShapedPath(),
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+    // Trail polylines are created lazily on the first frame after the
+    // track path lands, so wait an extra cycle.
+    await page.waitForTimeout(150);
+
+    await expect(page.locator('#fullMapTrail')).toHaveCount(1);
+    await expect(page.locator('#zoomMapTrail')).toHaveCount(1);
+  });
+
+  test('player dot is inside the rendered track bbox after position update', async ({ page }) => {
+    await load(page, {
+      'RaceCorProDrive.Plugin.TrackMap.Ready': 1,
+      'RaceCorProDrive.Plugin.TrackMap.TrackName': 'Dot Position Track',
+      'RaceCorProDrive.Plugin.TrackMap.SvgPath': bathurstShapedPath(),
+      'RaceCorProDrive.Plugin.TrackMap.PlayerX': 50,
+      'RaceCorProDrive.Plugin.TrackMap.PlayerY': 50,
+    });
+
+    // The dot should snap onto the track. Without a track render, snapping
+    // would still happen (coords are parsed independently) — but if the
+    // track bbox is zero, the dot would have no visible context. This test
+    // ensures both the dot's center AND the track's bbox land in the same
+    // coordinate space, catching cases where one of them shifts.
+    const result = await page.evaluate(() => {
+      const dot = document.getElementById('fullMapPlayer');
+      const track = document.getElementById('fullMapTrackOuter');
+      const trackBB = track.getBBox();
+      const cx = parseFloat(dot.getAttribute('cx'));
+      const cy = parseFloat(dot.getAttribute('cy'));
+      // Allow a small margin (snap radius) outside the bbox edge
+      const margin = 5;
+      const inX = cx >= trackBB.x - margin && cx <= trackBB.x + trackBB.width + margin;
+      const inY = cy >= trackBB.y - margin && cy <= trackBB.y + trackBB.height + margin;
+      return { inX, inY, cx, cy, trackBB: { x: trackBB.x, y: trackBB.y, w: trackBB.width, h: trackBB.height } };
+    });
+
+    expect(result.inX, `dot X ${result.cx} outside track bbox: ${JSON.stringify(result.trackBB)}`).toBe(true);
+    expect(result.inY, `dot Y ${result.cy} outside track bbox: ${JSON.stringify(result.trackBB)}`).toBe(true);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

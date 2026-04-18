@@ -184,9 +184,16 @@
     <div class="maps-col">
       <div class="panel map-panel">
         <svg class="map-svg" id="fullMapSvg" viewBox="0 0 100 100">
-          <path class="map-track-outer" id="fullMapTrackOuter" d="" />
-          <path class="map-track" id="fullMapTrack" d="" />
-          <path class="map-track-inner on-track" id="fullMapTrackInner" d="" />
+          <!-- Single source-of-truth path — every rendered layer below is a
+               <use> referencing this. Updating one d attribute updates all
+               three layers, which removes the "did we touch all six path
+               elements" class of bug. -->
+          <defs>
+            <path id="fullMapTrackSrc" d="" />
+          </defs>
+          <use class="map-track-outer" id="fullMapTrackOuter" href="#fullMapTrackSrc" />
+          <use class="map-track" id="fullMapTrack" href="#fullMapTrackSrc" />
+          <use class="map-track-inner on-track" id="fullMapTrackInner" href="#fullMapTrackSrc" />
           <path class="map-sector" id="mapSector1" d="" />
           <path class="map-sector" id="mapSector2" d="" />
           <path class="map-sector" id="mapSector3" d="" />
@@ -200,13 +207,17 @@
       </div>
       <div class="panel map-zoom-panel">
         <svg class="map-zoom-svg" id="zoomMapSvg" viewBox="0 0 100 100" overflow="visible">
+          <!-- Single source-of-truth path for the zoom map. Same pattern. -->
+          <defs>
+            <path id="zoomMapTrackSrc" d="" />
+          </defs>
           <!-- Rotate group: track + opponents rotate around the player so
                driving direction always points up. Player dot is OUTSIDE
                this group so it stays upright and visually centered. -->
           <g id="zoomMapRotateGroup">
-            <path class="map-track-outer" id="zoomMapTrackOuter" d="" />
-            <path class="map-track" id="zoomMapTrack" d="" />
-            <path class="map-track-inner on-track" id="zoomMapTrackInner" d="" />
+            <use class="map-track-outer" id="zoomMapTrackOuter" href="#zoomMapTrackSrc" />
+            <use class="map-track" id="zoomMapTrack" href="#zoomMapTrackSrc" />
+            <use class="map-track-inner on-track" id="zoomMapTrackInner" href="#zoomMapTrackSrc" />
             <g id="zoomMapSF" class="map-sf" style="display:none;">
               <line x1="0" y1="-2" x2="0" y2="2" stroke="hsla(0,0%,100%,0.6)" stroke-width="0.8" stroke-linecap="round"/>
             </g>

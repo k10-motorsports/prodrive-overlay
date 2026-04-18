@@ -1186,12 +1186,15 @@
     const mapPY   = +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50;
     const mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading') || 0;
-    // ONLY use web API track maps — never fall back to plugin's local SimHub recording.
-    // SimHub .shtl recordings are often stale/corrupt (e.g. Nordschleife teleport lines).
+    // Prefer web API track maps when available — they're curated and
+    // override stale/corrupt SimHub .shtl recordings (e.g. Nordschleife
+    // teleport lines). When the API hasn't produced an override yet
+    // (request in flight, no entry for this track, offline) fall back
+    // to the plugin-provided SvgPath so the overlay still draws a track.
     const _curTrackName = vs('RaceCorProDrive.Plugin.TrackMap.TrackName')
                        || vs('DataCorePlugin.GameData.TrackName') || '';
     const _curTrackSlug = vs('RaceCorProDrive.Plugin.TrackMap.TrackSlug') || '';
-    const mapPath = _trackApiSvgCache[_curTrackName] || '';
+    const mapPath = _trackApiSvgCache[_curTrackName] || pluginPath || '';
     try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
     const fullMapLbl = document.getElementById('fullMapLabel');

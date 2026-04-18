@@ -29,6 +29,11 @@ export default defineConfig({
       name: 'unit',
       testDir: './tests/unit',
     },
+    // Visual-regression tests — screenshot diffs against committed baselines
+    {
+      name: 'visual',
+      testDir: './tests/visual',
+    },
     // Legacy: original dashboard.html (opt-in, not run by default)
     {
       name: 'original',

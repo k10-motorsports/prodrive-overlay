@@ -194,8 +194,12 @@
     if (mapReady) {
       var _dhTrackName = (p['RaceCorProDrive.Plugin.TrackMap.TrackName']
                        || p['DataCorePlugin.GameData.TrackName'] || '');
-      // ONLY use web API SVG — never fall back to plugin's local SimHub recording
-      var svgPath = (window._trackApiSvgCache && window._trackApiSvgCache[_dhTrackName]) || '';
+      // Prefer web API SVG (curated), fall back to the plugin's local SvgPath
+      // when the API cache is empty so the track still draws while we wait
+      // for (or if we never get) the override.
+      var _apiSvg = (window._trackApiSvgCache && window._trackApiSvgCache[_dhTrackName]) || '';
+      var _pluginSvg = (p['RaceCorProDrive.Plugin.TrackMap.SvgPath'] || '');
+      var svgPath = _apiSvg || _pluginSvg || '';
       var dhTrack = document.getElementById('dhMapTrack');
       if (dhTrack && svgPath && dhTrack.getAttribute('d') !== svgPath) {
         dhTrack.setAttribute('d', svgPath);
