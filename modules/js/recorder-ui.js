@@ -82,6 +82,21 @@
       var mb = detail.fileSize ? (detail.fileSize / 1024 / 1024).toFixed(0) : '?';
       showFlash('Clip saved (' + mb + ' MB)', 'hsl(280, 60%, 60%)', 2500);
     });
+
+    // Recording debug events (lifecycle logging)
+    if (window.k10 && window.k10.onRecordingDebug) {
+      window.k10.onRecordingDebug(function (data) {
+        if (data.kind === 'start') {
+          showPathToast('REC → ' + data.filename, 'hsl(140, 70%, 50%)', 4000);
+        } else if (data.kind === 'chunk') {
+          var mb = (data.bytesWritten / 1024 / 1024).toFixed(1);
+          console.log('[RecorderUI] Chunks: ' + data.chunkCount + ', Bytes: ' + mb + 'MB');
+        } else if (data.kind === 'stop') {
+          var fileSizeMB = (data.fileSize / 1024 / 1024).toFixed(0);
+          showFlash('Saved: ' + data.filename + ' — ' + fileSizeMB + ' MB', 'hsl(140, 70%, 50%)', 4000);
+        }
+      });
+    }
   }
 
   // ── Flash notification on the indicator ────────────────────
@@ -99,6 +114,23 @@
       _timer.style.color = '';
       _timer.textContent = '0:00';
     }, durationMs || 2500);
+  }
+
+  // ── Path toast — briefly shows path, then resumes timer ──────
+  function showPathToast(text, color, durationMs) {
+    if (!_indicator || !_dot || !_timer) return;
+    _dot.style.background = color;
+    _dot.style.boxShadow = '0 0 6px ' + color.replace(')', ', 0.6)').replace('hsl', 'hsla');
+    _timer.style.color = color;
+    var savedText = _timer.textContent;
+    _timer.textContent = text;
+    setTimeout(function () {
+      // Restore timer display and colors
+      _timer.textContent = savedText;
+      _dot.style.background = '';
+      _dot.style.boxShadow = '';
+      _timer.style.color = '';
+    }, durationMs || 4000);
   }
 
   // ── Show/hide ──────────────────────────────────────────────

@@ -750,6 +750,9 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
 let _recordingStream = null;
 let _recordingPath = null;
 let _recordingStartTime = null;
+let _recordingBytesWritten = 0;
+let _recordingChunkCount = 0;
+let _lastChunkDebugAt = 0;
 
 function getRecordingDir() {
   // Use user-configured directory, fall back to system Videos folder
@@ -767,14 +770,34 @@ ipcMain.handle('start-recording', async (_event, options = {}) => {
     return { error: 'Already recording' };
   }
   try {
+    const settings = loadSettingsSync();
     const dir = getRecordingDir();
+    const dirSource = settings.recordingDirectory ? 'settings' : 'default';
     const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
     const ext = options.ext || 'webm';
     const filename = `RaceCor_${ts}.${ext}`;
     _recordingPath = path.join(dir, filename);
     _recordingStream = fs.createWriteStream(_recordingPath);
     _recordingStartTime = Date.now();
-    logToFile(`[K10] Recording started: ${_recordingPath}`);
+    _recordingBytesWritten = 0;
+    _recordingChunkCount = 0;
+    _lastChunkDebugAt = 0;
+
+    const logMsg = `[K10] Recording started: ${_recordingPath} (from ${dirSource})`;
+    logToFile(logMsg);
+    console.log(logMsg);
+
+    // Send debug event to renderer
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('recording-debug', {
+        kind: 'start',
+        path: _recordingPath,
+        filename: filename,
+        dir: dir,
+        dirSource: dirSource,
+      });
+    }
+
     return { success: true, path: _recordingPath, filename };
   } catch (err) {
     logToFile(`[K10] Recording start error: ${err.message}`);
@@ -786,6 +809,21 @@ ipcMain.handle('write-recording-chunk', async (_event, arrayBuffer) => {
   if (!_recordingStream) return;
   try {
     _recordingStream.write(Buffer.from(arrayBuffer));
+    _recordingBytesWritten += arrayBuffer.byteLength;
+    _recordingChunkCount += 1;
+
+    // Throttled debug event: only send once every 2 seconds
+    const now = Date.now();
+    if (now - _lastChunkDebugAt >= 2000) {
+      _lastChunkDebugAt = now;
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('recording-debug', {
+          kind: 'chunk',
+          bytesWritten: _recordingBytesWritten,
+          chunkCount: _recordingChunkCount,
+        });
+      }
+    }
   } catch (err) {
     logToFile(`[K10] Recording write error: ${err.message}`);
   }
@@ -801,7 +839,23 @@ ipcMain.handle('stop-recording', async () => {
     _recordingStream.end(() => {
       let fileSize = 0;
       try { fileSize = fs.statSync(filePath).size; } catch (e) { /* ok */ }
-      logToFile(`[K10] Recording stopped: ${filePath} (${(fileSize / 1024 / 1024).toFixed(1)} MB, ${(duration / 1000).toFixed(1)}s)`);
+      const sizeStr = (fileSize / 1024 / 1024).toFixed(1);
+      const durationStr = (duration / 1000).toFixed(1);
+      const logMsg = `[K10] Recording stopped: ${filePath} (${sizeStr} MB, ${durationStr}s)`;
+      logToFile(logMsg);
+      console.log(logMsg);
+
+      // Send debug event to renderer
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('recording-debug', {
+          kind: 'stop',
+          path: filePath,
+          filename: path.basename(filePath),
+          fileSize: fileSize,
+          duration: duration,
+        });
+      }
+
       resolve({ success: true, path: filePath, fileSize, duration });
     });
     _recordingStream = null;

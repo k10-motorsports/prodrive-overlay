@@ -110,6 +110,12 @@ contextBridge.exposeInMainWorld('k10', {
   onToggleRecording: (callback) => {
     ipcRenderer.on('toggle-recording', () => callback());
   },
+  onRecordingDebug: (callback) => {
+    ipcRenderer.on('recording-debug', (_event, data) => callback(data));
+    return () => {
+      ipcRenderer.removeAllListeners('recording-debug');
+    };
+  },
   // FFmpeg transcode
   getFfmpegInfo: () => ipcRenderer.invoke('get-ffmpeg-info'),
   transcodeRecording: (webmPath, opts) => ipcRenderer.invoke('transcode-recording', webmPath, opts),

@@ -254,6 +254,8 @@
 
       _mediaRecorder = new MediaRecorder(finalStream, recorderOpts);
       console.log('[Recorder] Using codec:', _mediaRecorder.mimeType);
+      console.log('[Recorder] Video bitrate:', quality.videoBitsPerSecond, 'bps');
+      console.log('[Recorder] Audio sources: mic=' + (hasMic ? 'yes' : 'no') + ', system=' + (hasSys ? 'yes' : 'no') + ', webcam=' + (_webcamStream ? 'yes' : 'no'));
 
       // ── 8. Tell main process to open a write stream ────────
       var result = await window.k10.startRecording({ ext: 'webm' });
@@ -264,6 +266,7 @@
       // ── 9. Stream chunks to main process ───────────────────
       _mediaRecorder.ondataavailable = function (e) {
         if (e.data && e.data.size > 0) {
+          console.log('[Recorder] Chunk available:', e.data.size, 'bytes');
           e.data.arrayBuffer().then(function (buf) {
             window.k10.writeRecordingChunk(buf);
           }).catch(function (err) {
