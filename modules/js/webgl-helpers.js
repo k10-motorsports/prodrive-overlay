@@ -56,37 +56,53 @@
   updateTacho(0); // Will be driven by SimHub RPM data
 
   // ═══ LAYERED PEDAL HISTOGRAMS — DOM bars ═══
+  // Render strategy: each bar is a DOM div with `transform-origin: bottom`
+  // and `will-change: transform`. We only ever mutate `style.transform` (scaleY)
+  // so the bars are GPU-composited — no layout, no paint, no style recalc on
+  // the parent. Height is never touched. We cache all element refs at setup
+  // time; no per-frame DOM lookups, no querySelector in the render loop.
   const HIST_BARS = 20;
+  const _histChannels = []; // { bars: HTMLCollection, buf: Float32Array, head: number }
+
   function setupHist(id, cls) {
     const c = document.getElementById(id);
-    if (!c) return;
+    if (!c) return null;
     for (let i = 0; i < HIST_BARS; i++) {
       const b = document.createElement('div');
       b.className = `pedal-hist-bar ${cls}`;
       if (i === HIST_BARS - 1) b.classList.add('live');
       c.appendChild(b);
     }
+    return { bars: c.children, buf: new Float32Array(HIST_BARS), head: 0 };
   }
-  setupHist('throttleHist', 'throttle');
-  setupHist('brakeHist', 'brake');
-  setupHist('clutchHist', 'clutch');
+  const _thrChan = setupHist('throttleHist', 'throttle');
+  const _brkChan = setupHist('brakeHist', 'brake');
+  const _cltChan = setupHist('clutchHist', 'clutch');
+  if (_thrChan) _histChannels.push(_thrChan);
+  if (_brkChan) _histChannels.push(_brkChan);
+  if (_cltChan) _histChannels.push(_cltChan);
 
-  function renderHist(id, data) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const bars = el.children;
-    for (let i = 0; i < data.length && i < bars.length; i++)
-      bars[i].style.transform = 'scaleY(' + Math.max(0.01, data[i]) + ')';
+  // Ring-buffer push: O(1), no allocations, no Array#shift churn.
+  // `head` points at the oldest slot (which becomes the newest after we write).
+  function _pushHist(chan, v) {
+    chan.buf[chan.head] = v;
+    chan.head = (chan.head + 1) % HIST_BARS;
   }
+
+  // Render reads the ring buffer in oldest→newest order and applies scaleY.
+  function _renderChan(chan) {
+    if (!chan) return;
+    const { bars, buf, head } = chan;
+    for (let i = 0; i < HIST_BARS; i++) {
+      const v = buf[(head + i) % HIST_BARS];
+      bars[i].style.transform = 'scaleY(' + (v > 0.01 ? v : 0.01) + ')';
+    }
+  }
+
   // Initialize empty
-  renderHist('throttleHist', new Array(HIST_BARS).fill(0));
-  renderHist('brakeHist', new Array(HIST_BARS).fill(0));
-  renderHist('clutchHist', new Array(HIST_BARS).fill(0));
-
-  // Rolling history buffers
-  const _thrHist = new Array(HIST_BARS).fill(0);
-  const _brkHist = new Array(HIST_BARS).fill(0);
-  const _cltHist = new Array(HIST_BARS).fill(0);
+  if (_thrChan) _renderChan(_thrChan);
+  if (_brkChan) _renderChan(_brkChan);
+  if (_cltChan) _renderChan(_cltChan);
 
   // ═══ PEDAL TRACE — curve-following dots + trail (2D canvas) ═══
   // When a pedal profile is active, dots travel along the response curves.
@@ -99,6 +115,40 @@
   let _ptCount = 0;
   const _ptCanvas = document.getElementById('pedalTraceCanvas');
   const _ptCtx = _ptCanvas ? _ptCanvas.getContext('2d') : null;
+
+  // Cache canvas backing-store size and update only on resize. Calling
+  // getBoundingClientRect() in the render loop forces a sync layout every
+  // frame; with a ResizeObserver we sync size off the layout thread instead.
+  let _ptW = 0, _ptH = 0;
+  if (_ptCanvas && typeof ResizeObserver !== 'undefined') {
+    const _ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const cr = e.contentRect;
+        const w = Math.round(cr.width) || 240;
+        const h = Math.round(cr.height) || 80;
+        if (_ptCanvas.width !== w) _ptCanvas.width = w;
+        if (_ptCanvas.height !== h) _ptCanvas.height = h;
+        _ptW = w; _ptH = h;
+      }
+    });
+    _ro.observe(_ptCanvas);
+  } else if (_ptCanvas) {
+    // Fallback: one-shot size at load
+    const r = _ptCanvas.getBoundingClientRect();
+    _ptW = _ptCanvas.width = Math.round(r.width) || 240;
+    _ptH = _ptCanvas.height = Math.round(r.height) || 80;
+  }
+
+  // Cache the three percentage label nodes. Doing querySelectorAll('.pedal-pct')
+  // every frame walks the entire document; once cached this is just three
+  // textContent writes per frame.
+  let _pedalPctEls = null;
+  function _getPctEls() {
+    if (_pedalPctEls && _pedalPctEls[0] && _pedalPctEls[0].isConnected) return _pedalPctEls;
+    const list = document.querySelectorAll('.pedal-pct');
+    _pedalPctEls = list.length >= 3 ? [list[0], list[1], list[2]] : null;
+    return _pedalPctEls;
+  }
 
   // Trail history for curve-following dots (stores canvas positions)
   const _trailLen = 16;
@@ -125,30 +175,24 @@
     _pedalPending = false;
     const thr = _pendingThr, brk = _pendingBrk, clt = _pendingClt;
 
-    // Shift rolling histogram and add new sample
-    _thrHist.shift(); _thrHist.push(thr);
-    _brkHist.shift(); _brkHist.push(brk);
-    _cltHist.shift(); _cltHist.push(clt);
-    renderHist('throttleHist', _thrHist);
-    renderHist('brakeHist', _brkHist);
-    renderHist('clutchHist', _cltHist);
+    // Push into the three ring buffers and render. No allocations, no
+    // Array#shift (which is O(n)), no per-frame DOM lookups.
+    if (_thrChan) { _pushHist(_thrChan, thr); _renderChan(_thrChan); }
+    if (_brkChan) { _pushHist(_brkChan, brk); _renderChan(_brkChan); }
+    if (_cltChan) { _pushHist(_cltChan, clt); _renderChan(_cltChan); }
 
-    // Update percentage labels
-    const labels = document.querySelectorAll('.pedal-pct');
-    if (labels.length >= 3) {
-      labels[0].textContent = Math.round(thr * 100) + '%';
-      labels[1].textContent = Math.round(brk * 100) + '%';
-      labels[2].textContent = Math.round(clt * 100) + '%';
+    // Update percentage labels via cached refs (no querySelectorAll per frame).
+    const pct = _getPctEls();
+    if (pct) {
+      pct[0].textContent = Math.round(thr * 100) + '%';
+      pct[1].textContent = Math.round(brk * 100) + '%';
+      pct[2].textContent = Math.round(clt * 100) + '%';
     }
 
     if (!_ptCtx) return;
-    const c = _ptCanvas;
-    const rect = c.getBoundingClientRect();
-    if (c.width !== Math.round(rect.width) || c.height !== Math.round(rect.height)) {
-      c.width = Math.round(rect.width);
-      c.height = Math.round(rect.height);
-    }
-    const w = c.width, h = c.height;
+    // Canvas size is tracked by ResizeObserver; no getBoundingClientRect here.
+    const w = _ptW, h = _ptH;
+    if (!w || !h) return;
     const ctx = _ptCtx;
     ctx.clearRect(0, 0, w, h);
 

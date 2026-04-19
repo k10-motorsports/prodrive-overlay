@@ -353,22 +353,25 @@
       clt = Math.min(1, Math.max(0, clt));
     }
 
-    // Auto-hide clutch for cars with autoclutch/DCT/no manual clutch pedal
+    // Auto-hide clutch for cars with autoclutch/DCT/no manual clutch pedal.
+    // Only runs the DOM write on state transitions (_clutchHidden flips);
+    // the DOM refs are cached the first time we need them and never
+    // re-queried, so the hot path is just the `if (clt > 0.03)` check.
     if (clt > 0.03) _clutchSeenActive = true;
     if (!_clutchSeenActive && _pollFrame > 60 && speed > 10) {
       if (!_clutchHidden) {
         _clutchHidden = true;
-        const cltLabel = document.getElementById('clutchLabelGroup');
-        const cltLayer = document.querySelector('.clutch-layer');
-        if (cltLabel) cltLabel.style.display = 'none';
-        if (cltLayer) cltLayer.style.display = 'none';
+        if (!_clutchLabelEl) _clutchLabelEl = document.getElementById('clutchLabelGroup');
+        if (!_clutchLayerEl) _clutchLayerEl = document.querySelector('.clutch-layer');
+        if (_clutchLabelEl) _clutchLabelEl.style.display = 'none';
+        if (_clutchLayerEl) _clutchLayerEl.style.display = 'none';
       }
     } else if (_clutchSeenActive && _clutchHidden) {
       _clutchHidden = false;
-      const cltLabel = document.getElementById('clutchLabelGroup');
-      const cltLayer = document.querySelector('.clutch-layer');
-      if (cltLabel) cltLabel.style.display = '';
-      if (cltLayer) cltLayer.style.display = '';
+      if (!_clutchLabelEl) _clutchLabelEl = document.getElementById('clutchLabelGroup');
+      if (!_clutchLayerEl) _clutchLayerEl = document.querySelector('.clutch-layer');
+      if (_clutchLabelEl) _clutchLabelEl.style.display = '';
+      if (_clutchLayerEl) _clutchLayerEl.style.display = '';
     }
 
     // Push every sample — rAF gate in webgl-helpers coalesces to display rate

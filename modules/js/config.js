@@ -370,6 +370,10 @@ let _startPosition = 0;
 let _prevBB = -1, _prevTC = -1, _prevABS = -1;
 let _clutchSeenActive = false;
 let _clutchHidden = false;
+// Cached DOM refs for the clutch auto-hide path (see poll-engine.js).
+// Looked up lazily on first flip; never re-queried.
+let _clutchLabelEl = null;
+let _clutchLayerEl = null;
 
 // Session change detection (resets event history, timeline, etc.)
 let _prevSessionTypeName = '';
