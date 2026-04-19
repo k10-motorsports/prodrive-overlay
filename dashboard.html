@@ -949,6 +949,14 @@
       <button class="settings-titlebar-btn settings-quit-btn" onclick="if(window.k10 &amp;&amp; window.k10.quitApp) window.k10.quitApp(); else window.close();" title="Quit RaceCor">⏻</button>
     </div>
 
+    <div class="settings-beta-banner" id="settingsBetaBanner">
+      <div class="beta-banner-text">
+        <div class="beta-banner-title">Settings have moved</div>
+        <div class="beta-banner-detail">Overlay configuration now lives in the Pro Drive admin dashboard. This panel will be retired after the beta cycle.</div>
+      </div>
+      <button class="beta-banner-btn" onclick="if(window.k10 &amp;&amp; window.k10.openDashboard) window.k10.openDashboard('/drive/admin/overlay-settings');">Open web admin →</button>
+    </div>
+
     <div class="settings-conn-warn" id="settingsConnWarn">
       <div><span class="warn-icon"></span><span class="warn-title">Can't reach SimHub</span></div>
       <div class="warn-detail">Make sure SimHub is running and the K10 Motorsports plugin is installed. Check the connection URL in the Connections section.</div>

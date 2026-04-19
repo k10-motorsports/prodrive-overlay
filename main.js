@@ -1285,8 +1285,17 @@ function getDashboardURL() {
 
 let dashboardWindow = null;
 
-function openDashboardWindow() {
+function openDashboardWindow(targetPath) {
+  // `targetPath` is an optional absolute path (e.g. '/drive/admin/overlay-settings').
+  // When provided we navigate the window there — whether it's a fresh open
+  // or an existing one being focused. Keeps the "Open web admin" beta-banner
+  // entry point in sync with the single-window shell.
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    if (targetPath) {
+      dashboardWindow.loadURL(getDashboardURL() + targetPath).catch((err) => {
+        logToFile('[K10] Dashboard navigation failed: ' + err.message);
+      });
+    }
     dashboardWindow.show();
     dashboardWindow.moveTop();
     dashboardWindow.focus();
@@ -1349,8 +1358,8 @@ function closeDashboardWindow() {
   }
 }
 
-ipcMain.handle('open-dashboard', async () => {
-  openDashboardWindow();
+ipcMain.handle('open-dashboard', async (_evt, targetPath) => {
+  openDashboardWindow(targetPath);
   return true;
 });
 

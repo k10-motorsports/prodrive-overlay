@@ -60,7 +60,7 @@ contextBridge.exposeInMainWorld('k10', {
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),
   stopRemoteServer: () => ipcRenderer.invoke('stop-remote-server'),
   // Web dashboard window (prodrive.racecor.io)
-  openDashboard: () => ipcRenderer.invoke('open-dashboard'),
+  openDashboard: (targetPath) => ipcRenderer.invoke('open-dashboard', targetPath),
   closeDashboard: () => ipcRenderer.invoke('close-dashboard'),
   onDashboardClosed: (callback) => {
     ipcRenderer.on('dashboard-closed', () => callback());
