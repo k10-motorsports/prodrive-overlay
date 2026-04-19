@@ -127,7 +127,23 @@ let mozaWindow = null;       // Moza hardware manager window
 let settingsMode = false;
 let greenScreenMode = false;
 let isIdleMode = false;          // true when driver is not in car (overlay → normal app)
+let isInRace = false;            // true when poll-engine reports an active session (drives overlay visibility)
 let rendererCrashCount = 0;
+
+// ── Inverted-shell flag ──────────────────────────────────────
+// When true, the web-app window opens at startup as the primary surface
+// and the overlay window is created hidden, revealed only when isInRace flips
+// true. Read from settings so users can fall back to the legacy overlay-first
+// behaviour (useful for broadcasters who always want the HUD on screen).
+// Default: true — the new architecture is the intended UX.
+function shouldInvertShell() {
+  try {
+    const s = loadSettingsSync();
+    return s.invertShell !== false;
+  } catch {
+    return true;
+  }
+}
 // Single dashboard: vanilla TypeScript build (Vite-bundled, single-file HTML)
 const DASHBOARD_FILE = 'dashboard.html';
 
@@ -142,6 +158,10 @@ async function createOverlay() {
   // Check if green screen mode is enabled in saved settings
   const settings = loadSettingsSync();
   greenScreenMode = settings.greenScreen === true;
+  // In the inverted shell, the overlay starts hidden and is only revealed
+  // when poll-engine reports isInRace=true. Green-screen users (broadcasters)
+  // always get a visible overlay — no session gating for that workflow.
+  const startHidden = shouldInvertShell() && !greenScreenMode;
 
   logToFile(`[K10] Dashboard: ${getDashboardFile()}`);
 
@@ -214,9 +234,13 @@ async function createOverlay() {
       x:      overlayBounds.x,
       y:      overlayBounds.y,
       icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
+      // Start hidden in the inverted shell; shown when isInRace flips true.
+      show: !startHidden,
       frame: false,
       alwaysOnTop: true,
-      skipTaskbar: false,
+      // In the inverted shell the overlay is session-only — hide from taskbar
+      // so the only persistent app tile is the web dashboard.
+      skipTaskbar: startHidden,
       resizable: false,
       hasShadow: false,
       focusable: false,
@@ -233,6 +257,9 @@ async function createOverlay() {
     overlayWindow.setIgnoreMouseEvents(true, { forward: true });
     loadDashboard();
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    if (startHidden) {
+      logToFile('[K10] Inverted shell: overlay created hidden (awaiting isInRace)');
+    }
 
     overlayWindow.webContents.on('did-finish-load', () => {
       rendererCrashCount = 0;
@@ -403,6 +430,23 @@ app.whenReady().then(() => {
 
     // ── Auto-install Stream Deck plugin on first run ──
     autoInstallStreamDeckPlugin();
+
+    // ── Inverted shell: open the web-app window as the primary surface ──
+    // The overlay starts hidden and is revealed when poll-engine reports
+    // isInRace=true. Users boot into the web dashboard by default; the
+    // overlay is only on-screen while they are actually in a sim session.
+    if (shouldInvertShell() && !greenScreenMode) {
+      // Small deferral so the overlay renderer finishes its initial load
+      // before we open a second window (avoids any IPC races during boot).
+      setTimeout(() => {
+        try {
+          openDashboardWindow();
+          logToFile('[K10] Inverted shell: web-app window opened as primary surface');
+        } catch (err) {
+          logToFile(`[K10] Failed to open web-app window: ${err.message}`);
+        }
+      }, 250);
+    }
   } catch (err) {
     logToFile(`[K10] FATAL: createOverlay() threw: ${err.stack || err.message}`);
     app.quit();
@@ -741,6 +785,47 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
     }
     console.log('[K10] Race mode — always-on-top, taskbar hidden');
   }
+});
+
+// ── IPC: In-race state (drives overlay visibility in inverted shell) ──
+// The poll-engine (in the overlay renderer) emits this on every
+// debounced flip. When the inverted-shell flag is on, the overlay window
+// is revealed only while in a sim session. Broadcasts to the web-app
+// window so it can render live session status.
+ipcMain.handle('notify-in-race-state', async (_event, inRace) => {
+  if (inRace === isInRace) return;   // no change
+  isInRace = !!inRace;
+
+  // Broadcast to the web-app window so its UI can reflect live session state.
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.webContents.send('in-race-state', isInRace);
+  }
+
+  // Only gate overlay visibility when the inverted shell is enabled.
+  // Legacy mode: overlay is always visible.
+  if (!shouldInvertShell()) return;
+  if (!overlayWindow || overlayWindow.isDestroyed() || greenScreenMode) return;
+
+  if (isInRace) {
+    // Reveal the overlay without stealing focus from the game.
+    overlayWindow.showInactive();
+    if (!settingsMode) {
+      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+      overlayWindow.setFocusable(false);
+    }
+    logToFile('[K10] In-race → overlay revealed');
+  } else {
+    overlayWindow.hide();
+    logToFile('[K10] Out of race → overlay hidden');
+  }
+});
+
+// Expose the current in-race state so the web window can decide initial UI
+// on load (rather than waiting for the next flip — which may not come for
+// minutes if the user is already in a steady state).
+ipcMain.handle('get-in-race-state', async () => {
+  return isInRace;
 });
 
 // ── IPC: Screen recording ──────────────────────────────────────
