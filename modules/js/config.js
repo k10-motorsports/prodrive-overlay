@@ -501,11 +501,22 @@ const _mfrMap = {
   'generic':'generic', 'none':'none'
 };
 
+// Precompile word-boundary regexes from _mfrMap keys so short keys like 'r8'
+// don't match substrings of other models (e.g. 'gr86'). Left-anchor only —
+// a trailing \b would break keys like 'm4 gt' matching 'm4 gt3'.
+function _escRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+const _mfrPatterns = Object.keys(_mfrMap).map(k => ({
+  re: new RegExp('\\b' + _escRegex(k), 'i'),
+  mfr: _mfrMap[k]
+}));
+
 /** Match a car model string to a manufacturer key in _mfrMap */
 function detectMfr(model) {
   if (!model) return 'none';
-  const l = ('' + model).toLowerCase();
-  for (const k in _mfrMap) { if (l.indexOf(k) !== -1) return _mfrMap[k]; }
+  const s = '' + model;
+  for (const { re, mfr } of _mfrPatterns) {
+    if (re.test(s)) return mfr;
+  }
   return 'generic';
 }
 

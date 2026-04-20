@@ -696,7 +696,7 @@
   }
   .rating-value {
     font-family: var(--ff-mono);
-    font-size: 18px;
+    font-size: 13px;
     font-weight: var(--fw-black);
     line-height: 1;
     font-variant-numeric: tabular-nums;
