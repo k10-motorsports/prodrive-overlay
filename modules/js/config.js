@@ -659,6 +659,20 @@ const _defaultSettings = {
   // Phase 4: Replay buffer
   replayBufferEnabled: false,   // keep rolling buffer in memory
   replayBufferDuration: 60,     // buffer length in seconds (30–120)
+  // Commentary — authoritative copy now lives here. settings.js relays each
+  // change to the SimHub plugin via action=setSetting so the plugin's existing
+  // commentary-filtering pipeline keeps working unchanged. If we later decide
+  // the plugin doesn't need these at all, drop _relayCommentaryToPlugin.
+  commentaryPromptDuration: 15,        // seconds a prompt stays on screen (5–120)
+  commentaryShowTopicTitle: true,      // show topic title above commentary text
+  commentaryEventOnlyMode: false,      // suppress periodic commentary; only fire on events
+  commentaryCatHardware: true,         // category filter: hardware
+  commentaryCatGameFeel: true,         // category filter: game_feel
+  commentaryCatCarResponse: true,      // category filter: car_response
+  commentaryCatRacingExperience: true, // category filter: racing_experience
+  commentaryDriverFirstName: '',       // used for 3rd-person commentary
+  commentaryDriverLastName: '',
+  commentaryDemoMode: false,           // plugin's commentary demo loop
 };
 
 let _settings = Object.assign({}, _defaultSettings);

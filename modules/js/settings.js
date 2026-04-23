@@ -348,9 +348,15 @@
     });
   })();
 
-  // ── Commentary settings (migrated from SimHub plugin) ──
-  // These settings are sent to the plugin via the HTTP bridge.
+  // ── Commentary settings (authoritative copy in _settings; relayed to plugin) ──
+  // The web admin is the authoritative editor — values live in the overlay
+  // settings file under `commentary*` keys. We relay every change to the
+  // SimHub plugin via the same setSetting action it already consumes, so the
+  // plugin's commentary-filter pipeline keeps working unchanged. If we later
+  // want to pull filtering into the overlay itself, delete the relay.
   function updateCommentarySetting(key, value) {
+    // Legacy entry point kept for inline dashboard.html handlers during the
+    // beta cycle. Writes the one key to the plugin; does not touch _settings.
     var url = (window._simhubUrlOverride || SIMHUB_URL) + '?action=setSetting&key=' + encodeURIComponent(key) + '&value=' + encodeURIComponent(value);
     fetch(url).catch(function() {});
   }
@@ -363,6 +369,33 @@
     var isOn = el.classList.contains('on');
     el.classList.toggle('on', !isOn);
     updateCommentarySetting('category_' + category, !isOn ? '1' : '0');
+  }
+
+  // Map from the prefixed OverlaySettings keys (the web UI edits these) to
+  // the plugin-facing names the SimHub setSetting endpoint expects. When the
+  // commentary keys change in settings, we POST each to the plugin.
+  var _COMMENTARY_PLUGIN_MAP = {
+    commentaryPromptDuration:   'promptDuration',
+    commentaryShowTopicTitle:   'showTopicTitle',
+    commentaryEventOnlyMode:    'eventOnlyMode',
+    commentaryCatHardware:      'category_hardware',
+    commentaryCatGameFeel:      'category_game_feel',
+    commentaryCatCarResponse:   'category_car_response',
+    commentaryCatRacingExperience: 'category_racing_experience',
+    commentaryDriverFirstName:  'driverFirstName',
+    commentaryDriverLastName:   'driverLastName',
+    commentaryDemoMode:         'demoMode',
+  };
+  // Booleans get coerced to '1'/'0' to match the plugin's string parser.
+  function _relayCommentaryToPlugin(settings) {
+    if (!settings) return;
+    Object.keys(_COMMENTARY_PLUGIN_MAP).forEach(function(localKey) {
+      if (!(localKey in settings)) return;
+      var pluginKey = _COMMENTARY_PLUGIN_MAP[localKey];
+      var raw = settings[localKey];
+      var val = (typeof raw === 'boolean') ? (raw ? '1' : '0') : String(raw);
+      updateCommentarySetting(pluginKey, val);
+    });
   }
 
   // Load K10 logo into settings titlebar + populate version from package.json
@@ -409,15 +442,22 @@
   });
 
   // ── Cross-window settings sync ──
-  // When the other window changes settings, apply them here.
+  // When the other window changes settings, apply them here, and relay any
+  // commentary keys to the SimHub plugin so its filtering stays in sync.
   if (window.k10 && window.k10.onSettingsSync) {
     window.k10.onSettingsSync(function(newSettings) {
       if (newSettings && typeof newSettings === 'object') {
         Object.assign(_settings, newSettings);
         applySettings();
+        _relayCommentaryToPlugin(newSettings);
       }
     });
   }
+
+  // On cold start we also need to push the current commentary values to the
+  // plugin — otherwise a plugin restart would use stale values until the
+  // user touched a setting. Fire after a short delay so SIMHUB_URL is ready.
+  setTimeout(function() { _relayCommentaryToPlugin(_settings); }, 2000);
 
   // When the popout window is closed, re-enable the popout button
   if (window.k10 && window.k10.onSettingsPopoutClosed) {
