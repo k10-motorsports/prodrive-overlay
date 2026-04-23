@@ -1286,7 +1286,7 @@ function getDashboardURL() {
 let dashboardWindow = null;
 
 function openDashboardWindow(targetPath) {
-  // `targetPath` is an optional absolute path (e.g. '/drive/admin/overlay-settings').
+  // `targetPath` is an optional absolute path (e.g. '/drive/settings/overlay').
   // When provided we navigate the window there — whether it's a fresh open
   // or an existing one being focused. Keeps the "Open web admin" beta-banner
   // entry point in sync with the single-window shell.
