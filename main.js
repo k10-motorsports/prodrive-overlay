@@ -1321,13 +1321,33 @@ function openDashboardWindow(targetPath) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      // Sandbox stays off here — the preload uses `require('electron')` to
+      // wire up ipcRenderer. The preload itself is still safe (no Node in
+      // the renderer; only the exposeInMainWorld surface is reachable).
+      sandbox: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
       // Persist cookies so login survives app restarts
       partition: 'persist:dashboard',
+      // Preload exposes `window.k10` so the web app's useElectronBridge hook
+      // can detect the bridge and gate admin UI (e.g. AdminNav's Overlay tab)
+      // behind `hasBridge === true`.
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  // Tag the UA with `RaceCor/<version>` so the web app's useElectronBridge
+  // UA-sniff (`/RaceCor\//i.test(ua)`) flips `isElectron` true. Without this
+  // the hook only sees the default Electron UA and assumes it's a browser.
+  try {
+    const uaSuffix = ` RaceCor/${app.getVersion()}`;
+    const current = dashboardWindow.webContents.getUserAgent();
+    if (!/RaceCor\//i.test(current)) {
+      dashboardWindow.webContents.setUserAgent(current + uaSuffix);
+    }
+  } catch (e) {
+    logToFile('[K10] Failed to tag dashboard UA: ' + e.message);
+  }
 
   // Open external links in the user's default browser
   dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
