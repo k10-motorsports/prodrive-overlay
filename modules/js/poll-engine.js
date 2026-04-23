@@ -296,6 +296,37 @@
         window.k10.notifyIdleState(nowIdle);
       }
     }
+
+    // isInRace signal — drives overlay-window visibility in the inverted shell.
+    // Semantically the inverse of idle, but demo mode is ALSO in-race so the
+    // overlay shows during demo preview. Short debounce on "out of race" only —
+    // session-state briefly hits 0 between sessions and we don't want the
+    // overlay to flicker out and back. Transitions into race are immediate.
+    const nowInRace = !!_demo || (gameRunning && realSessNum > 0);
+    if (nowInRace !== _prevInRace) {
+      if (nowInRace) {
+        // Enter race: immediate, cancel any pending leave-race.
+        if (_inRaceLeaveTimer) { clearTimeout(_inRaceLeaveTimer); _inRaceLeaveTimer = null; }
+        _prevInRace = true;
+        if (window.k10 && window.k10.notifyInRaceState) {
+          window.k10.notifyInRaceState(true);
+        }
+      } else {
+        // Leave race: debounce 2s to ride through session transitions.
+        if (_inRaceLeaveTimer) clearTimeout(_inRaceLeaveTimer);
+        _inRaceLeaveTimer = setTimeout(function() {
+          _inRaceLeaveTimer = null;
+          _prevInRace = false;
+          if (window.k10 && window.k10.notifyInRaceState) {
+            window.k10.notifyInRaceState(false);
+          }
+        }, 2000);
+      }
+    } else if (nowInRace && _inRaceLeaveTimer) {
+      // Flapped back to in-race during the debounce window — cancel the leave.
+      clearTimeout(_inRaceLeaveTimer);
+      _inRaceLeaveTimer = null;
+    }
     // Skip rest of update in idle (except settings remain responsive)
     // Periodically refresh race ideas while idle (every 5 min)
     if (_isIdle && typeof refreshNextRaceIdeas === 'function') {

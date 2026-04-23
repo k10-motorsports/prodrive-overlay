@@ -125,6 +125,47 @@
   }
   .conn-banner .conn-skip:hover { color: #999; }
 
+  /* Beta migration banner — retired once legacy settings UI is removed */
+  .settings-beta-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: hsla(210, 80%, 14%, 0.92);
+    border: 1px solid hsla(210, 80%, 55%, 0.45);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .settings-beta-banner .beta-banner-text { flex: 1; min-width: 0; }
+  .settings-beta-banner .beta-banner-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: hsl(210, 80%, 80%);
+  }
+  .settings-beta-banner .beta-banner-detail {
+    font-size: 13px;
+    color: hsla(0, 0%, 100%, 0.60);
+    line-height: 1.4;
+    margin-top: 4px;
+  }
+  .settings-beta-banner .beta-banner-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    background: hsla(210, 80%, 50%, 0.22);
+    border: 1px solid hsla(210, 80%, 60%, 0.55);
+    color: hsl(210, 80%, 88%);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .settings-beta-banner .beta-banner-btn:hover {
+    background: hsla(210, 80%, 55%, 0.35);
+    border-color: hsla(210, 80%, 70%, 0.75);
+  }
+
   /* Settings-embedded connection warning banner */
   .settings-conn-warn {
     display: none;

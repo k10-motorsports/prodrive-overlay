@@ -60,7 +60,7 @@ contextBridge.exposeInMainWorld('k10', {
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),
   stopRemoteServer: () => ipcRenderer.invoke('stop-remote-server'),
   // Web dashboard window (prodrive.racecor.io)
-  openDashboard: () => ipcRenderer.invoke('open-dashboard'),
+  openDashboard: (targetPath) => ipcRenderer.invoke('open-dashboard', targetPath),
   closeDashboard: () => ipcRenderer.invoke('close-dashboard'),
   onDashboardClosed: (callback) => {
     ipcRenderer.on('dashboard-closed', () => callback());
@@ -102,6 +102,17 @@ contextBridge.exposeInMainWorld('k10', {
   installStreamDeckPlugin: () => ipcRenderer.invoke('install-streamdeck-plugin'),
   // Idle state — notify main process so it can switch window mode
   notifyIdleState: (isIdle) => ipcRenderer.invoke('notify-idle-state', isIdle),
+  // In-race state — drives overlay-window visibility in the inverted shell.
+  // Renderer → main: called on every in-race flip by poll-engine.
+  notifyInRaceState: (isInRace) => ipcRenderer.invoke('notify-in-race-state', isInRace),
+  // Main → renderer: subscribe to in-race flips (used by the web-app window
+  // to render live session status without duplicating the polling logic).
+  onInRaceState: (callback) => {
+    ipcRenderer.on('in-race-state', (_event, isInRace) => callback(isInRace));
+  },
+  // Main → renderer: read the current in-race state synchronously on load
+  // (so the web window can decide initial UI without waiting for a flip).
+  getInRaceState: () => ipcRenderer.invoke('get-in-race-state'),
   // Screen recording
   startRecording: (opts) => ipcRenderer.invoke('start-recording', opts),
   stopRecording: () => ipcRenderer.invoke('stop-recording'),

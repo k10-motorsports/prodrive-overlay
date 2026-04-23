@@ -347,6 +347,12 @@ let _isIRacing = true;
 let _isRally = false;
 let _rallyModeEnabled = false;
 let _isIdle = true;
+// isInRace signal — owned by poll-engine, consumed by main via IPC.
+// Drives overlay-window visibility in the inverted shell architecture.
+// Distinct from _isIdle: _isIdle is renderer-local UI state (logo-only mode);
+// _prevInRace is the debounced edge-trigger source for window visibility.
+let _prevInRace = false;
+let _inRaceLeaveTimer = null;
 let _cycleFrameCount = 0;
 let _cycleLastSwitch = 0;
 let _prevLap = 0;
