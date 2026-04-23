@@ -200,7 +200,7 @@
     border-radius: 1px 1px 0 0;
     transform-origin: bottom;
     transform: scaleY(0.01);
-    transition: transform 60ms linear;
+    transition: transform 33ms linear;
     will-change: transform;
   }
   .pedal-hist-bar.throttle { background: var(--green); opacity: 0.54; }
