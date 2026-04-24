@@ -83,6 +83,16 @@
       showFlash('Clip saved (' + mb + ' MB)', 'hsl(280, 60%, 60%)', 2500);
     });
 
+    // Webcam warnings — recorder.js dispatches these when getUserMedia fails
+    // or the <video> element can't autoplay. Surface them on the indicator so
+    // the user doesn't discover post-recording that the facecam silently
+    // dropped. Uses a distinct color so it's not mistaken for a save message.
+    window.addEventListener('recording-webcam-warning', function (e) {
+      var msg = (e.detail && e.detail.message) || 'Facecam unavailable';
+      // Amber — same palette as transcode progress, flags a non-fatal issue.
+      showFlash(msg, 'hsl(35, 80%, 55%)', 5000);
+    });
+
     // Recording debug events (lifecycle logging)
     if (window.k10 && window.k10.onRecordingDebug) {
       window.k10.onRecordingDebug(function (data) {

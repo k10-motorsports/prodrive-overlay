@@ -97,6 +97,49 @@
     return { audioInputs: audioInputs, videoInputs: videoInputs };
   }
 
+  // ── Webcam stream acquisition ──────────────────────────────
+  // Try {exact: id} first so we honor the user's dropdown selection. If that
+  // throws NotFoundError, the saved deviceId is probably stale — Chromium
+  // rotates deviceIds when permissions clear or the camera driver changes.
+  // Falling back to {ideal: id} tells the OS to pick the closest match
+  // instead of failing outright.
+  async function getWebcamStream(deviceId) {
+    var baseVideo = {
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+      frameRate: { ideal: 30 },
+    };
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: Object.assign({ deviceId: { exact: deviceId } }, baseVideo),
+      });
+    } catch (err) {
+      if (err && (err.name === 'NotFoundError' || err.name === 'OverconstrainedError')) {
+        console.warn('[Recorder] Exact webcam deviceId not found, retrying with ideal match');
+        return await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: Object.assign({ deviceId: { ideal: deviceId } }, baseVideo),
+        });
+      }
+      throw err;
+    }
+  }
+
+  // ── User-visible webcam warnings ───────────────────────────
+  // recorder-ui.js listens on 'recording-webcam-warning' and flashes the
+  // message on the indicator. Keeps recorder.js free of DOM code.
+  function emitWebcamWarning(message) {
+    try {
+      window.dispatchEvent(new CustomEvent('recording-webcam-warning', {
+        detail: { message: message },
+      }));
+    } catch (e) {
+      // CustomEvent should always be available, but never let telemetry
+      // plumbing crash the recording path.
+    }
+  }
+
   // ── Start recording ────────────────────────────────────────
   async function startRecording(options) {
     if (_recording) {
@@ -204,22 +247,30 @@
       }
 
       // ── 4. Webcam (optional facecam PiP) ───────────────────
+      // Failures here used to be silent — a console.warn and then the recording
+      // just proceeded without a facecam, which looks to the user like "camera
+      // is selected but doesn't record my face." We now surface every failure
+      // mode through the 'recording-webcam-warning' event so recorder-ui can
+      // flash it on the indicator. Fallback: if {exact: id} fails with
+      // NotFoundError (usually a stale deviceId that changed across restarts),
+      // retry once with {ideal: id} so the OS can pick the best available match.
       var webcamDeviceId = settings.recordingWebcamDevice || undefined;
+
+      if (includeWebcam && !webcamDeviceId) {
+        // Dropdown says "camera picked" but the setting never persisted.
+        // Common cause: user changed the selection but the change handler
+        // didn't fire. Surface it so the user isn't left wondering.
+        emitWebcamWarning('No camera selected in settings — facecam skipped');
+      }
 
       if (includeWebcam && webcamDeviceId) {
         try {
-          _webcamStream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-              deviceId: { exact: webcamDeviceId },
-              width: { ideal: 640 },
-              height: { ideal: 480 },
-              frameRate: { ideal: 30 },
-            },
-          });
+          _webcamStream = await getWebcamStream(webcamDeviceId);
           console.log('[Recorder] Webcam stream acquired');
         } catch (camErr) {
-          console.warn('[Recorder] Webcam unavailable:', camErr.message);
+          var reason = camErr && camErr.name ? camErr.name + ': ' + camErr.message : String(camErr);
+          console.warn('[Recorder] Webcam unavailable:', reason);
+          emitWebcamWarning('Facecam error — ' + reason);
           _webcamStream = null;
         }
       }
@@ -326,16 +377,28 @@
     _compositeCanvas.height = canvasH;
     _compositeCtx = _compositeCanvas.getContext('2d');
 
-    // Video elements for drawing frames
+    // Video elements for drawing frames. play() returns a Promise that rejects
+    // when Electron's autoplay policy blocks it (can happen if the document
+    // hasn't had a recent user gesture). Swallowing that silently used to leave
+    // webcamVideo.readyState stuck at 0, which made drawFrame() skip the PiP
+    // forever — looks to the user like "the camera just doesn't work." Now we
+    // catch, surface, and still let the display track go through.
     var displayVideo = document.createElement('video');
     displayVideo.srcObject = displayStream;
     displayVideo.muted = true;
-    displayVideo.play();
+    displayVideo.playsInline = true;
+    displayVideo.play().catch(function (err) {
+      console.warn('[Recorder] displayVideo.play() rejected:', err && err.message);
+    });
 
     var webcamVideo = document.createElement('video');
     webcamVideo.srcObject = webcamStream;
     webcamVideo.muted = true;
-    webcamVideo.play();
+    webcamVideo.playsInline = true;
+    webcamVideo.play().catch(function (err) {
+      console.warn('[Recorder] webcamVideo.play() rejected:', err && err.message);
+      emitWebcamWarning('Facecam blocked by autoplay policy — ' + (err && err.message || 'unknown'));
+    });
 
     // Facecam PiP dimensions and position
     var fc = Object.assign({}, FACECAM_DEFAULTS, settings.recordingFacecam || {});
