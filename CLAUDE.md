@@ -5,8 +5,7 @@ Canonical instructions and skills live under [`agents/prodrive-overlay/`](agents
 Common entry points:
 - Repo overview: [`agents/prodrive-overlay/CLAUDE.md`](agents/prodrive-overlay/CLAUDE.md)
 - Cross-repo context: [`agents/prodrive-context/`](agents/prodrive-context/)
-- Skills: [`agents/prodrive-overlay/.skills/`](agents/prodrive-overlay/.skills/) (the overlay/racing/simhub skills are symlinked from `agents/prodrive-plugin/.skills/`)
-- moza-api skill: [`agents/prodrive-overlay/skills/moza-api/SKILL.md`](agents/prodrive-overlay/skills/moza-api/SKILL.md)
+- Skills: installed via the `prodrive-knowledge` plugin (run `/plugin` to inspect). Source lives under [`agents/skills/`](agents/skills/) — `overlay-*` skills are scoped to this repo (e.g. `overlay-moza-api`, `overlay-webgl`, `overlay-dataviz`).
 
 To pull updates:
 ```bash
