@@ -94,25 +94,7 @@
     }
 
     switch (action) {
-      case 'settings':
-        // Toggle settings via existing flow — request interactive mode
-        if (window.k10 && window.k10.requestInteractive) {
-          window.k10.requestInteractive();
-        }
-        if (typeof window.toggleSettings === 'function') {
-          window.toggleSettings();
-        }
-        collapse();
-        enableButtons();
-        break;
-
-      case 'webapp':
-        if (window.k10 && window.k10.openDashboard) {
-          window.k10.openDashboard();
-          enableButtons();
-        }
-        break;
-
+      // 'webapp' removed — the WinUI host is the dashboard now.
       case 'moza':
         if (window.k10 && window.k10.openMozaManager) {
           window.k10.openMozaManager();

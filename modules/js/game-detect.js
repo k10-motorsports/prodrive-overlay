@@ -84,13 +84,9 @@
       if (settingsWarn) settingsWarn.classList.remove('warn-visible');
       // Stop logo demo cycle once connected
       if (_logoCycleTimer) { clearInterval(_logoCycleTimer); _logoCycleTimer = null; }
-      // Auto-close settings if it was forced open by disconnection
+      // Clear forced-disconnect flag when connection is restored
       if (_settingsForcedByDisconnect) {
         _settingsForcedByDisconnect = false;
-        const overlay = document.getElementById('settingsOverlay');
-        if (overlay.classList.contains('open')) {
-          toggleSettings();
-        }
       }
     }
 
@@ -108,18 +104,6 @@
           _connBannerShown = true;
           if (window.k10?.requestInteractive) window.k10.requestInteractive();
         }
-      }
-    }
-
-    // Force settings mode open when disconnected (after a few retries)
-    if (state === 'disconnected' && !_hasEverConnected && _connFails >= 3 && !_settingsForcedByDisconnect) {
-      _settingsForcedByDisconnect = true;
-      const overlay = document.getElementById('settingsOverlay');
-      if (!overlay.classList.contains('open')) {
-        // Open settings so user can fix the SimHub URL
-        overlay.classList.add('open');
-        document.body.classList.add('settings-active');
-        if (window.k10?.requestInteractive) window.k10.requestInteractive();
       }
     }
 

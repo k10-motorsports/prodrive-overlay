@@ -59,12 +59,9 @@ contextBridge.exposeInMainWorld('k10', {
   getRemoteServerInfo: () => ipcRenderer.invoke('get-remote-server-info'),
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),
   stopRemoteServer: () => ipcRenderer.invoke('stop-remote-server'),
-  // Web dashboard window (prodrive.racecor.io)
-  openDashboard: (targetPath) => ipcRenderer.invoke('open-dashboard', targetPath),
-  closeDashboard: () => ipcRenderer.invoke('close-dashboard'),
-  onDashboardClosed: (callback) => {
-    ipcRenderer.on('dashboard-closed', () => callback());
-  },
+  // (Dashboard window removed — the WinUI host owns that surface. The
+  // open-dashboard / close-dashboard / dashboard-closed IPC channels
+  // are gone with it; renderers should not call them.)
   // Settings popout window (secondary display)
   openSettingsPopout: () => ipcRenderer.invoke('open-settings-popout'),
   closeSettingsPopout: () => ipcRenderer.invoke('close-settings-popout'),

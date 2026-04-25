@@ -783,20 +783,7 @@
   // Layout helper functions removed — all behavior is now deterministic
   // from the 4-corner position choice. No flow/vswap/oppose/offset toggles needed.
 
-  function previewZoom(val) {
-    // Live preview: apply zoom to all modules while dragging, but NOT the settings panel
-    val = Math.max(100, Math.min(200, +val));
-    document.getElementById('zoomVal').textContent = val + '%';
-    applyZoom(val, true);  // skipSettings = true
-  }
-  function updateZoom(val) {
-    val = Math.max(100, Math.min(200, +val));
-    _settings.zoom = val;
-    document.getElementById('zoomVal').textContent = val + '%';
-    applyZoom(val, false);  // apply to everything including settings
-    saveSettings();
-  }
-  function applyZoom(val, skipSettings) {
+  function applyZoom(val) {
     const scale = (val || 100) / 100;
     document.documentElement.style.setProperty('--dash-zoom', scale);
 
@@ -822,48 +809,12 @@
     const sec = document.getElementById('secContainer');
     if (sec) sec.style.zoom = scale;
 
-    // Scale the settings panel itself on release (not during drag)
-    if (!skipSettings) {
-      const settingsOverlay = document.getElementById('settingsOverlay');
-      if (settingsOverlay) settingsOverlay.style.zoom = scale;
-    }
   }
-
-  function previewBottomYOffset(val) {
-    document.getElementById('bottomYOffsetVal').textContent = val + 'px';
-    _settings.bottomYOffset = parseInt(val, 10);
-    applyLayout();
-    saveSettings();
-  }
-  window.previewBottomYOffset = previewBottomYOffset;
 
   function updateForceFlag(val) {
     _forceFlagState = val;
     _settings.forceFlag = val;
     saveSettings();
-  }
-
-  function toggleSettings() {
-    const overlay = document.getElementById('settingsOverlay');
-    const isOpen = overlay.classList.contains('open');
-    if (isOpen) {
-      // Closing — also exit settings mode via Electron
-      overlay.classList.remove('open');
-      document.body.classList.remove('settings-active');
-      document.body.classList.remove('settings-drag');
-      if (window.k10?.releaseInteractive) window.k10.releaseInteractive();
-      // Stop ambient preview when settings close
-      if (typeof window.stopAmbientPreview === 'function') window.stopAmbientPreview();
-    } else {
-      // Opening — also enter settings mode
-      overlay.classList.add('open');
-      document.body.classList.add('settings-active');
-      if (window.k10?.requestInteractive) window.k10.requestInteractive();
-      // Start ambient preview when settings open
-      if (typeof window.startAmbientPreview === 'function') window.startAmbientPreview();
-      // Refresh the always-visible connections panel
-      updateConnectionsTab();
-    }
   }
 
   // ─── Persistence ───
@@ -892,24 +843,6 @@
     }
     // Also save to localStorage
     try { localStorage.setItem('k10-broadcast-settings', JSON.stringify(_settings)); } catch(e) {}
-  }
-
-  // ─── Electron settings mode listener ───
-  // Ctrl+Shift+S directly opens/closes the settings modal.
-  // Closing the modal also exits settings mode.
-  if (window.k10 && window.k10.onSettingsMode) {
-    window.k10.onSettingsMode((active) => {
-      const overlay = document.getElementById('settingsOverlay');
-      if (active) {
-        // Open the settings modal
-        overlay.classList.add('open');
-        document.body.classList.add('settings-active');
-      } else {
-        // Close the settings modal
-        overlay.classList.remove('open');
-        document.body.classList.remove('settings-active');
-      }
-    });
   }
 
   // Load settings on startup

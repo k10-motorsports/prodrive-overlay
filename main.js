@@ -1277,116 +1277,13 @@ function closeSettingsWindow() {
 
 const isDev = process.argv.includes('--dev');
 
-function getDashboardURL() {
-  return isDev
-    ? (process.env.K10_DASHBOARD_URL || 'http://localhost:3000')
-    : K10_API_BASE;  // https://prodrive.racecor.io — defined later in file
-}
-
-let dashboardWindow = null;
-
-function openDashboardWindow(targetPath) {
-  // `targetPath` is an optional absolute path (e.g. '/drive/settings/overlay').
-  // When provided we navigate the window there — whether it's a fresh open
-  // or an existing one being focused. Keeps the "Open web admin" beta-banner
-  // entry point in sync with the single-window shell.
-  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-    if (targetPath) {
-      dashboardWindow.loadURL(getDashboardURL() + targetPath).catch((err) => {
-        logToFile('[K10] Dashboard navigation failed: ' + err.message);
-      });
-    }
-    dashboardWindow.show();
-    dashboardWindow.moveTop();
-    dashboardWindow.focus();
-    return;
-  }
-
-  const primary = screen.getPrimaryDisplay();
-  const winW = Math.min(1280, primary.workAreaSize.width);
-  const winH = Math.min(900, primary.workAreaSize.height);
-
-  dashboardWindow = new BrowserWindow({
-    width: winW,
-    height: winH,
-    icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
-    frame: true,
-    autoHideMenuBar: true,
-    resizable: true,
-    movable: true,
-    alwaysOnTop: false,
-    transparent: false,
-    backgroundColor: '#0a0a0a',
-    title: 'K10 Pro Drive',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      // Sandbox stays off here — the preload uses `require('electron')` to
-      // wire up ipcRenderer. The preload itself is still safe (no Node in
-      // the renderer; only the exposeInMainWorld surface is reachable).
-      sandbox: false,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      // Persist cookies so login survives app restarts
-      partition: 'persist:dashboard',
-      // Preload exposes `window.k10` so the web app's useElectronBridge hook
-      // can detect the bridge and gate admin UI (e.g. AdminNav's Overlay tab)
-      // behind `hasBridge === true`.
-      preload: path.join(__dirname, 'preload.js'),
-    },
-  });
-
-  // Tag the UA with `RaceCor/<version>` so the web app's useElectronBridge
-  // UA-sniff (`/RaceCor\//i.test(ua)`) flips `isElectron` true. Without this
-  // the hook only sees the default Electron UA and assumes it's a browser.
-  try {
-    const uaSuffix = ` RaceCor/${app.getVersion()}`;
-    const current = dashboardWindow.webContents.getUserAgent();
-    if (!/RaceCor\//i.test(current)) {
-      dashboardWindow.webContents.setUserAgent(current + uaSuffix);
-    }
-  } catch (e) {
-    logToFile('[K10] Failed to tag dashboard UA: ' + e.message);
-  }
-
-  // Open external links in the user's default browser
-  dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  dashboardWindow.on('closed', () => {
-    dashboardWindow = null;
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.webContents.send('dashboard-closed');
-    }
-    logToFile('[K10] Dashboard window closed');
-  });
-
-  const dashURL = getDashboardURL();
-  dashboardWindow.loadURL(dashURL).catch((err) => {
-    logToFile('[K10] Dashboard failed to load: ' + err.message);
-  });
-
-  logToFile(`[K10] Dashboard window opened: ${dashURL}${isDev ? ' (dev)' : ''}`);
-}
-
-function closeDashboardWindow() {
-  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-    dashboardWindow.close();
-    dashboardWindow = null;
-  }
-}
-
-ipcMain.handle('open-dashboard', async (_evt, targetPath) => {
-  openDashboardWindow(targetPath);
-  return true;
-});
-
-ipcMain.handle('close-dashboard', async () => {
-  closeDashboardWindow();
-  return true;
-});
+// Dashboard window removed: the WinUI host (RaceCorProDrive.exe) now
+// owns the dashboard / settings surface. This Electron process renders
+// only the in-game HUD, so it spawns no secondary BrowserWindow. If a
+// future feature really needs a web view, build a focused window at
+// the call site rather than reintroducing a generic "open dashboard"
+// channel — that channel was the doorway to the duplicated UI we just
+// retired.
 
 // ═══════════════════════════════════════════════════════════════
 // MOZA HARDWARE MANAGER WINDOW
