@@ -28,6 +28,7 @@
   var _prevLap = -1;          // for detecting lap changes
   var _prevInPit = false;     // for detecting pit entry/exit
   var _markers = [];          // incident/event markers for this recording
+  var _headerWritten = false; // header line emitted on first captureFrame
 
   // ── Start / Stop ──────────────────────────────────────────
   // Called by recorder.js when recording starts/stops.
@@ -46,6 +47,7 @@
     _prevPosition = -1;
     _prevLap = -1;
     _prevInPit = false;
+    _headerWritten = false;
 
     // Create the file (empty) via IPC
     if (window.k10 && window.k10.sidecarStart) {
@@ -53,6 +55,38 @@
     }
 
     console.log('[Sidecar] Started → ' + _sidecarPath);
+  }
+
+  // First-frame header — written lazily on the first captureFrame() so
+  // we can read car/track/game directly from the live property bag,
+  // matching whatever the per-frame rows reflect. Downstream tooling
+  // (prodrive-designer's sidecar mapper) keys off `_type === 'header'`.
+  function writeHeader(p, isDemo) {
+    if (_headerWritten || !_sidecarPath) return;
+    _headerWritten = true;
+
+    var carModel =
+      (p && (p['DataCorePlugin.GameData.CarModel'] || p['RaceCorProDrive.Plugin.Demo.CarModel'])) ||
+      window._currentCarModel ||
+      null;
+    var trackName =
+      (p && (p['DataCorePlugin.GameData.TrackName'] || p['RaceCorProDrive.Plugin.Demo.TrackName'])) ||
+      window._currentTrackName ||
+      null;
+
+    var header = {
+      _type: 'header',
+      schemaVersion: 1,
+      startedAt: new Date(_startTime).toISOString(),
+      car: carModel,
+      track: trackName,
+      gameId: window._currentGameId || null,
+      isDemo: !!isDemo,
+    };
+
+    if (window.k10 && window.k10.sidecarWrite) {
+      window.k10.sidecarWrite(_sidecarPath, JSON.stringify(header) + '\n');
+    }
   }
 
   function stop() {
@@ -87,6 +121,10 @@
 
   function captureFrame(p, isDemo) {
     if (!_active || !p) return;
+
+    // Lazy header on first frame — uses the live property bag, so
+    // car/track/game match whatever the per-frame rows will reflect.
+    if (!_headerWritten) writeHeader(p, isDemo);
 
     var dsPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.DS.' : 'RaceCorProDrive.Plugin.DS.';
     var sessionPre = isDemo ? 'RaceCorProDrive.Plugin.Demo.Grid.' : 'RaceCorProDrive.Plugin.Grid.';
@@ -154,6 +192,15 @@
     _prevInPit = inPit;
 
     // ── Build the frame record ──────────────────────────────
+    // Schema notes:
+    //   - Field names are intentionally short to keep per-frame JSONL bloat
+    //     down; this file accumulates ~30 frames/sec × race length.
+    //   - When a new field is added, the prodrive-designer mapper
+    //     (replayer/sidecar-mapper.js) must be taught to read it.
+    //     See agents/prodrive-context/ for the cross-repo schema doc.
+    //   - Tire / fuel-rate / BB-TC-ABS added 2026-04-26 to enable
+    //     designing tire wear, fuel strategy, and adjustment UI in
+    //     prodrive-designer with real recorded data.
     var frame = {
       t: +(elapsedMs / 1000).toFixed(3),
       frame: _frameIndex,
@@ -187,6 +234,27 @@
       // Fuel
       fuel: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.Fuel')) || 0 : +(v('DataCorePlugin.GameData.Fuel')) || 0,
       maxFuel: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.MaxFuel')) || 0 : +(v('DataCorePlugin.GameData.MaxFuel')) || 0,
+      // Fuel consumption (added 2026-04-26)
+      fuelLap: isDemo
+        ? +(v('RaceCorProDrive.Plugin.Demo.FuelPerLap')) || 0
+        : +(v('DataCorePlugin.Computed.Fuel_LitersPerLap')) || 0,
+      remLaps: isDemo
+        ? +(v('RaceCorProDrive.Plugin.Demo.RemainingLaps')) || 0
+        : +(v('DataCorePlugin.GameData.RemainingLaps')) || 0,
+      // Tire temps °C (added 2026-04-26)
+      tFL: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreTempFL')) || 0 : +(v('DataCorePlugin.GameData.TyreTempFrontLeft')) || 0,
+      tFR: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreTempFR')) || 0 : +(v('DataCorePlugin.GameData.TyreTempFrontRight')) || 0,
+      tRL: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreTempRL')) || 0 : +(v('DataCorePlugin.GameData.TyreTempRearLeft')) || 0,
+      tRR: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreTempRR')) || 0 : +(v('DataCorePlugin.GameData.TyreTempRearRight')) || 0,
+      // Tire wear 0..1 (added 2026-04-26)
+      wFL: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreWearFL')) || 0 : +(v('DataCorePlugin.GameData.TyreWearFrontLeft')) || 0,
+      wFR: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreWearFR')) || 0 : +(v('DataCorePlugin.GameData.TyreWearFrontRight')) || 0,
+      wRL: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreWearRL')) || 0 : +(v('DataCorePlugin.GameData.TyreWearRearLeft')) || 0,
+      wRR: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TyreWearRR')) || 0 : +(v('DataCorePlugin.GameData.TyreWearRearRight')) || 0,
+      // In-car adjustments (added 2026-04-26)
+      bb: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.BrakeBias')) || 0 : +(v('DataCorePlugin.GameRawData.Telemetry.dcBrakeBias')) || 0,
+      tc: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TC')) || 0 : +(v('DataCorePlugin.GameRawData.Telemetry.dcTractionControl')) || 0,
+      abs: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.ABS')) || 0 : +(v('DataCorePlugin.GameRawData.Telemetry.dcABS')) || 0,
       // Proximity
       closestCar: +(v(dsPre + 'ClosestCarDistance')) || 0,
       // Session

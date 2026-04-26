@@ -850,6 +850,19 @@ function getRecordingDir() {
   return dir;
 }
 
+// Slugify a free-form name (track / car) for safe inclusion in filenames.
+// Lower-cases, strips non-[a-z0-9], collapses runs to single dash, trims
+// length, drops trailing dashes. Returns "" when nothing usable remains.
+function slugForFilename(name, maxLen = 32) {
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, maxLen)
+    .replace(/-+$/, '');
+}
+
 ipcMain.handle('start-recording', async (_event, options = {}) => {
   if (_recordingStream) {
     return { error: 'Already recording' };
@@ -860,7 +873,13 @@ ipcMain.handle('start-recording', async (_event, options = {}) => {
     const dirSource = settings.recordingDirectory ? 'settings' : 'default';
     const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
     const ext = options.ext || 'webm';
-    const filename = `RaceCor_${ts}.${ext}`;
+    // Filename embeds track + car slugs when available — both for human
+    // browsing and so prodrive-designer can group recordings by venue/car
+    // without parsing the sidecar header. Falls back to bare timestamp.
+    const trackSlug = slugForFilename(options.track);
+    const carSlug = slugForFilename(options.car);
+    const tail = [trackSlug, carSlug].filter(Boolean).join('_');
+    const filename = tail ? `RaceCor_${ts}_${tail}.${ext}` : `RaceCor_${ts}.${ext}`;
     _recordingPath = path.join(dir, filename);
     _recordingStream = fs.createWriteStream(_recordingPath);
     _recordingStartTime = Date.now();
@@ -1007,7 +1026,14 @@ ipcMain.handle('save-replay-buffer', async (_event, options) => {
   try {
     const dir = getRecordingDir();
     const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
-    const filename = `RaceCor_Replay_${ts}.webm`;
+    // Match start-recording's filename shape so file browsers + the
+    // designer's mapper can treat clips and recordings the same way.
+    const trackSlug = slugForFilename(options && options.track);
+    const carSlug = slugForFilename(options && options.car);
+    const tail = [trackSlug, carSlug].filter(Boolean).join('_');
+    const filename = tail
+      ? `RaceCor_Replay_${ts}_${tail}.webm`
+      : `RaceCor_Replay_${ts}.webm`;
     const filePath = path.join(dir, filename);
     // options.data is an ArrayBuffer from the renderer
     const buf = Buffer.from(options.data);

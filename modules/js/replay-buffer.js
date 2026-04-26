@@ -142,7 +142,14 @@
       // Convert to ArrayBuffer for IPC transfer
       var arrayBuf = await fullBlob.arrayBuffer();
 
-      var result = await window.k10.saveReplayBuffer({ data: arrayBuf });
+      // Same car/track plumbing as full recording start — main.js
+      // embeds slugs in the filename so replay clips are groupable
+      // by venue/car alongside long-form recordings.
+      var result = await window.k10.saveReplayBuffer({
+        data: arrayBuf,
+        car: window._currentCarModel || null,
+        track: window._currentTrackName || null,
+      });
 
       _saving = false;
 

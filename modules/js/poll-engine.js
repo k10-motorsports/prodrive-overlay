@@ -493,6 +493,13 @@
       // Track car usage for driver profile heatmap
       if (carModel && !_demo && typeof recordCarSession === 'function') recordCarSession(carModel);
     }
+
+    // Expose latest car + track + game on window so the recorder/sidecar
+    // can stamp recording metadata at start time without polling p[].
+    // Pattern matches `window._currentGameId` above.
+    window._currentCarModel = carModel || null;
+    window._currentTrackName = ds('DataCorePlugin.GameData.TrackName', 'Demo.TrackName') || null;
+    window._currentIsDemo = _demo;
     if (_demo) { _tcSeen = true; _absSeen = true; }
     else {
       // Once we see any valid value (even 0), the car has this system
