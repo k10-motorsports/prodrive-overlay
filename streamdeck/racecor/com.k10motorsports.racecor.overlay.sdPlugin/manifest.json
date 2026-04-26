@@ -339,9 +339,9 @@
 	"CodePath": "bin/plugin.js",
 	"Description": "Key controls for RaceCor.io ProDrive",
 	"Icon": "imgs/plugin/marketplace",
-	"SDKVersion": 3,
+	"SDKVersion": 2,
 	"Software": {
-		"MinimumVersion": "7.1"
+		"MinimumVersion": "6.5"
 	},
 	"OS": [
 		{
@@ -354,7 +354,7 @@
 		}
 	],
 	"Nodejs": {
-		"Version": "24",
+		"Version": "20",
 		"Debug": "enabled"
 	},
 	"UUID": "com.k10motorsports.racecor.overlay"
