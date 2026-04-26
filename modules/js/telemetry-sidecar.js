@@ -255,6 +255,12 @@
       bb: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.BrakeBias')) || 0 : +(v('DataCorePlugin.GameRawData.Telemetry.dcBrakeBias')) || 0,
       tc: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.TC')) || 0 : +(v('DataCorePlugin.GameRawData.Telemetry.dcTractionControl')) || 0,
       abs: isDemo ? +(v('RaceCorProDrive.Plugin.Demo.ABS')) || 0 : +(v('DataCorePlugin.GameRawData.Telemetry.dcABS')) || 0,
+      // Track position (added 2026-04-26) — drives the player marker on the
+      // track-map module. Coordinates are in the 0..100 viewBox space the
+      // map shader uses; heading is radians.
+      px: +(v('RaceCorProDrive.Plugin.TrackMap.PlayerX')) || 0,
+      py: +(v('RaceCorProDrive.Plugin.TrackMap.PlayerY')) || 0,
+      hdg: +(v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading')) || 0,
       // Proximity
       closestCar: +(v(dsPre + 'ClosestCarDistance')) || 0,
       // Session
