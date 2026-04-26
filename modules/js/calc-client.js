@@ -97,22 +97,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 6. Race-Now verdict — "should I race right now?"
-  //    Recommended cadence: once on app start, then once every
-  //    5–10 minutes (or on hour rollover). Verdict only changes
-  //    on hour boundaries.
-  // ─────────────────────────────────────────────────────────────
-  function fetchRaceNow(profile, opts) {
-    opts = opts || {};
-    var body = { profile: profile || null };
-    if (opts.now) body.now = opts.now;
-    if (opts.timeZone) body.timeZone = opts.timeZone;
-    if (opts.sessions) body.sessions = opts.sessions;
-    return _post('/api/v1/calc/race-now', body);
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // 7. Race summary (post-race debrief)
+  // 6. Race summary (post-race debrief)
   // ─────────────────────────────────────────────────────────────
   function fetchRaceSummary(payload) {
     // payload = { session, laps, behavior, trackHistory, ratingContext }
@@ -120,7 +105,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 8. Next race ideas
+  // 7. Next race ideas
   // ─────────────────────────────────────────────────────────────
   function fetchNextRaceIdeas(payload) {
     // payload = { sessions, ratings, driverRatings, schedule, activeCategories?, timeZone? }
@@ -137,7 +122,6 @@
     fetchMoments: fetchMoments,
     fetchScatter: fetchScatter,
     fetchWhen: fetchWhen,
-    fetchRaceNow: fetchRaceNow,
     fetchRaceSummary: fetchRaceSummary,
     fetchNextRaceIdeas: fetchNextRaceIdeas
   };
