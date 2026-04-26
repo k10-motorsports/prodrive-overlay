@@ -309,7 +309,15 @@
       console.log('[Recorder] Audio sources: mic=' + (hasMic ? 'yes' : 'no') + ', system=' + (hasSys ? 'yes' : 'no') + ', webcam=' + (_webcamStream ? 'yes' : 'no'));
 
       // ── 8. Tell main process to open a write stream ────────
-      var result = await window.k10.startRecording({ ext: 'webm' });
+      // Pass current car + track so main.js can embed slugs in the
+      // filename. Both come from poll-engine's per-frame state via
+      // window._currentCarModel / _currentTrackName. The sidecar
+      // header also stamps them; this is the file-system surfacing.
+      var result = await window.k10.startRecording({
+        ext: 'webm',
+        car: window._currentCarModel || null,
+        track: window._currentTrackName || null,
+      });
       if (result.error) {
         throw new Error(result.error);
       }
