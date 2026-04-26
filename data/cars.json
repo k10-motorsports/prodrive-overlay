@@ -1108,5 +1108,42 @@
       "seriesAvailable": ["Porsche Cup Series", "Special Events"],
       "setupTraits": "Balanced platform, good tire warm-up, responsive to aero adjustments"
     }
+  },
+  {
+    "id": "fia-f4-tatuus",
+    "officialName": "FIA F4 (Tatuus T-014)",
+    "manufacturer": "FIA",
+    "manufacturerLogoAvailable": true,
+    "category": "Single-seater Formula",
+    "realWorldSpecs": {
+      "engineType": "Naturally aspirated 4-cyl",
+      "displacement": "1.4L",
+      "horsepower": 160,
+      "torque": "N/A",
+      "weight": 570,
+      "drivetrain": "RWD"
+    },
+    "realWorldHistory": {
+      "series": ["FIA Formula 4 Championships (regional)"],
+      "notableWins": [],
+      "championshipHistory": "Entry-level open-wheel category sanctioned by the FIA, used in regional F4 championships worldwide."
+    },
+    "drivingCharacteristics": {
+      "description": "Lightweight open-wheel chassis with a sealed Abarth four-cylinder. Sharp, low-grip platform that rewards smooth inputs and consistent braking.",
+      "understeerTendency": "Neutral with slight push under power",
+      "brakeFeel": "Firm pedal, short travel, requires deliberate trail-braking"
+    },
+    "notableDrivers": [],
+    "manufacturerHistory": {
+      "foundingYear": 1904,
+      "headquarters": "Paris, France",
+      "racingHeritage": "Federation Internationale de l'Automobile — global motorsport governing body. F4 is the standardized junior open-wheel category.",
+      "notableRoadCars": ""
+    },
+    "iRacingNotes": {
+      "licenseLevel": "D",
+      "seriesAvailable": ["iRacing Formula 4 Challenge"],
+      "setupTraits": "Mostly fixed-setup category; focus on driving line and tyre management."
+    }
   }
 ]
