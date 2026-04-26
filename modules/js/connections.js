@@ -829,7 +829,10 @@
       try { saved = JSON.parse(localStorage.getItem('k10-broadcast-settings')); } catch(e) {}
     }
     if (saved) _settings = Object.assign({}, _defaultSettings, saved);
-    applySettings();
+    // Defensive: settings.js isn't always loaded (e.g. in popout / designer
+    // contexts). Skip silently when not available rather than throwing
+    // "applySettings is not defined" on every boot.
+    if (typeof applySettings === 'function') applySettings();
   }
 
   async function saveSettings() {
@@ -850,6 +853,8 @@
   initDiscordState();
   initK10State();
   initRemoteDashState();
-  initIRacingState();
+  // Defensive: initIRacingState is referenced here but never defined
+  // anywhere in the codebase. Guard the call so boot doesn't throw.
+  if (typeof initIRacingState === 'function') initIRacingState();
 
   // ═══════════════════════════════════════════════════════════════
