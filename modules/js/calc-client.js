@@ -120,16 +120,11 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 8. Next race ideas
-  // ─────────────────────────────────────────────────────────────
-  function fetchNextRaceIdeas(payload) {
-    // payload = { sessions, ratings, driverRatings, schedule, activeCategories?, timeZone? }
-    return _post('/api/v1/calc/next-race-ideas', payload || {});
-  }
-
-  // ─────────────────────────────────────────────────────────────
   // Public surface
   // ─────────────────────────────────────────────────────────────
+  // NRI deliberately omitted: next-race scheduling lives in the Windows
+  // native app. The overlay is a live-race HUD; pre-race scheduling is
+  // a different mental model and a different surface.
   window.k10CalcClient = {
     baseUrl: _baseUrl,
     fetchDriverDna: fetchDriverDna,
@@ -138,7 +133,6 @@
     fetchScatter: fetchScatter,
     fetchWhen: fetchWhen,
     fetchRaceNow: fetchRaceNow,
-    fetchRaceSummary: fetchRaceSummary,
-    fetchNextRaceIdeas: fetchNextRaceIdeas
+    fetchRaceSummary: fetchRaceSummary
   };
 })();
