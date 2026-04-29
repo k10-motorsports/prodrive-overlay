@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const remoteServer = require('./remote-server');
 const updater      = require('./modules/js/auto-updater');
 const ffmpegEncoder  = require('./modules/js/ffmpeg-encoder');
+const bundleWriter   = require('./modules/js/bundle-writer');
 const replayDirector = require('./modules/js/replay-director');
 
 // ── Crash log ───────────────────────────────────────────────
@@ -1084,6 +1085,63 @@ ipcMain.handle('transcode-recording', async (_event, webmPath, options) => {
 
     logToFile(`[K10] Transcode complete: ${result.outputPath} (${(result.fileSize / 1024 / 1024).toFixed(1)} MB, encoder: ${result.encoder})`);
 
+    // Bundle into .rcpdv if a paired sidecar exists. Default behavior is on;
+    // caller can set options.bundle === false to keep producing loose mp4+jsonl.
+    var shouldBundle = !options || options.bundle !== false;
+    if (shouldBundle) {
+      var sidecarPath = result.outputPath.replace(/\.(mp4|mov|m4v)$/i, '.telemetry.jsonl');
+      if (!fs.existsSync(sidecarPath)) {
+        // Loose recordings (no sidecar) skip bundling silently.
+        logToFile(`[K10] Bundle skipped — no sidecar at ${sidecarPath}`);
+      } else {
+        try {
+          var bundleResult = bundleWriter.writeBundle({
+            mp4Path: result.outputPath,
+            telemetryPath: sidecarPath,
+            appInfo: {
+              app: 'prodrive-overlay',
+              version: app.getVersion(),
+              platform: process.platform,
+            },
+            video: {
+              duration: result.duration || 0,
+              width: result.width || 0,
+              height: result.height || 0,
+              codec: 'h264',
+            },
+          });
+          logToFile(
+            `[K10] Bundle written: ${bundleResult.outputPath} ` +
+            `(id=${bundleResult.bundleId}, ` +
+            `${(bundleResult.totalBytes / 1024 / 1024).toFixed(1)} MB, ` +
+            `${bundleResult.frameCount} frames)`
+          );
+          // Notify renderer for UI feedback
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            overlayWindow.webContents.send('bundle-complete', {
+              path: bundleResult.outputPath,
+              bundleId: bundleResult.bundleId,
+              totalBytes: bundleResult.totalBytes,
+              frameCount: bundleResult.frameCount,
+            });
+          }
+          result.bundlePath = bundleResult.outputPath;
+          result.bundleId = bundleResult.bundleId;
+
+          // Delete intermediates only if bundling succeeded AND caller opted in.
+          // Defaults to keeping mp4+jsonl until users trust the bundle pipeline.
+          if (options && options.deleteIntermediatesOnBundle === true) {
+            try { fs.unlinkSync(result.outputPath); } catch (_) {}
+            try { fs.unlinkSync(sidecarPath); } catch (_) {}
+            logToFile(`[K10] Deleted intermediates after bundle: mp4 + jsonl`);
+          }
+        } catch (bundleErr) {
+          // Bundling failure must NOT lose the recording. Log + carry on.
+          logToFile(`[K10] Bundle error (recording preserved): ${bundleErr.message}`);
+        }
+      }
+    }
+
     // Delete source .webm if transcode succeeded and setting allows
     if (options && options.deleteSource !== false) {
       ffmpegEncoder.cleanupSource(webmPath);
@@ -1095,6 +1153,51 @@ ipcMain.handle('transcode-recording', async (_event, webmPath, options) => {
   } catch (err) {
     _transcoding = false;
     logToFile(`[K10] Transcode error: ${err.message}`);
+    return { error: err.message };
+  }
+});
+
+// Manual bundle handler — wraps an existing mp4 + jsonl pair into a .rcpdv
+// without re-transcoding. Useful for retrofitting prior recordings.
+ipcMain.handle('bundle-recording', async (_event, mp4Path, options) => {
+  if (!mp4Path || !fs.existsSync(mp4Path)) {
+    return { error: 'mp4 not found: ' + mp4Path };
+  }
+  var sidecarPath =
+    (options && options.telemetryPath) ||
+    mp4Path.replace(/\.(mp4|mov|m4v)$/i, '.telemetry.jsonl');
+  if (!fs.existsSync(sidecarPath)) {
+    return { error: 'sidecar not found: ' + sidecarPath };
+  }
+  try {
+    var result = bundleWriter.writeBundle({
+      mp4Path: mp4Path,
+      telemetryPath: sidecarPath,
+      outputPath: options && options.outputPath,
+      appInfo: {
+        app: 'prodrive-overlay',
+        version: app.getVersion(),
+        platform: process.platform,
+      },
+    });
+    logToFile(`[K10] Bundle written (manual): ${result.outputPath}`);
+    return result;
+  } catch (err) {
+    logToFile(`[K10] Bundle error (manual): ${err.message}`);
+    return { error: err.message };
+  }
+});
+
+// Read a bundle header without decompressing telemetry. Used by UI lists.
+ipcMain.handle('read-bundle-header', async (_event, rcpdvPath) => {
+  if (!rcpdvPath || !fs.existsSync(rcpdvPath)) {
+    return { error: 'bundle not found: ' + rcpdvPath };
+  }
+  try {
+    var header = bundleWriter.readBundleHeader(rcpdvPath);
+    if (!header) return { error: 'not a Prodrive bundle' };
+    return { header: header };
+  } catch (err) {
     return { error: err.message };
   }
 });
