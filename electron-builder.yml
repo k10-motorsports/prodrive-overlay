@@ -1,5 +1,9 @@
 appId: org.racecor.broadcaster
-productName: RaceCor.io
+# productName drives the Windows exe filename + the installer's display
+# name. Renamed from "RaceCor.io" because the dot-in-name read as a
+# file extension on Windows and tripped both the launcher's binary
+# resolution and the host installer .iss script.
+productName: RaceCorProDriveOverlay
 copyright: Copyright (c) 2026 Kevin Conboy
 
 files:
