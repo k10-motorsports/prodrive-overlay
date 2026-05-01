@@ -5,6 +5,9 @@
   "main": "main.js",
   "author": "Kevin Conboy",
   "license": "MIT",
+  "bin": {
+    "rcpdv-bundle": "bin/rcpdv-bundle.js"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
