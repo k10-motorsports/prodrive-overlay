@@ -2,6 +2,10 @@
 
 A standalone Electron overlay that renders real-time sim racing telemetry as a transparent HUD on top of your sim. Designed for stream overlays and broadcast production — it composites directly over the game window with no capture card or secondary monitor required. Also functions as a dedicated driving display in fullscreen Drive HUD mode.
 
+The overlay is bundled inside the [`prodrive-windows`](https://github.com/k10-motorsports/prodrive-windows) installer and auto-launched by the desktop app's iRacing detector. A sibling repo, [`prodrive-overlay-showcase`](https://github.com/k10-motorsports/prodrive-overlay-showcase), holds the same code with a `showcase-bootstrap.js` that drives it from synthesized data — used in the marketing-site iframe.
+
+**Beyond the live HUD,** today's overlay also handles **race recording** (produces `.rcpdv` bundles = MP4 + telemetry sidecar via `recorder.js` + `ffmpeg-encoder.js`), **in-overlay replay** (`replay-director.js` for scrubbing the captured race), **Race Coach** (live Claude AI commentary via direct calls to `api.anthropic.com` from `race-coach.js` — uses your own Anthropic API key), **voice commentary** (`voice-coach.js`), and **incident coaching** (`incident-coach.js`). 51 modules in `modules/js/` total — the table below covers the live-HUD subset.
+
 ![Dashboard Screenshot](../racecor-plugin/docs/dashboard-screenshot.png)
 
 ## Overview
@@ -148,11 +152,13 @@ The Electron main process captures a configurable screen region at ~4fps using `
 │  │ • k10.onAmbientColor()            │ │
 │  ├─────────────────────────────────────┤ │
 │  │ dashboard.html   (renderer)         │ │
-│  │ • 28+ JS modules (no build step)   │ │
+│  │ • 51 JS modules (no build step)     │ │
 │  │ • 10 CSS modules                    │ │
 │  │ • WebGL2 shader pipeline            │ │
 │  │ • Polling loop (fetchProps ~30fps)  │ │
 │  │ • Settings overlay UI               │ │
+│  │ • Recording → .rcpdv bundles        │ │
+│  │ • Race Coach → Anthropic API        │ │
 │  └─────────────────────────────────────┘ │
 └──────────────────────────────────────────┘
 ```
@@ -191,6 +197,38 @@ The Electron main process captures a configurable screen region at ~4fps using `
 | `connections.js` | Connection management + remote access |
 | `keyboard.js` | Global hotkey handling |
 | `commentary.js` | Commentary panel slide-in/out animation |
+
+### Beyond the live HUD
+
+Additional modules in `modules/js/`, not represented in the live-HUD table above:
+
+| Module | Purpose |
+|--------|---------|
+| `race-coach.js` | **Live Claude API integration.** POSTs to `https://api.anthropic.com/v1/messages` with rolling race context (lap times, position, incidents, fuel/tyre state, commentary log). Configurable model (Haiku 4.5 / Sonnet 4.6), tone, depth. **User supplies their own Anthropic API key**; Pro Drive does not proxy. |
+| `voice-coach.js` | Synthesized voice prompts for in-race coaching at quiet moments |
+| `incident-coach.js` | Highlights what just went wrong and how to recover |
+| `recorder.js` | Screen capture for `.rcpdv` race bundles |
+| `replay-buffer.js` | Rolling N-second buffer in RAM for instant replay clips |
+| `replay-director.js` | Timeline of a recorded race for in-overlay scrubbing |
+| `ffmpeg-encoder.js` | Mux MP4 + telemetry sidecar into the final `.rcpdv` |
+| `bundle-writer.js` | Writes the `.rcpdv` bundle directory with metadata.json |
+| `telemetry-sidecar.js` | Writes the `.telemetry.jsonl` paired with the recorded MP4 |
+| `token-loader.js` | Fetches design tokens from server (`/api/v1/tokens/native`) |
+| `pedal-curves.js` | Renders pedal-input traces (throttle / brake / clutch) |
+| `formation.js` | Pre-race grid + formation lap UI |
+| `idle-nav.js` | Carousel of stats during idle moments |
+| `qr-code.js` | QR for pairing to native apps / sharing |
+
+Race-bundle (`.rcpdv`) format: folder containing `video.mp4` + `telemetry.jsonl` + `metadata.json`. Recording is opt-in via overlay settings → Recording. Bundles land in `%APPDATA%\RaceCor\overlay\bundles\` (Windows). Consumed by [`prodrive-windows`](https://github.com/k10-motorsports/prodrive-windows) Library + Editor pages, [`prodrive-macos`](https://github.com/k10-motorsports/prodrive-macos) Library + Editor (basic playback live), and [`prodrive-edit`](https://github.com/k10-motorsports/prodrive-edit) CLI for AI-driven highlight reels.
+
+### iRacing data sync — moved out
+
+Earlier versions of the overlay hosted an `iracing-client.js` Electron BrowserWindow that scraped iRacing's member site. **That responsibility moved out** — iRacing data sync now happens via two paths owned by other parts of the stack:
+
+1. **Chrome extension** in [`prodrive-server/apps/web/browser-extension/`](https://github.com/k10-motorsports/prodrive-server) — scrapes members-ng.iracing.com and posts to `/api/iracing/extension-sync`
+2. **Plugin push** — the SimHub plugin posts session data to `/api/iracing/import` after each race via Bearer auth
+
+The overlay is back to being purely the live-HUD-and-recording client.
 
 ## Configuration
 
