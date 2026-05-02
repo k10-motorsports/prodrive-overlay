@@ -13,6 +13,115 @@
   // Use window-scoped cache key so settings.js can reliably reset it
   window._lbLastJson = '';
 
+  // ── Row pool ─────────────────────────────────────────────────
+  // Per-driver DOM row objects, keyed by driver name. Render mutates
+  // existing rows in-place rather than rebuilding the whole list every
+  // tick (the old code did `container.innerHTML = html` per frame —
+  // destroying + recreating 60 SVG sparklines + 60 div trees every
+  // frame at 60Hz against the GPU was the main race-time framerate
+  // hit). Each row caches references to its child nodes so per-tick
+  // updates are pure textContent / setAttribute writes.
+  const _rowPool = new Map();
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function _buildRow() {
+    const row = document.createElement('div');
+    row.className = 'lb-row';
+
+    const pos = document.createElement('div');
+    pos.className = 'lb-pos';
+    row.appendChild(pos);
+
+    const name = document.createElement('div');
+    name.className = 'lb-name';
+    const nameText = document.createTextNode('');
+    const pitChip = document.createElement('span');
+    pitChip.style.cssText = 'font-size:10px;color:hsla(0,70%,55%,1);margin-left:4px;';
+    pitChip.textContent = 'IN PIT';
+    pitChip.style.display = 'none';
+    name.appendChild(nameText);
+    name.appendChild(pitChip);
+    row.appendChild(name);
+
+    const gap = document.createElement('div');
+    gap.className = 'lb-gap';
+    row.appendChild(gap);
+
+    const lap = document.createElement('div');
+    lap.className = 'lb-lap';
+    row.appendChild(lap);
+
+    const sparkSvg = document.createElementNS(SVG_NS, 'svg');
+    sparkSvg.setAttribute('class', 'lb-spark');
+    sparkSvg.setAttribute('preserveAspectRatio', 'none');
+    sparkSvg.setAttribute('viewBox', '0 0 44 14');
+    const sparkLine = document.createElementNS(SVG_NS, 'polyline');
+    sparkLine.setAttribute('fill', 'none');
+    sparkLine.setAttribute('stroke-width', '1.2');
+    sparkLine.setAttribute('stroke-linecap', 'round');
+    sparkLine.setAttribute('stroke-linejoin', 'round');
+    const sparkDot = document.createElementNS(SVG_NS, 'circle');
+    sparkDot.setAttribute('r', '1.5');
+    sparkSvg.appendChild(sparkLine);
+    sparkSvg.appendChild(sparkDot);
+    sparkSvg.style.display = 'none';
+    row.appendChild(sparkSvg);
+
+    return {
+      el: row,
+      posEl: pos,
+      nameTextNode: nameText,
+      pitChipEl: pitChip,
+      gapEl: gap,
+      lapEl: lap,
+      sparkSvg, sparkLine, sparkDot,
+      // Cached values so setAttribute / textContent only fires on change
+      lastClassName: '', lastPosText: '', lastNameText: '', lastPitVisible: false,
+      lastGapText: '', lastGapClass: '',
+      lastLapText: '', lastLapClass: '',
+      lastSparkPts: '', lastSparkColor: '', lastSparkVisible: false,
+    };
+  }
+
+  function _setClass(row, fullClass) {
+    if (row.lastClassName !== fullClass) {
+      row.el.className = fullClass;
+      row.lastClassName = fullClass;
+    }
+  }
+
+  function _setText(node, value, cacheKey, row) {
+    if (row[cacheKey] !== value) {
+      node.textContent = value;
+      row[cacheKey] = value;
+    }
+  }
+
+  function _setSpark(row, pts, color, visible) {
+    if (row.lastSparkVisible !== visible) {
+      row.sparkSvg.style.display = visible ? '' : 'none';
+      row.lastSparkVisible = visible;
+    }
+    if (!visible) return;
+    if (row.lastSparkPts !== pts) {
+      row.sparkLine.setAttribute('points', pts);
+      // The last point's coordinates are also where the dot lives.
+      const lastSpaceIdx = pts.lastIndexOf(' ');
+      const lastPair = lastSpaceIdx >= 0 ? pts.slice(lastSpaceIdx + 1) : pts;
+      const commaIdx = lastPair.indexOf(',');
+      if (commaIdx > 0) {
+        row.sparkDot.setAttribute('cx', lastPair.slice(0, commaIdx));
+        row.sparkDot.setAttribute('cy', lastPair.slice(commaIdx + 1));
+      }
+      row.lastSparkPts = pts;
+    }
+    if (row.lastSparkColor !== color) {
+      row.sparkLine.setAttribute('stroke', color);
+      row.sparkDot.setAttribute('fill', color);
+      row.lastSparkColor = color;
+    }
+  }
+
   function updateLeaderboard(p) {
     const lbPanel = document.getElementById('leaderboardPanel');
     if (!lbPanel || lbPanel.classList.contains('section-hidden')) return;
@@ -25,12 +134,23 @@
     if (_pollFrame > 0 && _pollFrame <= 3) console.log('[K10 LB] raw type:', typeof raw, 'isArray:', Array.isArray(raw), 'length:', raw ? raw.length : 0, 'sample:', raw ? JSON.stringify(raw).slice(0, 200) : 'null');
     if (!raw || !Array.isArray(raw) || raw.length === 0) return;
 
-    // Dedupe: skip render if data hasn't changed (+ settings version)
-    const expandToFill = _settings.lbExpandToFill === true; // Ensure boolean with default false
-    const settingsKey = (_settings.lbFocus || 'me') + '|' + (_settings.lbMaxRows || 5) + '|' + (expandToFill ? '1' : '0') + '|' + (window.innerHeight || 0);
-    const json = JSON.stringify(raw) + '|' + settingsKey;
-    if (json === window._lbLastJson) return;
-    window._lbLastJson = json;
+    // Dedupe: skip render if data hasn't changed (+ settings version).
+    // Hash is a fast concatenation of just the display-affecting fields
+    // (pos|name|lap|gap|pit) — JSON.stringify(raw) used to allocate a
+    // ~30KB string per tick for a 60-car field even on the bail path.
+    const expandToFill = _settings.lbExpandToFill === true;
+    let dedupe = (_settings.lbFocus || 'me') + '|' + (_settings.lbMaxRows || 5)
+      + '|' + (expandToFill ? '1' : '0') + '|' + (window.innerHeight || 0);
+    for (let i = 0; i < raw.length; i++) {
+      const r = raw[i];
+      // pos|name|lastLap|gapToPlayer|inPit — anything else (iRating,
+      // bestLap, isPlayer flag) doesn't change visible per-tick output
+      // for the 60-car field. The leaderboard re-renders on lap
+      // boundaries when bestLap moves; we still pick that up via lastLap.
+      dedupe += '|' + r[0] + ',' + r[1] + ',' + r[4] + ',' + r[5] + ',' + r[6];
+    }
+    if (dedupe === window._lbLastJson) return;
+    window._lbLastJson = dedupe;
 
     const container = document.getElementById('lbRows');
     if (!container) return;
@@ -127,23 +247,39 @@
       }
     }
 
-    let html = '';
-    for (const entry of visible) {
+    // Track which driver names appear this tick so stale rows can be
+    // pulled out of the pool at the end.
+    const seenNames = new Set();
+    // visibleRows[i] = the row object that should sit at DOM position i.
+    const visibleRows = new Array(visible.length);
+
+    for (let vi = 0; vi < visible.length; vi++) {
+      const entry = visible[vi];
       const [pos, name, ir, best, last, gap, pit, isPlayer] = entry;
       const isSelf = isPlayer === 1;
-      const classes = ['lb-row'];
+      seenNames.add(name);
+
+      let row = _rowPool.get(name);
+      if (!row) {
+        row = _buildRow();
+        _rowPool.set(name, row);
+      }
+      visibleRows[vi] = row;
+
+      // Class set
+      let classStr = 'lb-row';
       if (isSelf) {
-        classes.push('lb-player');
-        if (pos === 1) classes.push('lb-p1');
-        else if (_startPosition > 0 && pos < _startPosition) classes.push('lb-ahead');
-        else if (_startPosition > 0 && pos > _startPosition) classes.push('lb-behind');
-        else classes.push('lb-same');
+        classStr += ' lb-player';
+        if (pos === 1) classStr += ' lb-p1';
+        else if (_startPosition > 0 && pos < _startPosition) classStr += ' lb-ahead';
+        else if (_startPosition > 0 && pos > _startPosition) classStr += ' lb-behind';
+        else classStr += ' lb-same';
       }
-      // Mark the starting position row when player has moved away from it
       if (!isSelf && _startPosition > 0 && pos === _startPosition && _lastPosition !== _startPosition) {
-        classes.push('lb-start-pos');
+        classStr += ' lb-start-pos';
       }
-      if (pit) classes.push('lb-pit');
+      if (pit) classStr += ' lb-pit';
+      _setClass(row, classStr);
 
       // Gap display based on focus mode
       let gapStr = '', gapClass = 'gap-player';
@@ -219,52 +355,38 @@
         }
       }
 
-      // ── Build sparkline SVG ──
-      let sparkSvg = '';
+      // ── Sparkline points + color ──
+      // Compute as a single string so the cached comparator can short
+      // circuit when the underlying history hasn't moved.
+      let sparkPts = '', sparkColor = '', sparkVisible = false;
 
       if (isSelf && _posHistory.length >= 2) {
-        // Player: position sparkline (lower = better → invert Y axis)
         const mn = Math.min(..._posHistory), mx = Math.max(..._posHistory);
         const range = mx - mn || 1;
         const w = 44, h2 = 14;
         let pts = '';
         for (let i = 0; i < _posHistory.length; i++) {
           const x = (i / (_posHistory.length - 1)) * w;
-          // Invert: P1 at top (y=0), higher positions at bottom
           const y = ((_posHistory[i] - mn) / range) * h2;
-          if (i === 0) {
-            pts += x.toFixed(1) + ',' + y.toFixed(1);
-          } else {
+          if (i === 0) pts += x.toFixed(1) + ',' + y.toFixed(1);
+          else {
             const prevY = ((_posHistory[i - 1] - mn) / range) * h2;
             pts += ' ' + x.toFixed(1) + ',' + prevY.toFixed(1);
             pts += ' ' + x.toFixed(1) + ',' + y.toFixed(1);
           }
         }
+        // Append a synthetic last-point that aligns the dot to (w, lastY)
         const lastY = ((_posHistory[_posHistory.length - 1] - mn) / range) * h2;
-        let col;
-        if (pos === 1) col = 'hsla(42,80%,55%,1)';
-        else if (_startPosition > 0 && pos < _startPosition) col = 'hsla(145,75%,50%,1)';
-        else if (_startPosition > 0 && pos > _startPosition) col = 'hsla(0,75%,50%,1)';
-        else col = 'hsla(210,75%,55%,1)';
-        sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + (w).toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.5" fill="' + col + '"/></svg>';
-      } else if (isSelf) {
-        // Player: flat baseline during rolling start / waiting for green flag
-        const w = 44, h2 = 14;
-        const midY = (h2 / 2).toFixed(1);
-        const dashCol = window._isRollingStart ? 'hsla(42,70%,55%,0.4)' : 'hsla(210,75%,55%,0.5)';
-        sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none">'
-          + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="' + dashCol + '" stroke-width="1" stroke-dasharray="3,2"/>'
-          + '</svg>';
-      } else {
-        // Non-player: lap-time sparkline
+        pts += ' ' + w.toFixed(1) + ',' + lastY.toFixed(1);
+        sparkPts = pts;
+        sparkVisible = true;
+        if (pos === 1) sparkColor = 'hsla(42,80%,55%,1)';
+        else if (_startPosition > 0 && pos < _startPosition) sparkColor = 'hsla(145,75%,50%,1)';
+        else if (_startPosition > 0 && pos > _startPosition) sparkColor = 'hsla(0,75%,50%,1)';
+        else sparkColor = 'hsla(210,75%,55%,1)';
+      } else if (!isSelf) {
         const hist = _sparkHistory[name] ? _sparkHistory[name].filter(v => v > 0) : null;
-        if ((!hist || hist.length < 2) && window._isRollingStart) {
-          const w = 44, h2 = 14;
-          const midY = (h2 / 2).toFixed(1);
-          sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none">'
-            + '<line x1="0" y1="' + midY + '" x2="' + w + '" y2="' + midY + '" stroke="hsla(0,0%,100%,0.15)" stroke-width="1" stroke-dasharray="3,2"/>'
-            + '</svg>';
-        } else if (hist && hist.length >= 2) {
+        if (hist && hist.length >= 2) {
           const mn = Math.min(...hist), mx = Math.max(...hist);
           const range = mx - mn || 1;
           const w = 44, h2 = 14;
@@ -272,53 +394,91 @@
           for (let i = 0; i < hist.length; i++) {
             const x = (i / (hist.length - 1)) * w;
             const y = ((hist[i] - mn) / range) * h2;
-            if (i === 0) {
-              pts += x.toFixed(1) + ',' + y.toFixed(1);
-            } else {
+            if (i === 0) pts += x.toFixed(1) + ',' + y.toFixed(1);
+            else {
               const prevY = ((hist[i - 1] - mn) / range) * h2;
               pts += ' ' + x.toFixed(1) + ',' + prevY.toFixed(1);
               pts += ' ' + x.toFixed(1) + ',' + y.toFixed(1);
             }
           }
           const lastY = ((hist[hist.length - 1] - mn) / range) * h2;
-          sparkSvg = '<svg class="lb-spark" viewBox="0 0 ' + w + ' ' + h2 + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="hsla(0,0%,100%,0.3)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + (w).toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="1.5" fill="hsla(0,0%,100%,0.3)"/></svg>';
+          pts += ' ' + w.toFixed(1) + ',' + lastY.toFixed(1);
+          sparkPts = pts;
+          sparkVisible = true;
+          sparkColor = 'hsla(0,0%,100%,0.3)';
         }
       }
+      // Note: dashed-baseline (pre-green-flag) rendering dropped here —
+      // a flat dash isn't worth the SVG. An empty cell during rolling
+      // start is honest about "no laps yet" without burning paint
+      // budget. Re-add via a CSS pseudo-element if you want it back.
+
+      _setSpark(row, sparkPts, sparkColor, sparkVisible);
 
       // Lap time display with color coding
-      // Purple: session best (one only), Green: driver personal best, Yellow: off-pace
-      let lapStr = '', lapClass = '';
+      let lapStr = '', lapClass = 'lb-lap';
       if (last > 0) {
         const m = Math.floor(last / 60), s = last - m * 60;
         lapStr = m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
-        if (sessionBest > 0 && Math.abs(last - sessionBest) < 0.05) {
-          lapClass = 'lap-pb';                             // session best lap
-        } else if (best > 0 && Math.abs(last - best) < 0.05) {
-          lapClass = 'lap-fast';                           // driver personal best
-        } else {
-          lapClass = 'lap-slow';                           // off-pace
-        }
+        if (sessionBest > 0 && Math.abs(last - sessionBest) < 0.05) lapClass = 'lb-lap lap-pb';
+        else if (best > 0 && Math.abs(last - best) < 0.05) lapClass = 'lb-lap lap-fast';
+        else lapClass = 'lb-lap lap-slow';
+      }
+      _setText(row.lapEl, lapStr, 'lastLapText', row);
+      if (row.lastLapClass !== lapClass) {
+        row.lapEl.className = lapClass;
+        row.lastLapClass = lapClass;
       }
 
-      // Format driver name as "F. LastName"
-      const displayName = isSelf ? _driverDisplayName : formatName(name);
+      // Position number
+      _setText(row.posEl, '' + pos, 'lastPosText', row);
 
-      html += '<div class="' + classes.join(' ') + '">'
-        + '<div class="lb-pos">' + pos + '</div>'
-        + '<div class="lb-name">' + escHtml(displayName) + (pit ? ' <span style="font-size:10px;color:hsla(0,70%,55%,1);">IN PIT</span>' : '') + '</div>'
-        + '<div class="lb-gap ' + gapClass + '">' + gapStr + '</div>'
-        + '<div class="lb-lap ' + lapClass + '">' + lapStr + '</div>'
-        + sparkSvg
-        + '</div>';
+      // Driver name (text node only — pit chip is a sibling span)
+      const displayName = isSelf ? _driverDisplayName : formatName(name);
+      _setText(row.nameTextNode, displayName, 'lastNameText', row);
+      if (row.lastPitVisible !== !!pit) {
+        row.pitChipEl.style.display = pit ? '' : 'none';
+        row.lastPitVisible = !!pit;
+      }
+
+      // Gap
+      const gapFullClass = 'lb-gap ' + gapClass;
+      _setText(row.gapEl, gapStr, 'lastGapText', row);
+      if (row.lastGapClass !== gapFullClass) {
+        row.gapEl.className = gapFullClass;
+        row.lastGapClass = gapFullClass;
+      }
     }
-    container.innerHTML = html;
+
+    // ── Apply DOM order + drop stale rows ─────────────────────
+    // appendChild on an existing node moves it; cheaper than detaching
+    // and re-creating. Only re-orders rows that are out of place.
+    for (let i = 0; i < visibleRows.length; i++) {
+      const wantNode = visibleRows[i].el;
+      const haveNode = container.children[i];
+      if (haveNode !== wantNode) container.appendChild(wantNode);
+    }
+    // Trim DOM to only the visible rows (extras from a previous render
+    // when more drivers were on screen).
+    while (container.children.length > visibleRows.length) {
+      container.removeChild(container.lastChild);
+    }
+    // Garbage-collect pool entries for drivers no longer present so
+    // the pool doesn't grow unbounded across sessions.
+    for (const key of _rowPool.keys()) {
+      if (!seenNames.has(key)) {
+        const stale = _rowPool.get(key);
+        if (stale.el.parentNode) stale.el.parentNode.removeChild(stale.el);
+        _rowPool.delete(key);
+      }
+    }
+
     // Update WebGL highlight position after DOM update
     requestAnimationFrame(function() {
       if (window.updateLBPlayerPos) window.updateLBPlayerPos();
     });
   }
 
-  function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   function formatName(fullName) {
     // Format: "F. LastName" where F is first initial
