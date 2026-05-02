@@ -162,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
   panel.id = 'k10-remote-menu-panel';
 
   const actions = [
-    { icon: '\\u2699\\uFE0F', label: 'Settings',        fn: () => { if (typeof toggleSettings === 'function') toggleSettings(); } },
     { icon: '\\uD83D\\uDD04', label: 'Cycle Rating/Pos', fn: () => { if (typeof cycleRatingPos === 'function') cycleRatingPos(); } },
     { icon: '\\uD83D\\uDE97', label: 'Cycle Car Logo',   fn: () => { if (typeof cycleCarLogo === 'function') cycleCarLogo(); } },
     { sep: true },
@@ -264,9 +263,8 @@ function handleRequest(req, res) {
       actions: [
         // Window / App
         { name: 'toggle-overlay',     label: 'Show / Hide',       category: 'app' },
-        { name: 'toggle-settings',    label: 'Settings',          category: 'app' },
+        { name: 'toggle-settings',    label: 'Open Settings',     category: 'app' },
         { name: 'reset-window',       label: 'Reset Window',      category: 'app' },
-        { name: 'toggle-greenscreen', label: 'Green Screen',      category: 'app' },
         { name: 'quit',               label: 'Quit',              category: 'app' },
         // HUD
         { name: 'toggle-drive-mode',  label: 'Drive Mode',        category: 'hud' },

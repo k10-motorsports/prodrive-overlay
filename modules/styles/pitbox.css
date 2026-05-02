@@ -426,5 +426,3 @@
     font-style: italic;
   }
 
-  /* ── Green screen mode ── */
-  body.opaque-mode .pitbox-panel { display: none; }

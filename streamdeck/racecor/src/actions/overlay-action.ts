@@ -38,11 +38,6 @@ export class ToggleOverlay extends SingletonAction<OverlaySettings> {
 	override async onKeyDown(ev: KeyDownEvent<OverlaySettings>) { await handleKey(ev, "toggle-overlay"); }
 }
 
-@action({ UUID: "com.k10motorsports.racecor.overlay.toggle-greenscreen" })
-export class ToggleGreenScreen extends SingletonAction<OverlaySettings> {
-	override async onKeyDown(ev: KeyDownEvent<OverlaySettings>) { await handleKey(ev, "toggle-greenscreen"); }
-}
-
 @action({ UUID: "com.k10motorsports.racecor.overlay.quit" })
 export class QuitOverlay extends SingletonAction<OverlaySettings> {
 	override async onKeyDown(ev: KeyDownEvent<OverlaySettings>) { await handleKey(ev, "quit"); }

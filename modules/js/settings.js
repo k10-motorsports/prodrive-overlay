@@ -28,9 +28,6 @@
       window._simhubUrlOverride = _settings.simhubUrl;
     }
 
-    // Green screen
-    document.body.classList.toggle('green-screen-mode', _settings.greenScreen === true);
-
     // WebGL effects toggle
     const webglOn = _settings.showWebGL !== false;
     document.querySelectorAll('.gl-overlay').forEach(c => {

@@ -100,33 +100,14 @@ function saveProfileData(data) {
   fs.writeFileSync(getProfilePath(), JSON.stringify(data, null, 2));
 }
 
-// ── Window bounds persistence (green-screen mode only) ───────
-function getBoundsPath() {
-  return path.join(app.getPath('userData'), 'window-bounds.json');
-}
-
-function loadBounds() {
-  try {
-    return JSON.parse(fs.readFileSync(getBoundsPath(), 'utf8'));
-  } catch (e) {
-    return null;
-  }
-}
-
-function saveBounds(bounds) {
-  try {
-    fs.writeFileSync(getBoundsPath(), JSON.stringify(bounds));
-  } catch (e) { /* non-critical */ }
-}
-
 // (Local asset server removed — no longer needed. Dashboard is a single inlined HTML file.)
 
 // ── State ────────────────────────────────────────────────────
+// Overlay settings UI is gone — all settings live in the Windows host
+// app now. This process is a pure read-only HUD: load settings.json,
+// apply via modules/js/settings.js, render. No popout windows, no
+// settings mode, no in-overlay editors.
 let overlayWindow = null;
-let settingsWindow = null;   // detached settings on secondary display
-let mozaWindow = null;       // Moza hardware manager window
-let settingsMode = false;
-let greenScreenMode = false;
 let isIdleMode = false;          // true when driver is not in car (overlay → normal app)
 let isInRace = false;            // true when poll-engine reports an active session (drives overlay visibility)
 let rendererCrashCount = 0;
@@ -156,18 +137,11 @@ async function createOverlay() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenW, height: screenH } = primaryDisplay.bounds;
 
-  // Check if green screen mode is enabled in saved settings
-  const settings = loadSettingsSync();
-  greenScreenMode = settings.greenScreen === true;
   // In the inverted shell, the overlay starts hidden and is only revealed
-  // when poll-engine reports isInRace=true. Green-screen users (broadcasters)
-  // always get a visible overlay — no session gating for that workflow.
-  const startHidden = shouldInvertShell() && !greenScreenMode;
+  // when poll-engine reports isInRace=true.
+  const startHidden = shouldInvertShell();
 
   logToFile(`[K10] Dashboard: ${getDashboardFile()}`);
-
-  const mode = greenScreenMode ? 'green-screen' : 'transparent';
-  logToFile(`[K10] Window mode: ${mode}`);
   logToFile(`[K10] Primary display: ${screenW}x${screenH} at (${primaryDisplay.bounds.x}, ${primaryDisplay.bounds.y})`);
 
   /** Load the dashboard into the overlay window via file:// (all assets inlined). */
@@ -176,126 +150,76 @@ async function createOverlay() {
     overlayWindow.loadFile(path.join(__dirname, getDashboardFile()));
   }
 
-  if (greenScreenMode) {
-    // ── Green-screen mode ──
-    const saved = loadBounds();
-    const defaultW = Math.round(screenW * 0.6);
-    const defaultH = Math.round(screenH * 0.5);
-    const defaultX = Math.round((screenW - defaultW) / 2);
-    const defaultY = Math.round((screenH - defaultH) / 2);
+  // ── Transparent overlay window ──
+  // macOS: use workArea to respect the dock and menu bar.
+  // Windows: use full bounds so the overlay covers the entire screen over the game.
+  const isMac = process.platform === 'darwin';
+  const overlayBounds = isMac ? primaryDisplay.workArea : primaryDisplay.bounds;
 
-    overlayWindow = new BrowserWindow({
-      width:  saved?.width  || defaultW,
-      height: saved?.height || defaultH,
-      x:      saved?.x      ?? defaultX,
-      y:      saved?.y      ?? defaultY,
-      icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
-      frame: false,
-      alwaysOnTop: true,
-      skipTaskbar: false,
-      resizable: true,
-      movable: true,
-      hasShadow: false,
-      focusable: true,
-      transparent: false,
-      backgroundColor: '#00FF00',
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js')
-      }
-    });
-
-    // Persist bounds on move/resize
-    overlayWindow.on('moved',   () => saveBounds(overlayWindow.getBounds()));
-    overlayWindow.on('resized', () => saveBounds(overlayWindow.getBounds()));
-
-    // Green screen windows are always interactive (no click-through)
-    loadDashboard();
-    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-
-    // Inject opaque-mode class after page loads
-    overlayWindow.webContents.on('did-finish-load', () => {
-      rendererCrashCount = 0;
-      overlayWindow.webContents.executeJavaScript(`
-        document.body.classList.add('opaque-mode');
-      `);
-    });
-
-  } else {
-    // ── Transparent overlay mode ──
-    // macOS: use workArea to respect the dock and menu bar.
-    // Windows: use full bounds so the overlay covers the entire screen over the game.
-    const isMac = process.platform === 'darwin';
-    const overlayBounds = isMac ? primaryDisplay.workArea : primaryDisplay.bounds;
-
-    overlayWindow = new BrowserWindow({
-      width:  overlayBounds.width,
-      height: overlayBounds.height,
-      x:      overlayBounds.x,
-      y:      overlayBounds.y,
-      icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
-      // Start hidden in the inverted shell; shown when isInRace flips true.
-      show: !startHidden,
-      frame: false,
-      alwaysOnTop: true,
-      // In the inverted shell the overlay is session-only — hide from taskbar
-      // so the only persistent app tile is the web dashboard.
-      skipTaskbar: startHidden,
-      resizable: false,
-      hasShadow: false,
-      focusable: false,
-      minimizable: false,
-      maximizable: false,
-      transparent: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js')
-      }
-    });
-
-    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-    loadDashboard();
-    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    if (startHidden) {
-      logToFile('[K10] Inverted shell: overlay created hidden (awaiting isInRace)');
+  overlayWindow = new BrowserWindow({
+    width:  overlayBounds.width,
+    height: overlayBounds.height,
+    x:      overlayBounds.x,
+    y:      overlayBounds.y,
+    icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
+    // Start hidden in the inverted shell; shown when isInRace flips true.
+    show: !startHidden,
+    frame: false,
+    alwaysOnTop: true,
+    // In the inverted shell the overlay is session-only — hide from taskbar
+    // so the only persistent app tile is the web dashboard.
+    skipTaskbar: startHidden,
+    resizable: false,
+    hasShadow: false,
+    focusable: false,
+    minimizable: false,
+    maximizable: false,
+    transparent: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
+  });
 
-    overlayWindow.webContents.on('did-finish-load', () => {
-      rendererCrashCount = 0;
-    });
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  loadDashboard();
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  if (startHidden) {
+    logToFile('[K10] Inverted shell: overlay created hidden (awaiting isInRace)');
   }
+
+  overlayWindow.webContents.on('did-finish-load', () => {
+    rendererCrashCount = 0;
+  });
 
   overlayWindow.on('closed', () => { overlayWindow = null; });
 
   // ── Reflow overlay when system UI changes ──
   // Windows: taskbar auto-hide changes workArea — reflow to full bounds.
   // macOS: dock resize/show/hide changes workArea — reflow to workArea.
-  if (!greenScreenMode) {
-    screen.on('display-metrics-changed', (_event, display, changedMetrics) => {
-      if (!overlayWindow || overlayWindow.isDestroyed()) return;
-      if (!changedMetrics.includes('workArea') && !changedMetrics.includes('bounds')) return;
+  screen.on('display-metrics-changed', (_event, display, changedMetrics) => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) return;
+    if (!changedMetrics.includes('workArea') && !changedMetrics.includes('bounds')) return;
 
-      const primary = screen.getPrimaryDisplay();
-      if (display.id !== primary.id) return;
+    const primary = screen.getPrimaryDisplay();
+    if (display.id !== primary.id) return;
 
-      // macOS: respect dock/menu bar via workArea. Windows: cover full screen.
-      const target = process.platform === 'darwin' ? primary.workArea : primary.bounds;
-      const cur = overlayWindow.getBounds();
-      if (cur.x === target.x && cur.y === target.y && cur.width === target.width && cur.height === target.height) return;
+    // macOS: respect dock/menu bar via workArea. Windows: cover full screen.
+    const target = process.platform === 'darwin' ? primary.workArea : primary.bounds;
+    const cur = overlayWindow.getBounds();
+    if (cur.x === target.x && cur.y === target.y && cur.width === target.width && cur.height === target.height) return;
 
-      logToFile(`[K10] Display metrics changed (${changedMetrics.join(', ')}), reflowing overlay to ${target.width}x${target.height}`);
-      overlayWindow.setBounds({ x: target.x, y: target.y, width: target.width, height: target.height });
-    });
-  }
+    logToFile(`[K10] Display metrics changed (${changedMetrics.join(', ')}), reflowing overlay to ${target.width}x${target.height}`);
+    overlayWindow.setBounds({ x: target.x, y: target.y, width: target.width, height: target.height });
+  });
 
   // ── Windows: periodically re-assert always-on-top ──────────
   // DirectX fullscreen exclusive mode can steal z-order even from
   // screen-saver level windows. Re-assert every 5 seconds.
   if (process.platform === 'win32') {
     setInterval(() => {
-      if (overlayWindow && !overlayWindow.isDestroyed() && !settingsMode && !isIdleMode) {
+      if (overlayWindow && !overlayWindow.isDestroyed() && !isIdleMode) {
         overlayWindow.setAlwaysOnTop(false);
         overlayWindow.setAlwaysOnTop(true, 'screen-saver');
       }
@@ -363,40 +287,6 @@ async function maybeStartRemoteServer() {
   }
 }
 
-// ── Settings mode ────────────────────────────────────────────
-function enterSettingsMode() {
-  if (!overlayWindow) return;
-  settingsMode = true;
-  if (!greenScreenMode) {
-    overlayWindow.setIgnoreMouseEvents(false);
-    overlayWindow.setFocusable(true);
-  }
-  overlayWindow.focus();
-  overlayWindow.webContents.send('settings-mode', true);
-  console.log('[K10] Settings mode ON');
-}
-
-function exitSettingsMode() {
-  if (!overlayWindow) return;
-  settingsMode = false;
-  if (!greenScreenMode) {
-    if (isIdleMode) {
-      // Idle: keep window interactive for nav bar buttons
-      overlayWindow.setIgnoreMouseEvents(false);
-      overlayWindow.setFocusable(true);
-    } else {
-      // Race: restore click-through overlay
-      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-      overlayWindow.setFocusable(false);
-    }
-  }
-  if (greenScreenMode) {
-    saveBounds(overlayWindow.getBounds());
-  }
-  overlayWindow.webContents.send('settings-mode', false);
-  console.log('[K10] Settings mode OFF');
-}
-
 logToFile('[K10] App starting...');
 
 app.whenReady().then(() => {
@@ -404,7 +294,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
 
   logToFile(`[K10] Platform: ${os.platform()} ${os.arch()} | Electron ${process.versions.electron}`);
-  logToFile('[K10] Hotkeys: Ctrl+Shift+S/H/G/R/D/M/Q');
+  logToFile('[K10] Hotkeys: Ctrl+Shift+H/R/D/M/Q');
   try {
     createOverlay();
     logToFile('[K10] Overlay window created OK');
@@ -436,7 +326,7 @@ app.whenReady().then(() => {
     // The overlay starts hidden and is revealed when poll-engine reports
     // isInRace=true. Users boot into the web dashboard by default; the
     // overlay is only on-screen while they are actually in a sim session.
-    if (shouldInvertShell() && !greenScreenMode) {
+    if (shouldInvertShell()) {
       // Small deferral so the overlay renderer finishes its initial load
       // before we open a second window (avoids any IPC races during boot).
       setTimeout(() => {
@@ -467,24 +357,10 @@ app.whenReady().then(() => {
     }
   });
 
-  globalShortcut.register('CommandOrControl+Shift+S', () => {
-    if (!overlayWindow) return;
-    if (settingsMode) exitSettingsMode();
-    else enterSettingsMode();
-  });
-
   globalShortcut.register('CommandOrControl+Shift+R', () => {
     if (!overlayWindow) return;
     const { width: sw, height: sh } = screen.getPrimaryDisplay().bounds;
-    if (greenScreenMode) {
-      // Reset to centered 60% × 50% window
-      const w = Math.round(sw * 0.6);
-      const h = Math.round(sh * 0.5);
-      overlayWindow.setBounds({ x: Math.round((sw - w) / 2), y: Math.round((sh - h) / 2), width: w, height: h });
-      saveBounds(overlayWindow.getBounds());
-    } else {
-      overlayWindow.setBounds({ x: 0, y: 0, width: sw, height: sh });
-    }
+    overlayWindow.setBounds({ x: 0, y: 0, width: sw, height: sh });
     console.log('[K10] Window position/size reset');
   });
 
@@ -556,30 +432,23 @@ const _actionHandlers = {
     return { ok: true, visible: overlayWindow.isVisible() };
   },
   'toggle-settings': () => {
-    if (!overlayWindow) return { ok: false, reason: 'no window' };
-    if (settingsMode) exitSettingsMode();
-    else enterSettingsMode();
-    return { ok: true, settingsMode };
+    // Settings UI lives in the WinUI host now. Deep-link via the
+    // racecor-native:// protocol scheme the host registers — activating
+    // the URI brings the host window to the front (single-instance
+    // behavior) and the host's protocol handler can route to Settings.
+    // Falls back gracefully if the host isn't installed.
+    try {
+      shell.openExternal('racecor-native://settings');
+      return { ok: true };
+    } catch (err) {
+      logToFile(`[K10] toggle-settings failed: ${err.message}`);
+      return { ok: false, reason: err.message };
+    }
   },
   'reset-window': () => {
     if (!overlayWindow) return { ok: false, reason: 'no window' };
     const { width: sw, height: sh } = screen.getPrimaryDisplay().bounds;
-    if (greenScreenMode) {
-      const w = Math.round(sw * 0.6);
-      const h = Math.round(sh * 0.5);
-      overlayWindow.setBounds({ x: Math.round((sw - w) / 2), y: Math.round((sh - h) / 2), width: w, height: h });
-      saveBounds(overlayWindow.getBounds());
-    } else {
-      overlayWindow.setBounds({ x: 0, y: 0, width: sw, height: sh });
-    }
-    return { ok: true };
-  },
-  'toggle-greenscreen': () => {
-    const settings = loadSettingsSync();
-    settings.greenScreen = !settings.greenScreen;
-    saveSettingsSync(settings);
-    app.relaunch();
-    app.exit(0);
+    overlayWindow.setBounds({ x: 0, y: 0, width: sw, height: sh });
     return { ok: true };
   },
   'quit': () => {
@@ -734,37 +603,13 @@ ipcMain.handle('install-streamdeck-plugin', async () => {
   }
 });
 
-// ── IPC: Interactive mode (for connection banner / settings) ──
-ipcMain.handle('request-interactive', async () => {
-  if (!overlayWindow || greenScreenMode) return;
-  settingsMode = true;
-  overlayWindow.setIgnoreMouseEvents(false);
-  overlayWindow.setFocusable(true);
-  overlayWindow.focus();
-  console.log('[K10] Interactive mode ON — window accepts input');
-});
-
-ipcMain.handle('release-interactive', async () => {
-  if (!overlayWindow || greenScreenMode) return;
-  settingsMode = false;
-  if (isIdleMode) {
-    // Idle: keep interactive for nav bar
-    overlayWindow.setIgnoreMouseEvents(false);
-    overlayWindow.setFocusable(true);
-  } else {
-    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-    overlayWindow.setFocusable(false);
-  }
-  console.log('[K10] Interactive mode OFF — click-through restored');
-});
-
 // ── IPC: Idle/race window mode switching ──
 // When idle (not in car): normal app behavior — visible in taskbar, not always-on-top,
 // focusable via alt-tab. When racing: overlay mode — always-on-top, skip taskbar,
 // click-through. The nav bar buttons use pointer-events:auto on individual elements,
 // so the window itself stays click-through in both modes.
 ipcMain.handle('notify-idle-state', async (_event, idle) => {
-  if (!overlayWindow || greenScreenMode) return;
+  if (!overlayWindow) return;
   if (idle === isIdleMode) return;   // no change
   isIdleMode = idle;
 
@@ -772,18 +617,14 @@ ipcMain.handle('notify-idle-state', async (_event, idle) => {
     // Idle mode: behave like a normal app window — fully interactive
     // so the idle logo and nav bar buttons can be clicked.
     overlayWindow.setAlwaysOnTop(false);
-    if (!settingsMode) {
-      overlayWindow.setIgnoreMouseEvents(false);
-      overlayWindow.setFocusable(true);
-    }
+    overlayWindow.setIgnoreMouseEvents(false);
+    overlayWindow.setFocusable(true);
     console.log('[K10] Idle mode — taskbar visible, interactive, not always-on-top');
   } else {
     // Race mode: overlay on top of the game
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    if (!settingsMode) {
-      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-      overlayWindow.setFocusable(false);
-    }
+    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+    overlayWindow.setFocusable(false);
     console.log('[K10] Race mode — always-on-top, taskbar hidden');
   }
 });
@@ -805,16 +646,14 @@ ipcMain.handle('notify-in-race-state', async (_event, inRace) => {
   // Only gate overlay visibility when the inverted shell is enabled.
   // Legacy mode: overlay is always visible.
   if (!shouldInvertShell()) return;
-  if (!overlayWindow || overlayWindow.isDestroyed() || greenScreenMode) return;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
 
   if (isInRace) {
     // Reveal the overlay without stealing focus from the game.
     overlayWindow.showInactive();
-    if (!settingsMode) {
-      overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-      overlayWindow.setFocusable(false);
-    }
+    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+    overlayWindow.setFocusable(false);
     logToFile('[K10] In-race → overlay revealed');
   } else {
     overlayWindow.hide();
@@ -1263,265 +1102,24 @@ ipcMain.handle('parse-sidecar-moments', async (_event, sidecarPath) => {
   }
 });
 
-// ── IPC: Detach settings to secondary display ──
-function openSettingsWindow() {
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.focus();
-    return;
-  }
-
-  // Pick the secondary display, fall back to primary if only one monitor
-  const displays = screen.getAllDisplays();
-  const primary = screen.getPrimaryDisplay();
-  const secondary = displays.find(d => d.id !== primary.id) || primary;
-
-  const winW = 620;
-  const winH = 700;
-  const sx = secondary.bounds.x + Math.round((secondary.bounds.width - winW) / 2);
-  const sy = secondary.bounds.y + Math.round((secondary.bounds.height - winH) / 2);
-
-  settingsWindow = new BrowserWindow({
-    width: winW,
-    height: winH,
-    x: sx,
-    y: sy,
-    icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
-    frame: false,
-    resizable: true,
-    movable: true,
-    alwaysOnTop: true,
-    transparent: false,
-    backgroundColor: '#1a1a1a',
-    // Skip taskbar so it doesn't fight with the sim for alt-tab focus
-    skipTaskbar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-      webSecurity: true,
-      sandbox: true,
-      allowRunningInsecureContent: false,
-    }
-  });
-
-  // Use 'screen-saver' level so the window stays above fullscreen sims
-  settingsWindow.setAlwaysOnTop(true, 'screen-saver');
-
-  // Load the same dashboard with a query flag so renderer knows to show settings only
-  settingsWindow.loadFile(path.join(__dirname, getDashboardFile()), {
-    query: { settingsPopout: '1' }
-  });
-
-  // Recover visibility: when the window is ready, force it visible and
-  // on top in case the sim stole focus during load.
-  settingsWindow.once('ready-to-show', () => {
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      settingsWindow.show();
-      settingsWindow.setAlwaysOnTop(true, 'screen-saver');
-    }
-  });
-
-  // If the sim steals focus and the window somehow gets hidden, restore it
-  settingsWindow.on('hide', () => {
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      settingsWindow.show();
-    }
-  });
-
-  // Verify the window ended up on a valid display; if the target display
-  // has unexpected bounds (e.g., removed between detection and creation),
-  // move it to center of primary display.
-  settingsWindow.once('show', () => {
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      const bounds = settingsWindow.getBounds();
-      const allDisplays = screen.getAllDisplays();
-      const onAnyDisplay = allDisplays.some(d => {
-        return bounds.x < d.bounds.x + d.bounds.width &&
-               bounds.x + bounds.width > d.bounds.x &&
-               bounds.y < d.bounds.y + d.bounds.height &&
-               bounds.y + bounds.height > d.bounds.y;
-      });
-      if (!onAnyDisplay) {
-        const pri = screen.getPrimaryDisplay();
-        settingsWindow.setPosition(
-          pri.bounds.x + Math.round((pri.bounds.width - winW) / 2),
-          pri.bounds.y + Math.round((pri.bounds.height - winH) / 2)
-        );
-        logToFile('[K10] Settings window was off-screen, moved to primary display');
-      }
-    }
-  });
-
-  const onDisplayRemoved = () => {
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      // Check if the window is still on a valid display
-      const bounds = settingsWindow.getBounds();
-      const allDisplays = screen.getAllDisplays();
-      const onAnyDisplay = allDisplays.some(d => {
-        return bounds.x < d.bounds.x + d.bounds.width &&
-               bounds.x + bounds.width > d.bounds.x &&
-               bounds.y < d.bounds.y + d.bounds.height &&
-               bounds.y + bounds.height > d.bounds.y;
-      });
-      if (!onAnyDisplay) {
-        // Display was removed — move to primary instead of closing
-        const pri = screen.getPrimaryDisplay();
-        settingsWindow.setPosition(
-          pri.bounds.x + Math.round((pri.bounds.width - winW) / 2),
-          pri.bounds.y + Math.round((pri.bounds.height - winH) / 2)
-        );
-        logToFile('[K10] Display removed, moved settings to primary display');
-      }
-    }
-  };
-
-  screen.on('display-removed', onDisplayRemoved);
-
-  settingsWindow.on('closed', () => {
-    screen.removeListener('display-removed', onDisplayRemoved);
-    settingsWindow = null;
-    // Tell main overlay that the popout closed
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.webContents.send('settings-popout-closed');
-    }
-    logToFile('[K10] Settings popout window closed');
-  });
-
-  logToFile(`[K10] Settings popout opened on display "${secondary.label || secondary.id}" at (${sx}, ${sy})`);
-}
-
-function closeSettingsWindow() {
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.close();
-    settingsWindow = null;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// WEB DASHBOARD WINDOW
-// Normal resizable window loading the live prodrive.racecor.io
-// dashboard (or localhost:3000 in dev mode).
-// Session cookies persist via partition so the user stays signed in.
-// ═══════════════════════════════════════════════════════════════
-
 const isDev = process.argv.includes('--dev');
 
-// Dashboard window removed: the WinUI host (RaceCorProDrive.exe) now
-// owns the dashboard / settings surface. This Electron process renders
-// only the in-game HUD, so it spawns no secondary BrowserWindow. If a
-// future feature really needs a web view, build a focused window at
-// the call site rather than reintroducing a generic "open dashboard"
-// channel — that channel was the doorway to the duplicated UI we just
-// retired.
+// Settings popout / Moza manager windows + the settings-changed relay
+// were removed alongside the in-overlay settings UI. Settings live in
+// the WinUI host now — the host writes overlay-settings.json directly,
+// the file watcher in this process picks up the change and broadcasts
+// it to the renderer. No secondary BrowserWindow lives here.
 
-// ═══════════════════════════════════════════════════════════════
-// MOZA HARDWARE MANAGER WINDOW
-// Dedicated window for the Moza settings panel. Opens from the
-// idle nav bar or via IPC. Loads the same dashboard with a query
-// flag so the renderer enters Moza-settings-only mode.
-// ═══════════════════════════════════════════════════════════════
-
-function openMozaManagerWindow() {
-  if (mozaWindow && !mozaWindow.isDestroyed()) {
-    mozaWindow.show();
-    mozaWindow.moveTop();
-    mozaWindow.focus();
-    return;
-  }
-
-  const primary = screen.getPrimaryDisplay();
-  const winW = Math.min(560, primary.workAreaSize.width);
-  const winH = Math.min(720, primary.workAreaSize.height);
-
-  mozaWindow = new BrowserWindow({
-    width: winW,
-    height: winH,
-    icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
-    frame: false,
-    autoHideMenuBar: true,
-    resizable: true,
-    movable: true,
-    alwaysOnTop: true,
-    transparent: false,
-    backgroundColor: '#1a1a1a',
-    skipTaskbar: false,
-    title: 'Moza Hardware Manager',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-      webSecurity: true,
-      sandbox: true,
-    },
-  });
-
-  mozaWindow.setAlwaysOnTop(true, 'screen-saver');
-
-  // Load the dashboard with a query flag for Moza-only mode
-  mozaWindow.loadFile(path.join(__dirname, getDashboardFile()), {
-    query: { mozaManager: '1' }
-  });
-
-  mozaWindow.once('ready-to-show', () => {
-    if (mozaWindow && !mozaWindow.isDestroyed()) {
-      mozaWindow.show();
-      mozaWindow.setAlwaysOnTop(true, 'screen-saver');
-    }
-  });
-
-  mozaWindow.on('closed', () => {
-    mozaWindow = null;
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.webContents.send('moza-manager-closed');
-    }
-    logToFile('[K10] Moza manager window closed');
-  });
-
-  logToFile('[K10] Moza manager window opened');
-}
-
-function closeMozaManagerWindow() {
-  if (mozaWindow && !mozaWindow.isDestroyed()) {
-    mozaWindow.close();
-    mozaWindow = null;
-  }
-}
-
-ipcMain.handle('open-moza-manager', async () => {
-  openMozaManagerWindow();
-  return true;
-});
-
-ipcMain.handle('close-moza-manager', async () => {
-  closeMozaManagerWindow();
-  return true;
-});
-
-ipcMain.handle('open-settings-popout', async () => {
-  openSettingsWindow();
-  return true;
-});
-
-ipcMain.handle('close-settings-popout', async () => {
-  closeSettingsWindow();
-  return true;
-});
-
-// Relay settings changes from either window to the other
-ipcMain.handle('settings-changed', async (event, settings) => {
+// Relay settings file changes (written by the WinUI host) to the
+// renderer so the live HUD reflects edits without a restart.
+ipcMain.handle('settings-changed', async (_event, settings) => {
   if (typeof settings !== 'object' || settings === null) {
     logToFile('[K10] Warning: settings-changed received invalid data');
     return;
   }
-  // Persist
   saveSettingsSync(settings);
-  // Forward to the OTHER window
-  const senderWC = event.sender;
-  if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.webContents !== senderWC) {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('settings-sync', settings);
-  }
-  if (settingsWindow && !settingsWindow.isDestroyed() && settingsWindow.webContents !== senderWC) {
-    settingsWindow.webContents.send('settings-sync', settings);
   }
   return true;
 });
@@ -1569,20 +1167,9 @@ ipcMain.handle('save-settings', async (event, settings) => {
   return true;
 });
 
-// ── IPC: Green screen mode query ──
-ipcMain.handle('get-green-screen-mode', async () => {
-  return greenScreenMode;
-});
-
 // ── IPC: Dashboard mode query (legacy, returns 'build') ──
 ipcMain.handle('get-dashboard-mode', async () => {
   return 'build';
-});
-
-// ── IPC: Restart app (used after toggling green screen mode) ──
-ipcMain.handle('restart-app', async () => {
-  app.relaunch();
-  app.exit(0);
 });
 
 // ── IPC: Quit app ──

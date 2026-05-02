@@ -4,10 +4,10 @@
 	"Author": "Kevin Conboy",
 	"Actions": [
 		{
-			"Name": "Toggle Settings",
+			"Name": "Open Settings",
 			"UUID": "com.k10motorsports.racecor.overlay.toggle-settings",
 			"Icon": "imgs/actions/toggle-settings/icon",
-			"Tooltip": "Open/close the overlay settings panel",
+			"Tooltip": "Bring the RaceCor Pro Drive (Windows) settings page to the front",
 			"Controllers": [
 				"Keypad"
 			],
@@ -149,21 +149,6 @@
 			"States": [
 				{
 					"Image": "imgs/actions/cycle-rating/key",
-					"TitleAlignment": "bottom"
-				}
-			]
-		},
-		{
-			"Name": "Green Screen",
-			"UUID": "com.k10motorsports.racecor.overlay.toggle-greenscreen",
-			"Icon": "imgs/actions/toggle-greenscreen/icon",
-			"Tooltip": "Toggle chroma-key green screen mode",
-			"Controllers": [
-				"Keypad"
-			],
-			"States": [
-				{
-					"Image": "imgs/actions/toggle-greenscreen/key",
 					"TitleAlignment": "bottom"
 				}
 			]
