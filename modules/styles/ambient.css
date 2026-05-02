@@ -10,7 +10,7 @@
    pulses the glow subtly.
 
    Modes: reflective (WebGL), matte (WebGL 50%), plastic (CSS-only), off.
-   Toggled off via body.ambient-off or body.opaque-mode.
+   Toggled off via body.ambient-off.
    ═══════════════════════════════════════════════════════════════ */
 
 /* Hide legacy elements */
@@ -237,26 +237,6 @@ body.ambient-off .datastream-panel::before,
 body.ambient-off .pitbox-panel::before,
 body.ambient-off .incidents-panel::before,
 body.ambient-off .spotter-panel::before {
-  display: none !important;
-}
-
-/* ── Green-screen mode: also disable reflections + glow ── */
-body.opaque-mode .panel::after,
-body.opaque-mode .tacho-block::after,
-body.opaque-mode .commentary-inner::after,
-body.opaque-mode .leaderboard-panel::after,
-body.opaque-mode .datastream-panel::after,
-body.opaque-mode .pitbox-panel::after,
-body.opaque-mode .incidents-panel::after,
-body.opaque-mode .spotter-panel::after,
-body.opaque-mode .panel::before,
-body.opaque-mode .tacho-block::before,
-body.opaque-mode .commentary-inner::before,
-body.opaque-mode .leaderboard-panel::before,
-body.opaque-mode .datastream-panel::before,
-body.opaque-mode .pitbox-panel::before,
-body.opaque-mode .incidents-panel::before,
-body.opaque-mode .spotter-panel::before {
   display: none !important;
 }
 

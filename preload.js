@@ -10,15 +10,6 @@ contextBridge.exposeInMainWorld('k10', {
   getVersion: () => ipcRenderer.invoke('get-version'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
-  onSettingsMode: (callback) => {
-    ipcRenderer.on('settings-mode', (event, active) => callback(active));
-  },
-  // Request/release interactive mode (makes window focusable + clickable)
-  requestInteractive: () => ipcRenderer.invoke('request-interactive'),
-  releaseInteractive: () => ipcRenderer.invoke('release-interactive'),
-  // Green screen mode
-  getGreenScreenMode: () => ipcRenderer.invoke('get-green-screen-mode'),
-  restartApp: () => ipcRenderer.invoke('restart-app'),
   // Dashboard mode (legacy, returns 'build')
   getDashboardMode: () => ipcRenderer.invoke('get-dashboard-mode'),
   // Open URL in user's default browser
@@ -59,22 +50,12 @@ contextBridge.exposeInMainWorld('k10', {
   getRemoteServerInfo: () => ipcRenderer.invoke('get-remote-server-info'),
   startRemoteServer: (opts) => ipcRenderer.invoke('start-remote-server', opts),
   stopRemoteServer: () => ipcRenderer.invoke('stop-remote-server'),
-  // (Dashboard window removed — the WinUI host owns that surface. The
-  // open-dashboard / close-dashboard / dashboard-closed IPC channels
-  // are gone with it; renderers should not call them.)
-  // Settings popout window (secondary display)
-  openSettingsPopout: () => ipcRenderer.invoke('open-settings-popout'),
-  closeSettingsPopout: () => ipcRenderer.invoke('close-settings-popout'),
+  // (Dashboard + settings popout windows removed — the WinUI host owns
+  // that surface. The renderer just listens for settings-sync to pick
+  // up live changes the host writes to overlay-settings.json.)
   notifySettingsChanged: (settings) => ipcRenderer.invoke('settings-changed', settings),
   onSettingsSync: (callback) => {
     ipcRenderer.on('settings-sync', (event, settings) => callback(settings));
-  },
-  onSettingsPopoutClosed: (callback) => {
-    ipcRenderer.on('settings-popout-closed', () => callback());
-  },
-  // Detect if this window was opened as a popout
-  isSettingsPopout: () => {
-    return new URLSearchParams(window.location.search).get('settingsPopout') === '1';
   },
   // Ambient light — screen capture moved to C# plugin (ScreenColorSampler).
   // Color data now arrives via poll JSON (DS.AmbientR/G/B), no IPC needed.

@@ -82,26 +82,6 @@
     padding: 0;
   }
 
-  /* ── Chroma-key / green-screen mode ───────────────────────
-     Solid green background for OBS chroma-key compositing.
-     Panels get opaque backgrounds, drop shadows and blur are
-     disabled so edges key cleanly. */
-  body.opaque-mode {
-    background: #00FF00;
-  }
-  body.opaque-mode .panel {
-    background: hsl(0, 0%, 8%) !important;
-  }
-  body.opaque-mode .commentary-inner {
-    background: hsla(var(--commentary-h, 0), 50%, 8%, 1) !important;
-  }
-  body.opaque-mode .dashboard {
-    filter: none !important;
-  }
-  body.opaque-mode .dashboard::before {
-    background: hsla(var(--sentiment-h), var(--sentiment-s), 6%, var(--sentiment-alpha)) !important;
-  }
-
   /* Settings hint text */
   .settings-hint {
     font-size: 14px;
@@ -111,8 +91,7 @@
   }
 
   /* ── Settings / drag mode ──────────────────────────────────
-     Ctrl+Shift+S toggles settings mode. In green-screen mode
-     the window is draggable + resizable. Banner shows current state. */
+     Ctrl+Shift+S toggles settings mode. */
   body.settings-drag {
     -webkit-app-region: drag;
     cursor: move;
@@ -128,9 +107,6 @@
     letter-spacing: 1px;
     z-index: 99999;
     -webkit-app-region: drag;
-  }
-  body.green-screen-mode.settings-drag::after {
-    content: 'DRAG TO MOVE \2022 RESIZE EDGES \2022 Ctrl+Shift+S TO LOCK';
   }
   /* Keep buttons/inputs clickable inside settings mode */
   body.settings-drag button,
