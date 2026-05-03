@@ -1,6 +1,147 @@
 // Settings system
   // _defaultSettings, _settings, _forceFlagState declared in config.js
 
+  // ─── Layout management ───
+  // applyLayout / applyZoom previously lived in modules/js/connections.js,
+  // which was deleted when the in-overlay settings UI was retired (commit
+  // 826ed67). The functions are still load-bearing — settings.js calls them
+  // from applySettings() — so they're restored here, scoped to what the
+  // host-driven settings file actually controls.
+
+  // 5 positions: 4 user corners + 1 programmatic (absolute-center, used
+  // for pre-race / podium). All other behavior is deterministic from
+  // the corner: right→RTL flow, bottom→column-reverse, etc.
+  var _layoutPositionMap = {
+    'top-right': 'layout-tr', 'top-left': 'layout-tl',
+    'bottom-right': 'layout-br', 'bottom-left': 'layout-bl',
+    'absolute-center': 'layout-ac'
+  };
+  var _allLayoutClasses = Object.keys(_layoutPositionMap).map(function(k) { return _layoutPositionMap[k]; });
+
+  function applyLayout() {
+    var dash = document.getElementById('dashboard');
+    if (!dash) return;
+    var pos = _settings.layoutPosition || 'top-right';
+
+    _allLayoutClasses.forEach(function(c) { dash.classList.remove(c); });
+    dash.classList.add(_layoutPositionMap[pos] || 'layout-tr');
+
+    var isBottom = pos.indexOf('bottom') !== -1;
+    var isRight  = pos.indexOf('right')  !== -1;
+    var isCenter = (pos === 'absolute-center');
+
+    // Commentary: diagonally opposite the main HUD.
+    var cmtCol = document.getElementById('commentaryCol');
+    if (cmtCol) {
+      cmtCol.classList.remove('cmt-tl', 'cmt-tr', 'cmt-bl', 'cmt-br');
+      if (!isCenter) {
+        var cmtV = isBottom ? 't' : 'b';
+        var cmtH = isRight  ? 'l' : 'r';
+        cmtCol.classList.add('cmt-' + cmtV + cmtH);
+      } else {
+        cmtCol.classList.add('cmt-bl');
+      }
+    }
+
+    // Secondary panels (leaderboard / datastream / pitbox): opposite
+    // vertical edge, same horizontal edge as the main HUD.
+    var secVert  = isCenter ? 'bottom' : (isBottom ? 'top'    : 'bottom');
+    var secHoriz = isCenter ? 'right'  : (isRight  ? 'right'  : 'left');
+
+    var sec = document.getElementById('secContainer');
+    if (sec) {
+      sec.classList.remove('sec-top', 'sec-bottom', 'sec-left', 'sec-right');
+      sec.classList.add('sec-' + secVert);
+      sec.classList.add('sec-' + secHoriz);
+      sec.style.marginTop = '';
+      sec.style.marginBottom = '';
+    }
+
+    var lb = document.getElementById('leaderboardPanel');
+    if (lb) {
+      lb.classList.remove('lb-top', 'lb-bottom', 'lb-left', 'lb-right');
+      lb.classList.add('lb-' + secVert, 'lb-' + secHoriz);
+    }
+    var ds = document.getElementById('datastreamPanel');
+    if (ds) {
+      ds.classList.remove('ds-top', 'ds-bottom', 'ds-left', 'ds-right');
+      ds.classList.add('ds-' + secVert, 'ds-' + secHoriz);
+    }
+    var pb = document.getElementById('pitBoxPanel');
+    if (pb) {
+      pb.classList.remove('pb-top', 'pb-bottom', 'pb-left', 'pb-right');
+      pb.classList.add('pb-' + secVert, 'pb-' + secHoriz);
+    }
+
+    // Incidents: same vertical edge as the secondary container, opposite
+    // horizontal edge from it (diagonal from the main HUD).
+    var incHoriz = secHoriz === 'right' ? 'left' : 'right';
+    var inc = document.getElementById('incidentsPanel');
+    if (inc) {
+      inc.classList.remove('inc-top', 'inc-bottom', 'inc-left', 'inc-right');
+      inc.classList.add('inc-' + secVert);
+      inc.classList.add('inc-' + incHoriz);
+      // Force every position property — Electron/CEF can hold stale
+      // values after a class swap.
+      inc.style.top    = secVert  === 'top'    ? '' : 'auto';
+      inc.style.bottom = secVert  === 'bottom' ? '' : 'auto';
+      inc.style.left   = incHoriz === 'left'   ? '' : 'auto';
+      inc.style.right  = incHoriz === 'right'  ? '' : 'auto';
+      inc.style.marginTop = '';
+      inc.style.marginBottom = '';
+    }
+
+    // Bottom Y-offset: only meaningful for bottom-anchored layouts.
+    var yOff = (_settings.bottomYOffset || 0) + 'px';
+    var isBottomLayout = pos.indexOf('bottom') === 0;
+    if (sec)    sec.style.marginBottom    = isBottomLayout ? yOff : '';
+    if (inc)    inc.style.marginBottom    = isBottomLayout ? yOff : '';
+    if (cmtCol) cmtCol.style.marginBottom = isBottomLayout ? yOff : '';
+    var gameLogoEl = document.getElementById('gameLogoOverlay');
+    if (gameLogoEl) gameLogoEl.style.marginBottom = isBottomLayout ? yOff : '';
+  }
+  window.applyLayout = applyLayout;
+
+  function applyZoom(val) {
+    var scale = (val || 100) / 100;
+    document.documentElement.style.setProperty('--dash-zoom', scale);
+
+    // --edge controls fixed-element margins. At zoom > 1, raw --edge
+    // gives a smaller visual gap, so we publish --edge-z = base-edge / scale
+    // for CSS to consume on zoomed elements.
+    var baseEdge = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--edge'), 10) || 10;
+    document.documentElement.style.setProperty('--edge-z', (baseEdge / scale) + 'px');
+
+    var ids = ['dashboard', 'incidentsPanel', 'spotterPanel', 'commentaryCol', 'rcBanner', 'secContainer'];
+    ids.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.zoom = scale;
+    });
+  }
+  window.applyZoom = applyZoom;
+
+  // Logo subtitle: small text under the K10 logo square. The setting
+  // ships from the host but no DOM was wired before; insert lazily so
+  // the logo column doesn't grow when the subtitle is empty.
+  function applyLogoSubtitle() {
+    var k10 = document.getElementById('k10LogoSquare');
+    if (!k10) return;
+    var subtitle = (_settings.logoSubtitle || '').trim();
+    var el = document.getElementById('k10LogoSubtitle');
+    if (!subtitle) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'k10LogoSubtitle';
+      el.className = 'logo-subtitle';
+      k10.parentNode.insertBefore(el, k10.nextSibling);
+    }
+    el.textContent = subtitle;
+  }
+  window.applyLogoSubtitle = applyLogoSubtitle;
+
   // Section class/id → element finder
   function _findSectionEls(sectionKey) {
     // Try as ID first, then as class
@@ -226,6 +367,10 @@
     commentaryPromptDuration:   'promptDuration',
     commentaryShowTopicTitle:   'showTopicTitle',
     commentaryEventOnlyMode:    'eventOnlyMode',
+    commentaryCatStrategy:      'category_strategy',
+    commentaryCatTrack:         'category_track',
+    commentaryCatRivals:        'category_rivals',
+    commentaryCatBehavior:      'category_behavior',
     commentaryCatHardware:      'category_hardware',
     commentaryCatGameFeel:      'category_game_feel',
     commentaryCatCarResponse:   'category_car_response',
