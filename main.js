@@ -62,8 +62,13 @@ function loadSettingsSync() {
   }
 }
 
+// Stamp the timestamp of the last write originating from this process so the
+// settings-file watcher can ignore its own writes (it only re-broadcasts
+// changes made by the WinUI host).
+let _lastSelfSettingsWriteAt = 0;
 function saveSettingsSync(settings) {
   fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2));
+  _lastSelfSettingsWriteAt = Date.now();
 }
 
 // ── iRating / Safety Rating persistence ──────────────────────
@@ -318,6 +323,7 @@ app.whenReady().then(() => {
 
     maybeStartRemoteServer();
     updater.initAutoUpdater(overlayWindow, logToFile);
+    startSettingsWatcher();
 
     // ── Auto-install Stream Deck plugin on first run ──
     autoInstallStreamDeckPlugin();
@@ -511,52 +517,43 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-// ── Stream Deck plugin auto-install on first run ──
-// Checks if the plugin is already installed; if not, installs it silently.
-// Tracked via settings.streamDeckPluginInstalled so it only runs once.
+// ── Stream Deck plugin auto-install on every launch ──
+// Idempotent: presence of `manifest.json` inside the installed plugin dir is
+// the only "already installed" check. The previous version short-circuited on
+// a settings flag, which got stuck `true` on partial / failed installs and
+// blocked retries forever. Now the only state we trust is the filesystem.
 function autoInstallStreamDeckPlugin() {
   if (process.platform !== 'win32' && process.platform !== 'darwin') return;
   const fs = require('fs');
   const os = require('os');
-  const settings = loadSettingsSync();
-  if (settings.streamDeckPluginInstalled) return;
 
-  // Check if Stream Deck is installed by looking for its plugin directory
-  let sdPluginsDir;
-  if (process.platform === 'win32') {
-    sdPluginsDir = path.join(process.env.APPDATA || '', 'Elgato', 'StreamDeck', 'Plugins');
-  } else {
-    sdPluginsDir = path.join(os.homedir(), 'Library', 'Application Support',
-      'com.elgato.StreamDeck', 'Plugins');
-  }
+  const sdPluginsDir = process.platform === 'win32'
+    ? path.join(process.env.APPDATA || '', 'Elgato', 'StreamDeck', 'Plugins')
+    : path.join(os.homedir(), 'Library', 'Application Support',
+        'com.elgato.StreamDeck', 'Plugins');
 
   if (!fs.existsSync(sdPluginsDir)) {
-    logToFile('[K10] Stream Deck not found — skipping plugin install');
+    logToFile('[K10] StreamDeck install: plugins dir not found at ' + sdPluginsDir + ' — Stream Deck app likely not installed; skipping');
     return;
   }
 
-  // Check if already installed
   const installedDir = path.join(sdPluginsDir, 'com.k10motorsports.racecor.overlay.sdPlugin');
-  if (fs.existsSync(installedDir)) {
-    logToFile('[K10] Stream Deck plugin already installed');
-    settings.streamDeckPluginInstalled = true;
-    saveSettingsSync(settings);
+  const installedManifest = path.join(installedDir, 'manifest.json');
+  if (fs.existsSync(installedManifest)) {
+    logToFile('[K10] StreamDeck install: already present at ' + installedDir);
     return;
   }
 
-  // Copy the plugin directory into Stream Deck's Plugins folder
   const srcDir = path.join(__dirname, 'streamdeck', 'racecor',
     'com.k10motorsports.racecor.overlay.sdPlugin');
-  if (!fs.existsSync(srcDir)) {
-    logToFile('[K10] Stream Deck plugin source not found in app bundle');
+  if (!fs.existsSync(path.join(srcDir, 'manifest.json'))) {
+    logToFile('[K10] StreamDeck install: source not bundled at ' + srcDir + ' — check electron-builder files list');
     return;
   }
 
   try {
     fs.cpSync(srcDir, installedDir, { recursive: true });
-    settings.streamDeckPluginInstalled = true;
-    saveSettingsSync(settings);
-    logToFile('[K10] Stream Deck plugin installed to: ' + installedDir);
+    logToFile('[K10] StreamDeck install: copied to ' + installedDir);
   } catch (err) {
     logToFile('[K10] Stream Deck plugin install failed: ' + err.message);
   }
@@ -1107,22 +1104,30 @@ const isDev = process.argv.includes('--dev');
 // Settings popout / Moza manager windows + the settings-changed relay
 // were removed alongside the in-overlay settings UI. Settings live in
 // the WinUI host now — the host writes overlay-settings.json directly,
-// the file watcher in this process picks up the change and broadcasts
-// it to the renderer. No secondary BrowserWindow lives here.
+// and the watcher below picks up the change and broadcasts it to the
+// renderer. No secondary BrowserWindow lives here.
 
-// Relay settings file changes (written by the WinUI host) to the
-// renderer so the live HUD reflects edits without a restart.
-ipcMain.handle('settings-changed', async (_event, settings) => {
-  if (typeof settings !== 'object' || settings === null) {
-    logToFile('[K10] Warning: settings-changed received invalid data');
-    return;
-  }
-  saveSettingsSync(settings);
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
+// fs.watchFile is polling-based, which is what we want: the WinUI host
+// writes atomically (temp + rename), and the rename breaks fs.watch on
+// Windows because the watched inode disappears. Polling stat survives
+// that. 500ms is plenty for a human-driven settings edit.
+function startSettingsWatcher() {
+  const settingsPath = getSettingsPath();
+  fs.watchFile(settingsPath, { interval: 500 }, (curr, prev) => {
+    if (curr.mtimeMs === prev.mtimeMs) return;            // no real change
+    if (Date.now() - _lastSelfSettingsWriteAt < 1500) return;  // our own write
+    if (!overlayWindow || overlayWindow.isDestroyed()) return;
+    let settings;
+    try {
+      settings = loadSettingsSync();
+    } catch (e) {
+      logToFile('[K10] settings watcher: load failed: ' + e.message);
+      return;
+    }
     overlayWindow.webContents.send('settings-sync', settings);
-  }
-  return true;
-});
+    logToFile('[K10] settings-sync broadcast (file changed)');
+  });
+}
 
 // ── IPC: Driver profile / car history persistence ──
 ipcMain.handle('get-profile-data', async () => {

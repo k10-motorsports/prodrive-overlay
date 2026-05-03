@@ -49,12 +49,20 @@
   const _trackDisplayNamePending = {};  // { gameTrackName → true } (in-flight requests)
   // Exposed on window so drive-hud.js can also prefer API track maps
   const _trackApiSvgCache = window._trackApiSvgCache = {}; // { gameTrackName → svgPath from rawCsv }
+  // Normalized points keyed by track name. Lets drive-hud.js derive the
+  // player dot's (x,y) directly from LapDistPct against the API path's
+  // own coordinate space, instead of trusting the plugin's PlayerX/Y
+  // (which is normalized against the plugin's local — and frequently
+  // stale or corrupt — track recording).
+  const _trackApiPointsCache = window._trackApiPointsCache = {}; // { gameTrackName → [{x,y,p}, ...] }
   const K10_DISPLAY_NAME_API = 'https://prodrive.racecor.io/api/tracks';
 
   // ─── CSV → SVG conversion (mirrors C# TrackMapProvider + track-svg.ts) ───
   // When the web API has authoritative rawCsv data, we convert it here so the
   // overlay can prefer it over the plugin's locally-cached track recording.
-  function _csvToSvgPath(csv) {
+  // Returns { path, points } — points are normalized to the same 0–100
+  // viewBox as the path, each carrying its lap-distance fraction (`p`).
+  function _csvToTrackData(csv) {
     var lines = csv.trim().split('\n');
     var pts = [];
     for (var i = 0; i < lines.length; i++) {
@@ -66,7 +74,7 @@
       if (x === 0 && z === 0 && pct > 0.99) continue;
       pts.push({ x: x, y: z, p: isNaN(pct) ? 0 : pct });
     }
-    if (pts.length < 10) return '';
+    if (pts.length < 10) return { path: '', points: [] };
 
     // Normalize to 0–100 viewBox with 5% padding (uniform scale)
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -100,8 +108,37 @@
       var cy2 = p2.y - (p3.y - p1.y) / 6.0;
       path += ' C ' + f(cx1) + ',' + f(cy1) + ' ' + f(cx2) + ',' + f(cy2) + ' ' + f(p2.x) + ',' + f(p2.y);
     }
-    return path + ' Z';
+    return { path: path + ' Z', points: pts };
   }
+
+  // Walk normalized API points to interpolate (x,y) at the given lap-distance
+  // fraction (0..1). Used by drive-hud.js so the player dot lands on the API
+  // path even when the plugin's local CSV is stale/corrupt. Returns null if
+  // the points array is too small to interpolate from.
+  window._lapDistToApiXY = function(points, lapDistPct) {
+    if (!points || points.length < 2) return null;
+    var pct = ((+lapDistPct) % 1 + 1) % 1;     // wrap into [0,1)
+    // Points are stored in lap-order with increasing `p`. Find the segment
+    // straddling `pct` via linear scan — point counts are <500, no need for
+    // binary search at this scale.
+    for (var i = 0; i < points.length - 1; i++) {
+      var a = points[i], b = points[i + 1];
+      if (pct >= a.p && pct <= b.p) {
+        var span = b.p - a.p;
+        var t = span > 0 ? (pct - a.p) / span : 0;
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      }
+    }
+    // Wrap segment (last point → first point)
+    var last = points[points.length - 1], first = points[0];
+    var wrapSpan = (1 - last.p) + first.p;
+    if (wrapSpan > 0) {
+      var rel = pct >= last.p ? (pct - last.p) : (1 - last.p + pct);
+      var t2 = rel / wrapSpan;
+      return { x: last.x + (first.x - last.x) * t2, y: last.y + (first.y - last.y) * t2 };
+    }
+    return { x: first.x, y: first.y };
+  };
 
   function resolveTrackDisplayName(gameTrackName, trackSlug) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
@@ -119,24 +156,27 @@
         _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
         // Cache sector count from API (0 if not present — don't assume 3)
         _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 0;
-        // Prefer pre-built SVG from the API (authoritative, curated data).
-        // Falls back to building from rawCsv if svgPath isn't returned.
-        // This overrides the plugin's local track recording (which may be stale/corrupt).
-        if (data && data.svgPath) {
-          _trackApiSvgCache[gameTrackName] = data.svgPath;
-          console.log('[K10] Track map override from web API for:', gameTrackName,
-            '(' + data.svgPath.length + ' chars)');
-        } else if (data && data.rawCsv) {
+        // Prefer rawCsv when present — parsing it locally gives us BOTH the
+        // SVG path and the normalized points (with lapDistPct each), which
+        // drive-hud.js needs to put the player dot in the API's coordinate
+        // space. If rawCsv is missing, fall back to the pre-built svgPath
+        // (path-only, plugin coords for the player dot).
+        if (data && data.rawCsv) {
           try {
-            var apiSvg = _csvToSvgPath(data.rawCsv);
-            if (apiSvg) {
-              _trackApiSvgCache[gameTrackName] = apiSvg;
-              console.log('[K10] Track map override from rawCsv for:', gameTrackName,
-                '(' + apiSvg.length + ' chars)');
+            var built = _csvToTrackData(data.rawCsv);
+            if (built && built.path) {
+              _trackApiSvgCache[gameTrackName] = built.path;
+              _trackApiPointsCache[gameTrackName] = built.points;
+              console.log('[K10] Track map: built from rawCsv for', gameTrackName,
+                '(' + built.path.length + ' chars,', built.points.length, 'points)');
             }
           } catch (e) {
             console.warn('[K10] Failed to convert API rawCsv to SVG for', gameTrackName, e);
           }
+        } else if (data && data.svgPath) {
+          _trackApiSvgCache[gameTrackName] = data.svgPath;
+          console.log('[K10] Track map: svgPath only (no rawCsv) for', gameTrackName,
+            '(' + data.svgPath.length + ' chars) — player dot will use plugin coords');
         }
       })
       .catch(function() {
@@ -1212,8 +1252,6 @@
     // ─── Track map ───
     const mapReady = +v('RaceCorProDrive.Plugin.TrackMap.Ready') || 0;
     const pluginPath = mapReady ? (vs('RaceCorProDrive.Plugin.TrackMap.SvgPath') || '') : '';
-    const mapPX   = +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50;
-    const mapPY   = +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50;
     const mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading') || 0;
     // Prefer web API track maps when available — they're curated and
@@ -1224,7 +1262,23 @@
     const _curTrackName = vs('RaceCorProDrive.Plugin.TrackMap.TrackName')
                        || vs('DataCorePlugin.GameData.TrackName') || '';
     const _curTrackSlug = vs('RaceCorProDrive.Plugin.TrackMap.TrackSlug') || '';
-    const mapPath = _trackApiSvgCache[_curTrackName] || pluginPath || '';
+    const _apiMapPath = _trackApiSvgCache[_curTrackName];
+    const mapPath = _apiMapPath || pluginPath || '';
+    // Player coords: when the API path is in use, derive (x,y) from the
+    // API's own points by lap-distance fraction so the dot tracks the
+    // curated path. Plugin PlayerX/Y is normalized against its local
+    // recording and won't align with the API's coordinate space.
+    let mapPX, mapPY;
+    const _apiPts = _apiMapPath ? _trackApiPointsCache[_curTrackName] : null;
+    if (_apiPts && _apiPts.length >= 2 && typeof window._lapDistToApiXY === 'function') {
+      const _pct = +v('RaceCorProDrive.Plugin.DS.TrackPct');
+      const pos = window._lapDistToApiXY(_apiPts, isFinite(_pct) ? _pct : 0);
+      if (pos) { mapPX = pos.x; mapPY = pos.y; }
+    }
+    if (mapPX === undefined) {
+      mapPX = +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50;
+      mapPY = +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50;
+    }
     try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
     const fullMapLbl = document.getElementById('fullMapLabel');

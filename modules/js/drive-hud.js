@@ -223,8 +223,29 @@
         }
       }
 
-      var px = Math.max(0, Math.min(100, +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50));
-      var py = Math.max(0, Math.min(100, +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50));
+      // Player position. When the API SVG is in use AND we have its points,
+      // walk them by LapDistPct so the dot lands on the API's path. The
+      // plugin's PlayerX/Y is normalized against the plugin's local CSV
+      // recording — when that CSV is corrupt or out of date with the API,
+      // those coordinates put the dot off the track. Plugin coords are
+      // only correct paired with the plugin's own SvgPath.
+      var px, py;
+      var apiPts = _apiSvg && window._trackApiPointsCache
+        ? window._trackApiPointsCache[_dhTrackName]
+        : null;
+      if (apiPts && apiPts.length >= 2 && typeof window._lapDistToApiXY === 'function') {
+        var pct = +v('RaceCorProDrive.Plugin.DS.TrackPct');
+        if (!isFinite(pct)) pct = 0;
+        var pos = window._lapDistToApiXY(apiPts, pct);
+        if (pos) {
+          px = Math.max(0, Math.min(100, pos.x));
+          py = Math.max(0, Math.min(100, pos.y));
+        }
+      }
+      if (px === undefined) {
+        px = Math.max(0, Math.min(100, +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50));
+        py = Math.max(0, Math.min(100, +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50));
+      }
 
       // Update player dot
       var dhPlayer = document.getElementById('dhMapPlayer');

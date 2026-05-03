@@ -90,36 +90,6 @@
     line-height: 1.4;
   }
 
-  /* ── Settings / drag mode ──────────────────────────────────
-     Ctrl+Shift+S toggles settings mode. */
-  body.settings-drag {
-    -webkit-app-region: drag;
-    cursor: move;
-  }
-  body.settings-drag::after {
-    content: 'SETTINGS MODE \2022 Ctrl+Shift+S TO LOCK';
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    background: rgba(255, 165, 0, 0.9);
-    color: #000;
-    text-align: center;
-    font: bold 12px/28px system-ui, sans-serif;
-    letter-spacing: 1px;
-    z-index: 99999;
-    -webkit-app-region: drag;
-  }
-  /* Keep buttons/inputs clickable inside settings mode */
-  body.settings-drag button,
-  body.settings-drag input,
-  body.settings-drag select,
-  body.settings-drag .settings-toggle,
-  body.settings-drag .settings-close,
-  body.settings-drag .settings-overlay,
-  body.settings-drag .settings-panel,
-  body.settings-drag .conn-banner {
-    -webkit-app-region: no-drag;
-  }
-
   /* ═══════════════════════════════════════════════
      DRIVE MODE — full-screen driver-focused HUD
      Activated by Ctrl+Shift+F or auto on remote server.
