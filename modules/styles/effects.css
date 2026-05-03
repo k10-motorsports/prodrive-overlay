@@ -331,11 +331,6 @@
   body.idle-state #carLogoSquare {
     display: none !important;
   }
-  /* Settings overlay must stay accessible in idle */
-  body.idle-state .settings-overlay {
-    opacity: 1;
-    pointer-events: auto;
-  }
 
   /* ═══════════════════════════════════════════════
      LOGO-ONLY STARTUP — clean broadcast intro
@@ -374,11 +369,6 @@
   body.logo-only-reveal .pos-gaps-col,
   body.logo-only-reveal .maps-col {
     transition: opacity 1s ease-out;
-  }
-  /* Settings always accessible */
-  body.logo-only .settings-overlay {
-    opacity: 1;
-    pointer-events: auto;
   }
 
   /* ═══════════════════════════════════════════════
