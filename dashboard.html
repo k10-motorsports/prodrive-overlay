@@ -398,18 +398,6 @@
   </div>
 </div>
 
-<!-- COMPONENT: Connection Setup Banner (shown when plugin server unreachable) -->
-<div class="conn-banner" id="connBanner">
-  <h3><span class="conn-dot"></span>Can't reach SimHub</h3>
-  <p>Enter the IP of your SimHub machine.<br>Leave as localhost if SimHub runs on this computer.</p>
-  <input type="text" id="connBannerUrl" value="localhost" placeholder="e.g. 192.168.1.100 or localhost" spellcheck="false"
-    onkeydown="if(event.key==='Enter')applyConnBanner()"/>
-  <div>
-    <button onclick="applyConnBanner()">Connect</button>
-    <button class="conn-skip" onclick="dismissConnBanner()">Dismiss</button>
-  </div>
-</div>
-
 <!-- SECONDARY PANELS CONTAINER — flex row, positioned by applyLayout() -->
 <div class="sec-container" id="secContainer">
 
