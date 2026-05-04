@@ -9,7 +9,7 @@
   async function loadCarLogos() {
     // Try cloud API first (prodrive.racecor.io)
     try {
-      const apiBase = (window._settings && window._settings.prodriveUrl) || 'https://prodrive.racecor.io';
+      const apiBase = (window._settings && window._settings.apiBase) || 'https://prodrive.racecor.io';
       const resp = await fetch(apiBase + '/api/logos');
       if (resp.ok) {
         const data = await resp.json();
