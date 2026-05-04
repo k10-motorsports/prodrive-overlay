@@ -12,7 +12,6 @@ const UUID_TO_ACTION: Record<string, string> = {
 	"com.racecor.overlay.toggle-settings": "toggle-settings",
 	"com.racecor.overlay.toggle-visibility": "toggle-overlay",
 	"com.racecor.overlay.toggle-drive-mode": "toggle-drive-mode",
-	"com.racecor.overlay.toggle-driver-profile": "toggle-driver-profile",
 	"com.racecor.overlay.toggle-rating-editor": "toggle-rating-editor",
 	"com.racecor.overlay.zoom-in": "zoom-in",
 	"com.racecor.overlay.zoom-out": "zoom-out",

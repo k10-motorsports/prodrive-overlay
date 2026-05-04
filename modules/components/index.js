@@ -84,9 +84,6 @@ import './webgl-fx.js';
 // Full-screen driving HUD with track map, position, lap times, incidents
 import './drive-hud.js';
 
-// Driver profile analytics with iRating/SR charts and car heatmap
-import './driver-profile.js';
-
 // Advanced commentary visualization with Canvas charts and track image
 import './commentary-viz.js';
 
@@ -182,12 +179,6 @@ window._componentRegistry = window._componentRegistry || {
     type: 'canvas',
     phase: 3,
     description: 'Commentary panel with Canvas visualizations and track image'
-  },
-  'racecor-driver-profile': {
-    componentClass: customElements.get('racecor-driver-profile'),
-    type: 'canvas',
-    phase: 3,
-    description: 'Driver analytics with iRating/SR charts and session stats'
   }
 };
 

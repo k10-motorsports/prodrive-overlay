@@ -843,65 +843,6 @@
   </div>
 </div>
 
-<!-- COMPONENT: Driver Profile (Ctrl+Shift+V) -->
-<div class="dp-overlay" id="driverProfileOverlay">
-  <div class="dp-panel">
-    <div class="dp-header">
-      <div class="dp-title">Driver Profile</div>
-      <button class="dp-close" onclick="toggleDriverProfile()">&times;</button>
-    </div>
-
-    <!-- 3-column assessment row -->
-    <div class="dp-assess-row" id="dpAssessRow">
-      <div class="dp-assess-col" id="dpAssessIR"></div>
-      <div class="dp-assess-col" id="dpAssessSR"></div>
-      <div class="dp-assess-col" id="dpAssessLic"></div>
-    </div>
-
-    <!-- Big ratings + estimates + inline charts -->
-    <div class="dp-ratings-card">
-      <div class="dp-rating-big">
-        <div class="dp-rating-label">iRating</div>
-        <div class="dp-rating-value" id="dpIRating">—</div>
-        <div class="dp-rating-delta" id="dpIRDelta"></div>
-        <div class="dp-ir-bar-inline">
-          <div class="ir-bar-track"><div class="ir-bar-fill" id="dpIRBarFill" style="width:0%;"></div></div>
-        </div>
-      </div>
-      <div class="dp-rating-big">
-        <div class="dp-rating-label">Safety Rating</div>
-        <div class="dp-rating-value" id="dpSR">—</div>
-        <div class="dp-rating-delta" id="dpSRDelta"></div>
-        <svg class="dp-sr-pie" viewBox="0 0 40 40">
-          <circle class="sr-pie-bg" cx="20" cy="20" r="15"/>
-          <circle class="sr-pie-fill" id="dpSRPieFill" cx="20" cy="20" r="15"
-            stroke="var(--green)" stroke-dasharray="94.25" stroke-dashoffset="94.25"/>
-        </svg>
-      </div>
-      <div class="dp-rating-big">
-        <div class="dp-rating-label">License</div>
-        <div class="dp-rating-value" id="dpLicense">—</div>
-      </div>
-    </div>
-
-    <!-- Charts side by side -->
-    <div class="dp-grid">
-      <div class="dp-section">
-        <canvas class="dp-chart" id="dpIRChart" width="500" height="140"></canvas>
-      </div>
-      <div class="dp-section">
-        <canvas class="dp-chart" id="dpSRChart" width="500" height="140"></canvas>
-      </div>
-    </div>
-
-    <!-- Cars heatmap -->
-    <div class="dp-section" style="margin-top:14px;">
-      <div class="dp-section-title">Cars Driven</div>
-      <div class="dp-heatmap" id="dpCarHeatmap"></div>
-    </div>
-
-  </div>
-</div>
 <!-- JavaScript modules in load order -->
 <script src="modules/js/config.js"></script>
 <script src="modules/js/token-loader.js"></script>
@@ -935,7 +876,6 @@
 <!-- drive-mode.js removed — iPad drive mode no longer active -->
 <script src="modules/js/session-sync.js"></script>
 <script src="modules/js/calc-client.js"></script>
-<script src="modules/js/driver-profile.js"></script>
 <script src="modules/js/drive-hud.js"></script>
 <script src="modules/js/recorder.js"></script>
 <script src="modules/js/recorder-ui.js"></script>
