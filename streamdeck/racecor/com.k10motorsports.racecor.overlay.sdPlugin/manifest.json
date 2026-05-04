@@ -49,21 +49,6 @@
 			]
 		},
 		{
-			"Name": "Driver Profile",
-			"UUID": "com.k10motorsports.racecor.overlay.toggle-driver-profile",
-			"Icon": "imgs/actions/toggle-driver-profile/icon",
-			"Tooltip": "Open/close driver profile panel",
-			"Controllers": [
-				"Keypad"
-			],
-			"States": [
-				{
-					"Image": "imgs/actions/toggle-driver-profile/key",
-					"TitleAlignment": "bottom"
-				}
-			]
-		},
-		{
 			"Name": "Rating Editor",
 			"UUID": "com.k10motorsports.racecor.overlay.toggle-rating-editor",
 			"Icon": "imgs/actions/toggle-rating-editor/icon",

@@ -125,11 +125,6 @@ export class ToggleRatingEditor extends SingletonAction<OverlaySettings> {
 	override async onKeyDown(ev: KeyDownEvent<OverlaySettings>) { await handleKey(ev, "toggle-rating-editor"); }
 }
 
-@action({ UUID: "com.k10motorsports.racecor.overlay.toggle-driver-profile" })
-export class ToggleDriverProfile extends SingletonAction<OverlaySettings> {
-	override async onKeyDown(ev: KeyDownEvent<OverlaySettings>) { await handleKey(ev, "toggle-driver-profile"); }
-}
-
 // ── Preset actions ──
 
 @action({ UUID: "com.k10motorsports.racecor.overlay.preset-broadcast" })

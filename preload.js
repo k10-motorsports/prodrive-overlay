@@ -27,12 +27,6 @@ contextBridge.exposeInMainWorld('k10', {
   onToggleRatingEditor: (callback) => {
     ipcRenderer.on('toggle-rating-editor', () => callback());
   },
-  // Driver profile
-  getProfileData: () => ipcRenderer.invoke('get-profile-data'),
-  saveProfileData: (data) => ipcRenderer.invoke('save-profile-data', data),
-  onToggleDriverProfile: (callback) => {
-    ipcRenderer.on('toggle-driver-profile', () => callback());
-  },
   onToggleDriveMode: (callback) => {
     ipcRenderer.on('toggle-drive-mode', () => callback());
   },

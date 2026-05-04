@@ -88,23 +88,6 @@ function saveRatingData(data) {
   fs.writeFileSync(getRatingPath(), JSON.stringify(data, null, 2));
 }
 
-// ── Driver profile / car history persistence ─────────────────
-function getProfilePath() {
-  return path.join(app.getPath('userData'), 'driver-profile.json');
-}
-
-function loadProfileData() {
-  try {
-    return JSON.parse(fs.readFileSync(getProfilePath(), 'utf8'));
-  } catch (e) {
-    return { carSessions: {} };
-  }
-}
-
-function saveProfileData(data) {
-  fs.writeFileSync(getProfilePath(), JSON.stringify(data, null, 2));
-}
-
 // (Local asset server removed — no longer needed. Dashboard is a single inlined HTML file.)
 
 // ── State ────────────────────────────────────────────────────
@@ -397,10 +380,6 @@ app.whenReady().then(() => {
     if (overlayWindow) overlayWindow.webContents.send('toggle-rating-editor');
   });
 
-  globalShortcut.register('CommandOrControl+Shift+U', () => {
-    if (overlayWindow) overlayWindow.webContents.send('toggle-driver-profile');
-  });
-
   globalShortcut.register('CommandOrControl+Shift+F', () => {
     if (overlayWindow) overlayWindow.webContents.send('toggle-drive-mode');
   });
@@ -466,7 +445,6 @@ const _actionHandlers = {
   'restart-demo':           () => _sendRenderer('restart-demo'),
   'reset-trackmap':         () => _sendRenderer('reset-trackmap'),
   'toggle-rating-editor':   () => _sendRenderer('toggle-rating-editor'),
-  'toggle-driver-profile':  () => _sendRenderer('toggle-driver-profile'),
   'toggle-drive-mode':      () => _sendRenderer('toggle-drive-mode'),
   'toggle-recording':       () => _sendRenderer('toggle-recording'),
   'save-replay-buffer':     () => _sendRenderer('save-replay-buffer'),
@@ -1128,19 +1106,6 @@ function startSettingsWatcher() {
     logToFile('[K10] settings-sync broadcast (file changed)');
   });
 }
-
-// ── IPC: Driver profile / car history persistence ──
-ipcMain.handle('get-profile-data', async () => {
-  return loadProfileData();
-});
-
-ipcMain.handle('save-profile-data', async (event, data) => {
-  if (typeof data !== 'object' || data === null) {
-    logToFile('[K10] Warning: save-profile-data received invalid data');
-    return;
-  }
-  saveProfileData(data);
-});
 
 // ── IPC: iRating / Safety Rating persistence ──
 ipcMain.handle('get-rating-data', async () => {

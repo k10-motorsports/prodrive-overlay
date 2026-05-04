@@ -287,7 +287,6 @@ function handleRequest(req, res) {
         { name: 'reset-trackmap',     label: 'Reset Track Map',   category: 'demo' },
         // Editors
         { name: 'toggle-rating-editor',  label: 'Rating Editor',  category: 'editor' },
-        { name: 'toggle-driver-profile', label: 'Driver Profile', category: 'editor' },
         // Presets
         { name: 'preset-broadcast',  label: 'Broadcast Mode',     category: 'preset' },
         { name: 'preset-practice',   label: 'Practice Mode',      category: 'preset' },
