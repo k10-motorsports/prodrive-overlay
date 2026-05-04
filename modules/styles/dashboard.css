@@ -1389,4 +1389,44 @@
   }
 
   /* ═══════════════════════════════════════════════
+     SECONDARY PANELS FLEX CONTAINER
+     Wraps leaderboard, datastream, pitbox in a flex row.
+     Flows horizontally from the same corner as the main HUD.
+     Hidden panels collapse, remaining panels reflow automatically.
+     Restored from the deleted modules/styles/settings.css after the
+     in-overlay settings UI was retired (commit 826ed67) — without
+     these rules secondary panels stack vertically because the
+     panels themselves intentionally drop their fixed-position
+     offsets in favour of the container's flex layout.
      ═══════════════════════════════════════════════ */
+  .sec-container {
+    position: fixed;
+    z-index: 50;
+    display: flex;
+    flex-direction: row;
+    gap: var(--panel-gap);
+    align-items: flex-start;
+    pointer-events: none;
+    /* Prevent sec panels from growing into the opposite-edge HUD.
+       JS sets --sec-max-h dynamically; fallback keeps it safe. */
+    max-height: var(--sec-max-h, 55vh);
+  }
+  .sec-container > * { pointer-events: auto; }
+
+  /* Vertical edge — uses --edge-z (zoom-compensated) for consistent visual margins */
+  .sec-container.sec-top    { top: var(--edge-z, var(--edge)); }
+  .sec-container.sec-bottom { bottom: var(--edge-z, var(--edge)); align-items: flex-end; }
+
+  /* Horizontal edge — right positions use row-reverse so
+     the first child (leaderboard) stays at the screen edge */
+  .sec-container.sec-right  { right: var(--edge-z, var(--edge)); flex-direction: row-reverse; }
+  .sec-container.sec-left   { left: var(--edge-z, var(--edge)); }
+
+  /* Panels inside container: relative flow, no fixed offsets */
+  .sec-container .leaderboard-panel,
+  .sec-container .datastream-panel,
+  .sec-container .pitbox-panel {
+    position: relative;
+    top: auto; bottom: auto; left: auto; right: auto;
+    margin: 0;
+  }
