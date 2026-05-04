@@ -201,12 +201,24 @@
         _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
         // Cache sector count from API (0 if not present — don't assume 3)
         _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 0;
-        // Prefer rawCsv when present — parsing it locally gives us BOTH the
-        // SVG path and the normalized points (with lapDistPct each), which
-        // drive-hud.js needs to put the player dot in the API's coordinate
-        // space. If rawCsv is missing, fall back to the pre-built svgPath
-        // (path-only, plugin coords for the player dot).
-        if (data && data.rawCsv) {
+        // Three sources of track-map data, in preference order:
+        //   1. data.svgPath + data.points — server has pre-computed
+        //      both from rawCsv. Path and points share a coord space
+        //      by construction; player dot lands on the path. Drop-in,
+        //      no client-side parsing.
+        //   2. data.rawCsv — legacy CSV path; build path + points
+        //      locally. Same algorithm the server now runs, kept for
+        //      back-compat with API responses cached before the
+        //      points field shipped.
+        //   3. data.svgPath alone — legacy DB row with no rawCsv.
+        //      Derive approximate points from the path itself
+        //      (uniform-spacing assumption) so the dot still tracks.
+        if (data && data.svgPath && Array.isArray(data.points) && data.points.length >= 2) {
+          _trackApiSvgCache[gameTrackName] = data.svgPath;
+          _trackApiPointsCache[gameTrackName] = data.points;
+          console.log('[K10] Track map: server-provided path + points for', gameTrackName,
+            '(' + data.svgPath.length + ' chars,', data.points.length, 'points)');
+        } else if (data && data.rawCsv) {
           try {
             var built = _csvToTrackData(data.rawCsv);
             if (built && built.path) {
@@ -219,12 +231,10 @@
             console.warn('[K10] Failed to convert API rawCsv to SVG for', gameTrackName, e);
           }
         } else if (data && data.svgPath) {
-          // Legacy DB row — only svgPath, no rawCsv. Derive approximate
-          // points from the path itself so the player dot stays in the
-          // API's coordinate space (uniform-spacing assumption — see
-          // _pointsFromSvgPath). Without this the rendered path and
-          // PlayerX/Y come from different normalizations and the map
-          // appears to spin under the player.
+          // svgPath without rawCsv or points — derive approximate
+          // points from the path. Avoids the spinning-map symptom
+          // that came from rendering API path + plugin PlayerX/Y in
+          // different normalizations.
           _trackApiSvgCache[gameTrackName] = data.svgPath;
           var derived = _pointsFromSvgPath(data.svgPath);
           if (derived.length >= 2) {
