@@ -57,6 +57,51 @@
   const _trackApiPointsCache = window._trackApiPointsCache = {}; // { gameTrackName → [{x,y,p}, ...] }
   const K10_DISPLAY_NAME_API = 'https://prodrive.racecor.io/api/tracks';
 
+  // ─── Derive approximate points from a pre-built svgPath ───
+  // Used when the API returned a `svgPath` without `rawCsv` (legacy DB
+  // rows from older plugin versions). We need a points array with lap
+  // fractions so the player dot can be positioned via TrackPct in the
+  // API's coordinate space — otherwise the rendered path is in API
+  // space but PlayerX/Y comes from the plugin's local recording in a
+  // different normalization, and the dot drifts relative to the track
+  // (looks like the map "spins" as the user drives, especially in the
+  // heading-locked zoom map).
+  //
+  // The path is built by Catmull-Rom → cubic Bézier: `M p0 C c1 c2 p1
+  // C c1 c2 p2 ...`. Every third coord-pair starting from index 1 is a
+  // track endpoint; the rest are control points adjacent to a curve.
+  // We assume uniform spacing along the original CSV (which the
+  // plugin's recording approximately is — points are sampled at fixed
+  // distance intervals during the recording lap), so `p = i / N`. This
+  // is approximate but several orders of magnitude better than mixing
+  // coord spaces. Falls back to using every coord (control + endpoint)
+  // when the path is just M+L (no curves).
+  function _pointsFromSvgPath(svgPath) {
+    var raw = svgPath.match(/[\d.]+[,\s]+[\d.]+/g);
+    if (!raw || raw.length < 4) return [];
+    var hasCurves = /[Cc]/.test(svgPath);
+    var pts = [];
+    if (hasCurves) {
+      // M p0 then groups of (c1 c2 p) — keep the first coord, then
+      // every third coord starting at offset 3 (the C-segment endpoint).
+      var first = raw[0].split(/[,\s]+/);
+      pts.push({ x: +first[0], y: +first[1], p: 0 });
+      for (var i = 3; i < raw.length; i += 3) {
+        var parts = raw[i].split(/[,\s]+/);
+        pts.push({ x: +parts[0], y: +parts[1], p: 0 });
+      }
+    } else {
+      for (var j = 0; j < raw.length; j++) {
+        var pp = raw[j].split(/[,\s]+/);
+        pts.push({ x: +pp[0], y: +pp[1], p: 0 });
+      }
+    }
+    if (pts.length < 2) return [];
+    var n = pts.length;
+    for (var k = 0; k < n; k++) pts[k].p = k / n;
+    return pts;
+  }
+
   // ─── CSV → SVG conversion (mirrors C# TrackMapProvider + track-svg.ts) ───
   // When the web API has authoritative rawCsv data, we convert it here so the
   // overlay can prefer it over the plugin's locally-cached track recording.
@@ -156,12 +201,24 @@
         _trackDisplayNameCache[gameTrackName] = (data && data.displayName) || gameTrackName;
         // Cache sector count from API (0 if not present — don't assume 3)
         _trackSectorCountCache[gameTrackName] = (data && data.sectorCount) || 0;
-        // Prefer rawCsv when present — parsing it locally gives us BOTH the
-        // SVG path and the normalized points (with lapDistPct each), which
-        // drive-hud.js needs to put the player dot in the API's coordinate
-        // space. If rawCsv is missing, fall back to the pre-built svgPath
-        // (path-only, plugin coords for the player dot).
-        if (data && data.rawCsv) {
+        // Three sources of track-map data, in preference order:
+        //   1. data.svgPath + data.points — server has pre-computed
+        //      both from rawCsv. Path and points share a coord space
+        //      by construction; player dot lands on the path. Drop-in,
+        //      no client-side parsing.
+        //   2. data.rawCsv — legacy CSV path; build path + points
+        //      locally. Same algorithm the server now runs, kept for
+        //      back-compat with API responses cached before the
+        //      points field shipped.
+        //   3. data.svgPath alone — legacy DB row with no rawCsv.
+        //      Derive approximate points from the path itself
+        //      (uniform-spacing assumption) so the dot still tracks.
+        if (data && data.svgPath && Array.isArray(data.points) && data.points.length >= 2) {
+          _trackApiSvgCache[gameTrackName] = data.svgPath;
+          _trackApiPointsCache[gameTrackName] = data.points;
+          console.log('[K10] Track map: server-provided path + points for', gameTrackName,
+            '(' + data.svgPath.length + ' chars,', data.points.length, 'points)');
+        } else if (data && data.rawCsv) {
           try {
             var built = _csvToTrackData(data.rawCsv);
             if (built && built.path) {
@@ -174,9 +231,21 @@
             console.warn('[K10] Failed to convert API rawCsv to SVG for', gameTrackName, e);
           }
         } else if (data && data.svgPath) {
+          // svgPath without rawCsv or points — derive approximate
+          // points from the path. Avoids the spinning-map symptom
+          // that came from rendering API path + plugin PlayerX/Y in
+          // different normalizations.
           _trackApiSvgCache[gameTrackName] = data.svgPath;
-          console.log('[K10] Track map: svgPath only (no rawCsv) for', gameTrackName,
-            '(' + data.svgPath.length + ' chars) — player dot will use plugin coords');
+          var derived = _pointsFromSvgPath(data.svgPath);
+          if (derived.length >= 2) {
+            _trackApiPointsCache[gameTrackName] = derived;
+            console.log('[K10] Track map: svgPath only for', gameTrackName,
+              '(' + data.svgPath.length + ' chars) —',
+              derived.length, 'points derived from path');
+          } else {
+            console.log('[K10] Track map: svgPath only for', gameTrackName,
+              '(' + data.svgPath.length + ' chars) — could not derive points; player dot will use plugin coords');
+          }
         }
       })
       .catch(function() {
