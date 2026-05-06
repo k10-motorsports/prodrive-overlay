@@ -41,6 +41,28 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist/win-arm64-unpacked/* -DestinationPath dist/overlay-win-arm64-unpacked.zip
 
+      # The Stream Deck plugin lives in the overlay's repo source tree
+      # (streamdeck/racecor/com.k10motorsports.racecor.overlay.sdPlugin/)
+      # but electron-builder buries it inside resources/app.asar with
+      # the rest of the renderer. The host installer needs the plugin
+      # as a real on-disk folder so it can copy it into Elgato's
+      # plugins dir on ssPostInstall — pack it standalone here so the
+      # host workflow can pull it directly without parsing the asar.
+      - name: Pack Stream Deck plugin for downstream consumers
+        shell: pwsh
+        run: |
+          $sdSrc = "streamdeck/racecor/com.k10motorsports.racecor.overlay.sdPlugin"
+          if (-not (Test-Path "$sdSrc/manifest.json")) {
+            throw "Stream Deck plugin manifest missing at $sdSrc/manifest.json"
+          }
+          # Wrap the .sdPlugin folder so the zip preserves the full
+          # folder name when extracted (Stream Deck looks for the
+          # exact com.k10motorsports.racecor.overlay.sdPlugin dir).
+          New-Item -ItemType Directory -Force -Path dist/streamdeck-stage | Out-Null
+          Copy-Item -Recurse -Force $sdSrc dist/streamdeck-stage/
+          Compress-Archive -Path dist/streamdeck-stage/* -DestinationPath dist/streamdeck-plugin.zip
+          Write-Host "Packed: $((Get-Item dist/streamdeck-plugin.zip).Length) bytes"
+
       - name: Upload win-unpacked (x64) artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,5 +82,6 @@ jobs:
           files: |
             dist/overlay-win-unpacked.zip
             dist/overlay-win-arm64-unpacked.zip
+            dist/streamdeck-plugin.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
