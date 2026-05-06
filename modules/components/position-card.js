@@ -26,6 +26,19 @@
 (function() {
   'use strict';
 
+  // Cached minimal-mode flag — same rationale as gap-display.js. The
+  // SR-pie branch in render() ran a per-frame document.body classList
+  // walk before this; with telemetry at 60Hz that's 60 sync style
+  // reads per second per component instance.
+  let _isMinimal = !!(document.body && document.body.classList.contains('mode-minimal'));
+  function _refreshMinimalFlag() {
+    _isMinimal = !!(document.body && document.body.classList.contains('mode-minimal'));
+  }
+  if (typeof MutationObserver !== 'undefined' && document.body) {
+    new MutationObserver(_refreshMinimalFlag)
+      .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+
   class RaceCorPositionCard extends HTMLElement {
     constructor() {
       super();
@@ -378,8 +391,7 @@
       }
 
       if (this._srPieEl && this._safetyRating > 0) {
-        const isMinimal = document.body && document.body.classList.contains('mode-minimal');
-        if (isMinimal) {
+        if (_isMinimal) {
           // Tufte: no pie — color the number by license-class thresholds
           const srColor = this._safetyRating >= 3.0 ? 'var(--green)'
             : this._safetyRating >= 2.0 ? 'var(--amber)'
