@@ -41,13 +41,41 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist/win-arm64-unpacked/* -DestinationPath dist/overlay-win-arm64-unpacked.zip
 
-      # The Stream Deck plugin lives in the overlay's repo source tree
-      # (streamdeck/racecor/com.k10motorsports.racecor.overlay.sdPlugin/)
-      # but electron-builder buries it inside resources/app.asar with
-      # the rest of the renderer. The host installer needs the plugin
-      # as a real on-disk folder so it can copy it into Elgato's
-      # plugins dir on ssPostInstall — pack it standalone here so the
-      # host workflow can pull it directly without parsing the asar.
+      # ─── Stream Deck plugin ────────────────────────────────────────
+      # The plugin's TypeScript source lives at
+      # streamdeck/racecor/src/ and is compiled by rollup into
+      # com.k10motorsports.racecor.overlay.sdPlugin/bin/plugin.js.
+      # That bin/ output is gitignored (`*.sdPlugin/bin` in
+      # streamdeck/racecor/.gitignore), so we MUST run the build here
+      # — without it, CI ships a .sdPlugin folder with no compiled
+      # JavaScript and Stream Deck loads the plugin but the actions
+      # never wake up. (This was the "coming through unpacked"
+      # symptom on 0.18.x / 0.19.0.)
+      - name: Install Stream Deck plugin deps
+        shell: pwsh
+        working-directory: streamdeck/racecor
+        run: npm ci
+
+      - name: Build Stream Deck plugin (rollup → bin/plugin.js)
+        shell: pwsh
+        working-directory: streamdeck/racecor
+        run: |
+          npm run build
+          $bin = "com.k10motorsports.racecor.overlay.sdPlugin/bin/plugin.js"
+          if (-not (Test-Path $bin)) {
+            throw "Build did not produce $bin — rollup config likely changed."
+          }
+          Write-Host "Built: $((Get-Item $bin).Length) bytes"
+
+      # The host installer needs the plugin as a real on-disk folder
+      # so it can copy it into Elgato's plugins dir on ssPostInstall
+      # (electron-builder buries the in-overlay copy inside
+      # resources/app.asar). Pack it standalone here.
+      #
+      # Also emit a .streamDeckPlugin file (the Elgato standard
+      # distributable, a zip with that extension) so users who
+      # already run Stream Deck can double-click to install without
+      # the host bundle.
       - name: Pack Stream Deck plugin for downstream consumers
         shell: pwsh
         run: |
@@ -55,13 +83,20 @@ jobs:
           if (-not (Test-Path "$sdSrc/manifest.json")) {
             throw "Stream Deck plugin manifest missing at $sdSrc/manifest.json"
           }
+          if (-not (Test-Path "$sdSrc/bin/plugin.js")) {
+            throw "Stream Deck plugin bin/plugin.js missing — build step skipped or failed."
+          }
           # Wrap the .sdPlugin folder so the zip preserves the full
           # folder name when extracted (Stream Deck looks for the
           # exact com.k10motorsports.racecor.overlay.sdPlugin dir).
           New-Item -ItemType Directory -Force -Path dist/streamdeck-stage | Out-Null
           Copy-Item -Recurse -Force $sdSrc dist/streamdeck-stage/
           Compress-Archive -Path dist/streamdeck-stage/* -DestinationPath dist/streamdeck-plugin.zip
-          Write-Host "Packed: $((Get-Item dist/streamdeck-plugin.zip).Length) bytes"
+          # .streamDeckPlugin is just a renamed zip — same payload,
+          # OS file association handles it through Stream Deck.
+          Copy-Item dist/streamdeck-plugin.zip dist/com.k10motorsports.racecor.overlay.streamDeckPlugin
+          Write-Host "Packed zip: $((Get-Item dist/streamdeck-plugin.zip).Length) bytes"
+          Write-Host "Packed sdPlugin: $((Get-Item dist/com.k10motorsports.racecor.overlay.streamDeckPlugin).Length) bytes"
 
       - name: Upload win-unpacked (x64) artifact
         uses: actions/upload-artifact@v4
@@ -83,5 +118,6 @@ jobs:
             dist/overlay-win-unpacked.zip
             dist/overlay-win-arm64-unpacked.zip
             dist/streamdeck-plugin.zip
+            dist/com.k10motorsports.racecor.overlay.streamDeckPlugin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
