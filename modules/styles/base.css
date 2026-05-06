@@ -1,5 +1,13 @@
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+  /* Generic module-visibility class. The host's settings page writes
+     show* booleans into overlay-settings.json; settings.js maps those
+     to selectors and toggles this class on the matching elements.
+     Some panels (datastream / incidents / pitbox / leaderboard /
+     spotter) redeclare the rule with their own specificity — that's
+     fine, the end result is `display: none` either way. */
+  .section-hidden { display: none; }
+
   :root {
     --corner-r: 8px;
     --corner-r-sm: 5px;

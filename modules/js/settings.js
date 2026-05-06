@@ -8,12 +8,18 @@
   // from applySettings() — so they're restored here, scoped to what the
   // host-driven settings file actually controls.
 
-  // 5 positions: 4 user corners + 1 programmatic (absolute-center, used
-  // for pre-race / podium). All other behavior is deterministic from
-  // the corner: right→RTL flow, bottom→column-reverse, etc.
+  // 4 user corners + a "centered" alias mapping to the programmatic
+  // absolute-center used for pre-race / podium. All other behavior is
+  // deterministic from the corner: right→RTL flow, bottom→column-reverse.
+  // Top/bottom-center don't have CSS coverage — the host's picker is
+  // pruned to match this set so users can't pick an option that
+  // silently falls back to top-right.
   var _layoutPositionMap = {
-    'top-right': 'layout-tr', 'top-left': 'layout-tl',
-    'bottom-right': 'layout-br', 'bottom-left': 'layout-bl',
+    'top-right':       'layout-tr',
+    'top-left':        'layout-tl',
+    'bottom-right':    'layout-br',
+    'bottom-left':     'layout-bl',
+    'centered':        'layout-ac',
     'absolute-center': 'layout-ac'
   };
   var _allLayoutClasses = Object.keys(_layoutPositionMap).map(function(k) { return _layoutPositionMap[k]; });
@@ -28,7 +34,7 @@
 
     var isBottom = pos.indexOf('bottom') !== -1;
     var isRight  = pos.indexOf('right')  !== -1;
-    var isCenter = (pos === 'absolute-center');
+    var isCenter = (pos === 'absolute-center' || pos === 'centered');
 
     // Commentary: diagonally opposite the main HUD.
     var cmtCol = document.getElementById('commentaryCol');
@@ -150,15 +156,48 @@
     return Array.from(document.querySelectorAll('.' + sectionKey));
   }
 
-  function applySettings() {
-    const toggles = document.querySelectorAll('.settings-toggle[data-key]');
-    toggles.forEach(t => {
-      const key = t.dataset.key;
-      const on = _settings[key] !== false;
-      t.classList.toggle('on', on);
+  // Settings key → CSS selector(s) for the panel(s) that key shows/hides.
+  // Replaces the old [data-key]/[data-section] markup-driven mechanism
+  // (the in-overlay settings UI that emitted those attributes is gone).
+  // Anything in this map participates in module visibility — adding a
+  // new toggle on the host side requires a row here too, otherwise
+  // toggling it does nothing visible.
+  var _MODULE_VISIBILITY = {
+    showControls:    '.car-controls',
+    showPedals:      '.pedals-area',
+    showPosition:    '.pos-gaps-col, .rating-pos-block, .gaps-block',
+    showTacho:       '.tacho-block',
+    showCommentary:  '#commentaryCol',
+    showLeaderboard: '#leaderboardPanel',
+    showDatastream:  '#datastreamPanel',
+    showPitBox:      '#pitBoxPanel',
+    showIncidents:   '#incidentsPanel',
+    showSpotter:     '#spotterPanel',
+    showK10Logo:     '#k10LogoSquare',
+    showCarLogo:     '#carLogoSquare',
+    showGameLogo:    '#gameLogoOverlay',
+  };
 
-      const els = _findSectionEls(t.dataset.section);
-      els.forEach(el => el.classList.toggle('section-hidden', !on));
+  function applySettings() {
+    // Module visibility: apply .section-hidden directly to each
+    // mapped panel based on the host's show* booleans.
+    Object.keys(_MODULE_VISIBILITY).forEach(function(key) {
+      var on = _settings[key] !== false;
+      document.querySelectorAll(_MODULE_VISIBILITY[key]).forEach(function(el) {
+        el.classList.toggle('section-hidden', !on);
+      });
+    });
+
+    // Legacy [data-key]/[data-section] toggles — kept as a fallback in
+    // case any in-overlay surface (Stream Deck companion, debug HUD)
+    // still emits them. Cheap when the selector matches nothing.
+    document.querySelectorAll('.settings-toggle[data-key]').forEach(function(t) {
+      var key = t.dataset.key;
+      var on = _settings[key] !== false;
+      t.classList.toggle('on', on);
+      _findSectionEls(t.dataset.section).forEach(function(el) {
+        el.classList.toggle('section-hidden', !on);
+      });
     });
 
     // Parent column collapse: hide wrappers when all children hidden
@@ -180,8 +219,16 @@
       _settings.ambientMode = _settings.showAmbientLight ? 'reflective' : 'off';
       delete _settings.showAmbientLight;
     }
-    const ambMode = _settings.ambientMode || 'reflective';
-    if (typeof applyAmbientMode === 'function') applyAmbientMode(ambMode);
+    // Ambient mode lifecycle. The legacy applyAmbientMode helper lived
+    // in connections.js (deleted with the in-overlay UI). Inline the
+    // tiny dispatch here so 'off'/'auto'/anything-else flips the ambient
+    // light render loop on/off via the API in ambient-light.js.
+    const ambMode = _settings.ambientMode || 'auto';
+    if (ambMode === 'off') {
+      if (typeof window.stopAmbientLight === 'function') window.stopAmbientLight();
+    } else {
+      if (typeof window.startAmbientLight === 'function') window.startAmbientLight();
+    }
     // Restore saved capture region — only send to main process if ambient is ON
     // (Sending the rect when ambient is off used to auto-start capture via IPC race condition)
     if (ambMode !== 'off' && typeof window.restoreAmbientCapture === 'function') window.restoreAmbientCapture();
@@ -223,12 +270,15 @@
     const theme = _settings.theme || 'dark';
     document.body.setAttribute('data-theme', theme);
 
-    // Visual mode classes
+    // Visual mode classes. Host's segmented control writes "minimal+"
+    // (the "plus" rendering match the user-visible label) — accept both
+    // that and the older "minimal-plus" key so existing on-disk JSON
+    // still maps to the right body class.
     const preset = _settings.visualPreset || 'standard';
     document.body.classList.remove('mode-minimal', 'mode-minimal-plus');
     if (preset === 'minimal') {
       document.body.classList.add('mode-minimal');
-    } else if (preset === 'minimal-plus') {
+    } else if (preset === 'minimal+' || preset === 'minimal-plus') {
       document.body.classList.add('mode-minimal-plus');
     }
   }
@@ -300,7 +350,7 @@
       _settings.showK10Logo = false;
       _settings.showCarLogo = false;
       _settings.showGameLogo = false;
-    } else if (preset === 'minimal-plus') {
+    } else if (preset === 'minimal+' || preset === 'minimal-plus') {
       document.body.classList.add('mode-minimal-plus');
       // Racing-educated Tufte: data-reactive effects on, static decoration off
       _settings.showWebGL = true;  // but CSS reduces intensity to 60%
@@ -334,9 +384,11 @@
       document.body.classList.remove('mode-minimal', 'mode-minimal-plus');
     }
 
-    // Sync UI toggles and save
+    // Sync UI toggles and save. saveSettings only exists when the
+    // legacy in-overlay UI is loaded; otherwise the WinUI host is the
+    // canonical writer and this path is dead.
     applySettings();
-    saveSettings();
+    if (typeof saveSettings === 'function') saveSettings();
   }
 
   // ── Theme switching ──
@@ -347,7 +399,7 @@
     if (window.tokenLoader && typeof window.tokenLoader.setTheme === 'function') {
       window.tokenLoader.setTheme(_settings.theme);
     }
-    saveSettings();
+    if (typeof saveSettings === 'function') saveSettings();
   }
 
   // ── Commentary settings (authoritative copy in _settings; relayed to plugin) ──
@@ -391,9 +443,39 @@
     });
   }
 
+  // ── Cold-start load ──
+  // Pull the host's persisted overlay-settings.json once on boot, merge
+  // into the renderer's _settings (which defaults to _defaultSettings
+  // from config.js), and apply. Without this, the overlay ignores
+  // saved settings until the user toggles something — at which point
+  // the watcher fires settings-sync. Run on DOMContentLoaded so the
+  // panels applySettings() touches actually exist in the DOM.
+  function _loadInitialSettings() {
+    if (!window.k10 || !window.k10.getSettings) {
+      // No bridge (running in a browser tab for dev) — apply defaults.
+      try { applySettings(); } catch (e) { console.warn('[settings] initial apply failed:', e); }
+      return;
+    }
+    window.k10.getSettings().then(function(saved) {
+      if (saved && typeof saved === 'object') {
+        Object.assign(_settings, saved);
+      }
+      try { applySettings(); } catch (e) { console.warn('[settings] initial apply failed:', e); }
+      _relayCommentaryToPlugin(_settings);
+    }).catch(function(err) {
+      console.warn('[settings] initial getSettings failed:', err);
+      try { applySettings(); } catch (e) {}
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _loadInitialSettings);
+  } else {
+    _loadInitialSettings();
+  }
+
   // ── Cross-window settings sync ──
-  // When the other window changes settings, apply them here, and relay any
-  // commentary keys to the SimHub plugin so its filtering stays in sync.
+  // When the host changes settings on disk, apply them here, and relay
+  // any commentary keys to the SimHub plugin so its filtering stays in sync.
   if (window.k10 && window.k10.onSettingsSync) {
     window.k10.onSettingsSync(function(newSettings) {
       if (newSettings && typeof newSettings === 'object') {
@@ -403,10 +485,5 @@
       }
     });
   }
-
-  // On cold start we also need to push the current commentary values to the
-  // plugin — otherwise a plugin restart would use stale values until the
-  // user touched a setting. Fire after a short delay so SIMHUB_URL is ready.
-  setTimeout(function() { _relayCommentaryToPlugin(_settings); }, 2000);
 
   // ═══════════════════════════════════════════════════════════════
