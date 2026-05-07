@@ -102,16 +102,18 @@ let rendererCrashCount = 0;
 
 // ── Inverted-shell flag ──────────────────────────────────────
 // When true, the web-app window opens at startup as the primary surface
-// and the overlay window is created hidden, revealed only when isInRace flips
-// true. Read from settings so users can fall back to the legacy overlay-first
-// behaviour (useful for broadcasters who always want the HUD on screen).
-// Default: true — the new architecture is the intended UX.
+// and the overlay window is created hidden, revealed only when isInRace
+// flips true. That rule made sense when the overlay was its own shell;
+// the WinUI host is the shell now and only launches the overlay when
+// the HUD should be visible, so we default to false (always-on overlay)
+// and only enable the inverted shell if a settings file explicitly
+// opts in via `invertShell: true`.
 function shouldInvertShell() {
   try {
     const s = loadSettingsSync();
-    return s.invertShell !== false;
+    return s.invertShell === true;
   } catch {
-    return true;
+    return false;
   }
 }
 // Single dashboard: vanilla TypeScript build (Vite-bundled, single-file HTML)

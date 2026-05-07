@@ -259,12 +259,15 @@
     // Datastream field toggles
     applyDsFieldToggles();
 
-    // Logo-only startup: apply body class so CSS hides everything except logos.
-    // Only add if we haven't already revealed — otherwise applySettings()
-    // re-applies logo-only every time a mode or setting changes.
-    if (_settings.logoOnlyStart !== false && !_logoOnlyRevealed) {
-      document.body.classList.add('logo-only');
-    }
+    // Logo-only startup is dead. It existed when the overlay was its
+    // own shell — the HUD would boot in logo-only mode and reveal when
+    // the session went active. The WinUI host is the shell now and
+    // launches the overlay only when it makes sense for the HUD to be
+    // visible, so the boot-into-logos rule just hides everything for
+    // no reason. Strip the class if anything else added it; never add
+    // it ourselves. revealFromLogoOnly() below stays as a no-op so
+    // poll-engine's typeof-guarded call still resolves.
+    document.body.classList.remove('logo-only');
 
     // Theme — sync body attribute for CSS variable theming
     const theme = _settings.theme || 'dark';
