@@ -203,9 +203,19 @@
     // Parent column collapse: hide wrappers when all children hidden
     _collapseParentColumns();
 
-    // SimHub URL — restore saved URL override so polling uses the persisted URL
-    if (_settings.simhubUrl && _settings.simhubUrl !== SIMHUB_URL) {
+    // SimHub URL override — only honour the saved value if it actually
+    // looks like our plugin endpoint (i.e. has the plugin path on the
+    // end). Earlier host versions saved bare host:port (e.g.
+    // "http://localhost:8889"), which 404s on the SimHub root and
+    // produces empty-but-shaped responses — every panel sits at zero
+    // and the HUD looks dead even though poll-engine "succeeds". Fall
+    // back to the canonical SIMHUB_URL when the saved value is bare.
+    if (_settings.simhubUrl
+        && _settings.simhubUrl !== SIMHUB_URL
+        && /\/racecor-io-pro-drive\/?$/.test(_settings.simhubUrl)) {
       window._simhubUrlOverride = _settings.simhubUrl;
+    } else {
+      window._simhubUrlOverride = null;
     }
 
     // WebGL effects toggle
@@ -259,15 +269,17 @@
     // Datastream field toggles
     applyDsFieldToggles();
 
-    // Logo-only startup is dead. It existed when the overlay was its
-    // own shell — the HUD would boot in logo-only mode and reveal when
-    // the session went active. The WinUI host is the shell now and
-    // launches the overlay only when it makes sense for the HUD to be
-    // visible, so the boot-into-logos rule just hides everything for
-    // no reason. Strip the class if anything else added it; never add
-    // it ourselves. revealFromLogoOnly() below stays as a no-op so
-    // poll-engine's typeof-guarded call still resolves.
-    document.body.classList.remove('logo-only');
+    // Logo-only startup: boot the HUD with everything except the K10
+    // and car logos hidden, then revealFromLogoOnly() (called by
+    // poll-engine when isInRace flips true) cross-fades the rest in.
+    // The reveal hook needs the class to exist on body when the
+    // session goes active — the previous "always-show" experiment
+    // (1b36c1a) broke that hand-off because the class was never added,
+    // so users saw nothing to reveal. Only add on first apply, before
+    // anything has been revealed.
+    if (_settings.logoOnlyStart !== false && !_logoOnlyRevealed) {
+      document.body.classList.add('logo-only');
+    }
 
     // Theme — sync body attribute for CSS variable theming
     const theme = _settings.theme || 'dark';
