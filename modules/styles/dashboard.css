@@ -1267,11 +1267,45 @@
     overflow: hidden;
   }
   .map-svg { width: 92%; flex: 1 1 0; min-height: 0; }
-  /* Full map label: flows below SVG — two-line names shrink the map above */
+  /* Full map label: single-line marquee so long names slide past instead of
+     wrapping and stealing vertical space from the map above. */
   .map-panel > .map-zoom-label {
     position: static;
     flex: 0 0 auto;
+    align-self: stretch;
+    width: 100%;
     margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    line-height: 1.2;
+    /* Soft fade on the sides so the slide doesn't clip hard at the edges. */
+    -webkit-mask-image: linear-gradient(to right,
+      transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
+            mask-image: linear-gradient(to right,
+      transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
+  }
+  .map-panel > .map-zoom-label .map-zoom-label-inner {
+    display: inline-block;
+    will-change: transform;
+  }
+  /* Animation only runs when JS detects overflow and adds .is-marquee.
+     Names that fit stay centered with no motion. */
+  .map-panel > .map-zoom-label.is-marquee {
+    text-align: left;
+  }
+  .map-panel > .map-zoom-label.is-marquee .map-zoom-label-inner {
+    animation: track-name-marquee var(--marquee-duration, 14s) ease-in-out infinite;
+  }
+  @keyframes track-name-marquee {
+    0%, 12%  { transform: translateX(0); }
+    50%, 88% { transform: translateX(var(--marquee-distance, 0)); }
+    100%     { transform: translateX(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .map-panel > .map-zoom-label.is-marquee .map-zoom-label-inner {
+      animation: none;
+      transform: translateX(0);
+    }
   }
   /* Track outline — three-layer rendering: thick outer edges, dark gap, thin center line */
   .map-track-outer {
