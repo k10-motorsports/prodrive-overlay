@@ -185,6 +185,40 @@
     return { x: first.x, y: first.y };
   };
 
+  // Write the track name into the full-map label and, if it doesn't fit on
+  // one line, kick off a slow horizontal marquee (pause → slide → pause → return).
+  let _lastFullMapLabelText = '';
+  function _setFullMapLabel(labelEl, name) {
+    if (!labelEl || name === _lastFullMapLabelText) return;
+    _lastFullMapLabelText = name;
+    let inner = labelEl.querySelector('.map-zoom-label-inner');
+    if (!inner) {
+      inner = document.createElement('span');
+      inner.className = 'map-zoom-label-inner';
+      labelEl.textContent = '';
+      labelEl.appendChild(inner);
+    }
+    inner.textContent = name;
+    // Reset before re-measuring so .clientWidth/.scrollWidth aren't influenced
+    // by an in-flight transform.
+    labelEl.classList.remove('is-marquee');
+    labelEl.style.removeProperty('--marquee-distance');
+    labelEl.style.removeProperty('--marquee-duration');
+    requestAnimationFrame(function() {
+      // Bail if the name changed again before this frame ran.
+      if (inner.textContent !== name) return;
+      const overflow = inner.scrollWidth - labelEl.clientWidth;
+      if (overflow > 2) {
+        // ~30 px/sec slide, clamped — keeps long names readable without
+        // feeling sluggish on short ones.
+        const duration = Math.max(10, Math.min(24, 8 + overflow / 30));
+        labelEl.style.setProperty('--marquee-distance', '-' + (overflow + 6) + 'px');
+        labelEl.style.setProperty('--marquee-duration', duration.toFixed(1) + 's');
+        labelEl.classList.add('is-marquee');
+      }
+    });
+  }
+
   function resolveTrackDisplayName(gameTrackName, trackSlug) {
     if (_trackDisplayNameCache[gameTrackName] || _trackDisplayNamePending[gameTrackName]) return;
     _trackDisplayNamePending[gameTrackName] = true;
@@ -1358,10 +1392,10 @@
       if (trackName) {
         const resolved = _trackDisplayNameCache[trackName];
         if (resolved) {
-          if (resolved !== fullMapLbl.textContent) fullMapLbl.textContent = resolved;
+          _setFullMapLabel(fullMapLbl, resolved);
         } else {
           // Show game name immediately, then upgrade if K10 returns a display name
-          if (trackName !== fullMapLbl.textContent) fullMapLbl.textContent = trackName;
+          _setFullMapLabel(fullMapLbl, trackName);
           resolveTrackDisplayName(trackName, _curTrackSlug);
         }
       }
