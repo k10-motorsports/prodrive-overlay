@@ -4,7 +4,7 @@
 // that renders the HTML dashboard over the sim
 // ═══════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, Menu, desktopCapturer, session } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, Menu, desktopCapturer, session, powerMonitor } = require('electron');
 const path   = require('path');
 const fs     = require('fs');
 const os     = require('os');
@@ -44,6 +44,18 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-software-rasterizer');
+
+// ── Anti-throttling ─────────────────────────────────────────
+// The overlay is never the focused window (the sim is) and gets
+// classified as occluded whenever a fullscreen sim covers the
+// screen. Without these, Chromium backgrounds the renderer and
+// throttles requestAnimationFrame + timers to ~1fps — every
+// animation goes choppy and stays choppy until the app is
+// relaunched. An always-on HUD must render at full rate even
+// when Chromium thinks it is in the background.
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 if (process.env.K10_FORCE_SOFTWARE === '1') {
   app.disableHardwareAcceleration();
@@ -168,7 +180,10 @@ async function createOverlay() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      // Never throttle the HUD when it is unfocused or occluded —
+      // see the anti-throttling command-line switches above.
+      backgroundThrottling: false
     }
   });
 
@@ -253,6 +268,20 @@ async function createOverlay() {
         }, 2000);
       }
     }
+  });
+
+  // ── System resume recovery ──────────────────────────────────
+  // After display or system sleep the GPU context and renderer
+  // can come back throttled or with lost WebGL contexts — the
+  // state the user otherwise clears with a manual restart.
+  // Reload the dashboard on resume so the overlay self-heals.
+  powerMonitor.on('resume', () => {
+    logToFile('[K10] System resumed — reloading dashboard');
+    setTimeout(() => {
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        loadDashboard();
+      }
+    }, 1500);
   });
 }
 
