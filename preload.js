@@ -90,6 +90,13 @@ contextBridge.exposeInMainWorld('k10', {
   stopRecording: () => ipcRenderer.invoke('stop-recording'),
   writeRecordingChunk: (buf) => ipcRenderer.invoke('write-recording-chunk', buf),
   getRecordingState: () => ipcRenderer.invoke('get-recording-state'),
+  // Native-backend recording (WinUI host owns the FFmpeg pipeline).
+  // Renderer calls these instead of the in-process recorder when
+  // recordingBackend === 'native'. Host port is discovered via
+  // settings.hostControlPort. See docs/recording-migration.md.
+  startNativeRecording: (opts) => ipcRenderer.invoke('start-native-recording', opts),
+  stopNativeRecording: () => ipcRenderer.invoke('stop-native-recording'),
+  getNativeRecordingState: () => ipcRenderer.invoke('get-native-recording-state'),
   onToggleRecording: (callback) => {
     ipcRenderer.on('toggle-recording', () => callback());
   },

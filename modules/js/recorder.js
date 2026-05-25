@@ -97,33 +97,90 @@
     return { audioInputs: audioInputs, videoInputs: videoInputs };
   }
 
+  // ── Cross-runtime device-id resolution ─────────────────────
+  // The Windows host's Settings page persists a WinRT DeviceInformation.Id
+  // (e.g. `\\?\USB#VID_046D&PID_085C#…{guid}\GLOBAL`). Chromium's
+  // navigator.mediaDevices.enumerateDevices() returns origin-scoped SHA-256
+  // hashes — different namespace entirely. Passing the WinRT id straight to
+  // getUserMedia({deviceId:{exact:…}}) throws NotFoundError every time.
+  //
+  // Workaround: the host now writes a friendly label (`*Label` settings key)
+  // alongside the WinRT id. We match by label first, normalized (USB hubs
+  // and driver versions like to append "(USB Video Device)" or a port
+  // index, so we accept startsWith/contains). If the label fails or is
+  // missing (older saves), we try the raw id as a Chromium id — that only
+  // hits if the overlay itself wrote the setting in a prior session.
+  // Returns a Chromium deviceId string, or null when nothing matches.
+  function normalizeDeviceLabel(s) {
+    if (!s) return '';
+    return ('' + s)
+      .toLowerCase()
+      .replace(/\s*\(usb video( device)?\)\s*$/i, '')
+      .replace(/\s*\(\d+- /, ' (')
+      .replace(/[\s ]+/g, ' ')
+      .trim();
+  }
+
+  async function resolveDeviceId(kind, savedId, savedLabel) {
+    if (!savedId && !savedLabel) return null;
+    var devices;
+    try {
+      devices = await navigator.mediaDevices.enumerateDevices();
+    } catch (e) {
+      return null;
+    }
+    var candidates = devices.filter(function (d) { return d.kind === kind; });
+    if (candidates.length === 0) return null;
+
+    // 1. Exact-match the saved Chromium deviceId (overlay-authored settings).
+    if (savedId) {
+      for (var i = 0; i < candidates.length; i++) {
+        if (candidates[i].deviceId === savedId) return savedId;
+      }
+    }
+    // 2. Match by normalized friendly label (host-authored settings).
+    if (savedLabel) {
+      var want = normalizeDeviceLabel(savedLabel);
+      for (var j = 0; j < candidates.length; j++) {
+        if (normalizeDeviceLabel(candidates[j].label) === want) {
+          return candidates[j].deviceId;
+        }
+      }
+      // Looser: substring either direction. Catches "Logitech BRIO" vs
+      // "Logitech BRIO (USB Video Device)".
+      for (var k = 0; k < candidates.length; k++) {
+        var have = normalizeDeviceLabel(candidates[k].label);
+        if (have && (have.indexOf(want) !== -1 || want.indexOf(have) !== -1)) {
+          return candidates[k].deviceId;
+        }
+      }
+    }
+    return null;
+  }
+
   // ── Webcam stream acquisition ──────────────────────────────
-  // Try {exact: id} first so we honor the user's dropdown selection. If that
-  // throws NotFoundError, the saved deviceId is probably stale — Chromium
-  // rotates deviceIds when permissions clear or the camera driver changes.
-  // Falling back to {ideal: id} tells the OS to pick the closest match
-  // instead of failing outright.
-  async function getWebcamStream(deviceId) {
+  // Resolve to a Chromium deviceId first; if resolution fails we fall back
+  // to {ideal: id} so the OS picks something rather than aborting the
+  // entire recording. emitWebcamWarning surfaces the mismatch on the UI.
+  async function getWebcamStream(deviceId, deviceLabel) {
     var baseVideo = {
       width: { ideal: 640 },
       height: { ideal: 480 },
       frameRate: { ideal: 30 },
     };
-    try {
+    var resolved = await resolveDeviceId('videoinput', deviceId, deviceLabel);
+    if (resolved) {
       return await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: Object.assign({ deviceId: { exact: deviceId } }, baseVideo),
+        video: Object.assign({ deviceId: { exact: resolved } }, baseVideo),
       });
-    } catch (err) {
-      if (err && (err.name === 'NotFoundError' || err.name === 'OverconstrainedError')) {
-        console.warn('[Recorder] Exact webcam deviceId not found, retrying with ideal match');
-        return await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: Object.assign({ deviceId: { ideal: deviceId } }, baseVideo),
-        });
-      }
-      throw err;
     }
+    console.warn('[Recorder] Webcam device not resolvable (id=' + deviceId + ', label=' + deviceLabel + ') — falling back to default camera');
+    emitWebcamWarning('Saved camera not found — using default');
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: baseVideo,
+    });
   }
 
   // ── User-visible webcam warnings ───────────────────────────
@@ -140,11 +197,100 @@
     }
   }
 
+  // ── Native-backend delegation ──────────────────────────────
+  // When the user has flipped Settings → Recording → Backend to "Native",
+  // the WinUI host owns the entire capture pipeline (FFmpeg + gdigrab +
+  // dshow). We just call into its HTTP control server via the main
+  // process. Local capture in this renderer is bypassed entirely so we
+  // don't double-record. The host-side migration plan lives in
+  // prodrive-windows/docs/recording-migration.md.
+  var _nativeRecording = false;
+  var _nativeStartTime = 0;
+  var _nativeStatePoller = null;
+
+  async function startNativeRecording(options) {
+    if (_nativeRecording || _recording) {
+      console.warn('[Recorder] Already recording (native)');
+      return { error: 'Already recording' };
+    }
+    if (!window.k10 || typeof window.k10.startNativeRecording !== 'function') {
+      return { error: 'Native recording bridge unavailable — preload missing IPC' };
+    }
+    var result = await window.k10.startNativeRecording({
+      car: window._currentCarModel || null,
+      track: window._currentTrackName || null,
+      outputDirectory: (options && options.outputDirectory) || null,
+    });
+    if (result && !result.error) {
+      _nativeRecording = true;
+      _nativeStartTime = Date.now();
+      _startTime = _nativeStartTime; // recorderElapsedMs() uses this
+      _recording = true; // share the public "is recording?" flag so the indicator UI lights up
+      window.dispatchEvent(new CustomEvent('recording-state-change', {
+        detail: { recording: true, filename: result.path || '(native)' },
+      }));
+      startNativeStatePolling();
+      console.log('[Recorder] Native recording started → ' + (result.path || '?'));
+      return { success: true, filename: result.path || '' };
+    }
+    var err = (result && result.error) || 'Unknown native recording error';
+    console.error('[Recorder] Native start failed:', err);
+    return { error: err };
+  }
+
+  async function stopNativeRecording() {
+    if (!_nativeRecording) {
+      return { error: 'Not recording (native)' };
+    }
+    stopNativeStatePolling();
+    var result = await window.k10.stopNativeRecording();
+    _nativeRecording = false;
+    _recording = false;
+    window.dispatchEvent(new CustomEvent('recording-state-change', {
+      detail: { recording: false, result: result },
+    }));
+    return result;
+  }
+
+  // Poll the host every few seconds so the indicator picks up host-side
+  // stops (e.g. ffmpeg crashed, user hit Stop from another surface).
+  // The local timer in recorder-ui drives second-by-second display;
+  // we just need the eventual divergence to be detectable.
+  function startNativeStatePolling() {
+    stopNativeStatePolling();
+    _nativeStatePoller = setInterval(async function () {
+      try {
+        var state = await window.k10.getNativeRecordingState();
+        if (!state || state.error) return;
+        if (_nativeRecording && state.recording === false) {
+          // Host stopped without us asking — sync UI state.
+          _nativeRecording = false;
+          _recording = false;
+          stopNativeStatePolling();
+          window.dispatchEvent(new CustomEvent('recording-state-change', {
+            detail: { recording: false, result: state },
+          }));
+        }
+      } catch (e) { /* ignore — transient */ }
+    }, 3000);
+  }
+  function stopNativeStatePolling() {
+    if (_nativeStatePoller) { clearInterval(_nativeStatePoller); _nativeStatePoller = null; }
+  }
+
   // ── Start recording ────────────────────────────────────────
   async function startRecording(options) {
     if (_recording) {
       console.warn('[Recorder] Already recording');
       return { error: 'Already recording' };
+    }
+
+    // Route to the WinUI host when the user opted into the native
+    // backend. The Electron capture path below stays intact as the
+    // working default for users still on "electron".
+    var backend = (window._settings && window._settings.recordingBackend) || 'electron';
+    if (backend === 'native') {
+      return startNativeRecording(options || {});
     }
 
     options = options || {};
@@ -178,6 +324,8 @@
 
       var micDeviceId = settings.recordingMicDevice || undefined;
       var sysDeviceId = settings.recordingSystemAudioDevice || undefined;
+      var micLabel    = settings.recordingMicLabel || undefined;
+      var sysLabel    = settings.recordingSystemAudioLabel || undefined;
 
       if (includeMic) {
         try {
@@ -189,8 +337,13 @@
             },
             video: false,
           };
-          if (micDeviceId) {
-            micConstraints.audio.deviceId = { exact: micDeviceId };
+          var resolvedMic = await resolveDeviceId('audioinput', micDeviceId, micLabel);
+          if (resolvedMic) {
+            micConstraints.audio.deviceId = { exact: resolvedMic };
+          } else if (micDeviceId || micLabel) {
+            // Host-picked mic that we can't bind — let Chromium pick the
+            // OS default rather than aborting the whole recording.
+            console.warn('[Recorder] Mic device not resolvable (id=' + micDeviceId + ', label=' + micLabel + '), using default');
           }
           _micStream = await navigator.mediaDevices.getUserMedia(micConstraints);
           console.log('[Recorder] Mic stream acquired');
@@ -200,11 +353,15 @@
         }
       }
 
-      if (includeSystemAudio && sysDeviceId) {
+      if (includeSystemAudio && (sysDeviceId || sysLabel)) {
         try {
+          var resolvedSys = await resolveDeviceId('audioinput', sysDeviceId, sysLabel);
+          if (!resolvedSys) {
+            throw new Error('System audio device not found — pick a virtual cable in Settings.');
+          }
           _systemAudioStream = await navigator.mediaDevices.getUserMedia({
             audio: {
-              deviceId: { exact: sysDeviceId },
+              deviceId: { exact: resolvedSys },
               echoCancellation: false,
               noiseSuppression: false,
               autoGainControl: false,
@@ -265,7 +422,7 @@
 
       if (includeWebcam && webcamDeviceId) {
         try {
-          _webcamStream = await getWebcamStream(webcamDeviceId);
+          _webcamStream = await getWebcamStream(webcamDeviceId, settings.recordingWebcamLabel);
           console.log('[Recorder] Webcam stream acquired');
         } catch (camErr) {
           var reason = camErr && camErr.name ? camErr.name + ': ' + camErr.message : String(camErr);
@@ -466,6 +623,10 @@
 
   // ── Stop recording ─────────────────────────────────────────
   async function stopRecording() {
+    // Native backend path — bypasses _mediaRecorder entirely.
+    if (_nativeRecording) {
+      return stopNativeRecording();
+    }
     if (!_recording || !_mediaRecorder) {
       return { error: 'Not recording' };
     }

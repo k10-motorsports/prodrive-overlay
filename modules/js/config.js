@@ -641,11 +641,14 @@ const _defaultSettings = {
   // Screen recording
   recordingQuality: 'high',     // 'low', 'medium', 'high'
   recordingMic: true,           // include microphone audio
-  recordingMicDevice: '',       // deviceId — empty = system default
-  recordingSystemAudioDevice: '',// deviceId — virtual audio cable for game sound
+  recordingMicDevice: '',       // WinRT DeviceInformation.Id from host picker (or Chromium id for legacy saves)
+  recordingMicLabel: '',        // Friendly name; overlay uses this to resolve to a Chromium deviceId at record-start
+  recordingSystemAudioDevice: '',// WinRT DeviceInformation.Id for the virtual audio cable
+  recordingSystemAudioLabel: '',// Friendly name companion to recordingSystemAudioDevice
   recordingMicVolume: 0.8,      // 0.0–1.0 — mic gain in the mix
   recordingSystemVolume: 1.0,   // 0.0–1.0 — system/game audio gain
-  recordingWebcamDevice: '',    // deviceId — empty = no facecam
+  recordingWebcamDevice: '',    // WinRT DeviceInformation.Id — empty = no facecam
+  recordingWebcamLabel: '',     // Friendly name companion to recordingWebcamDevice
   recordingFacecam: null,       // { width, height, x, y, margin, ... }
   recordingFacecamSize: 'medium', // 'small', 'medium', 'large'
   recordingFacecamPos: 'bottom-right', // 'bottom-right', 'bottom-left', 'top-right', 'top-left'

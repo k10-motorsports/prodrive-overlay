@@ -306,6 +306,29 @@ app.whenReady().then(() => {
       }
     });
 
+    // ── Media permission handler for facecam + mic ──
+    // The overlay window is transparent + focusable:false, so a Chromium
+    // permission prompt would have no UI surface and silently fail. The
+    // overlay is loaded from a local file:// origin we ship, so granting
+    // these is safe. Without this, getUserMedia({video}) never opens the
+    // camera and the green light never turns on, even after the user
+    // picks a device in the Windows host's Settings page.
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+      if (permission === 'media' || permission === 'mediaKeySystem'
+          || permission === 'display-capture' || permission === 'fullscreen') {
+        callback(true);
+        return;
+      }
+      callback(false);
+    });
+    session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+      if (permission === 'media' || permission === 'mediaKeySystem'
+          || permission === 'display-capture' || permission === 'fullscreen') {
+        return true;
+      }
+      return false;
+    });
+
     maybeStartRemoteServer();
     updater.initAutoUpdater(overlayWindow, logToFile);
     startSettingsWatcher();
@@ -791,6 +814,89 @@ ipcMain.handle('get-recording-state', async () => {
     path: _recordingPath,
     duration: _recordingStartTime ? Date.now() - _recordingStartTime : 0,
   };
+});
+
+// ── IPC: Native recording (delegates to WinUI host's HTTP server) ──
+// When the user toggles "Native" recording backend in the host's Settings
+// page, recorder.js routes start/stop calls through these handlers
+// instead of doing in-process capture. The host's RecordingControlServer
+// writes its bound port to overlay-settings.json (`hostControlPort`); we
+// read it on each call so port changes don't require an overlay restart.
+// See docs/recording-migration.md for the migration plan.
+
+function hostControlRequest(method, pathSuffix, bodyObj) {
+  return new Promise((resolve) => {
+    const settings = loadSettingsSync();
+    const port = settings.hostControlPort;
+    if (!port) {
+      resolve({ error: 'Host control server not configured (hostControlPort missing). Is the Windows host running?' });
+      return;
+    }
+    const body = bodyObj ? Buffer.from(JSON.stringify(bodyObj)) : null;
+    const req = http.request({
+      host: '127.0.0.1',
+      port,
+      path: pathSuffix,
+      method,
+      headers: body
+        ? { 'content-type': 'application/json', 'content-length': body.length }
+        : {},
+      timeout: 8000,
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        try {
+          const parsed = raw ? JSON.parse(raw) : {};
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(parsed);
+          } else {
+            resolve({ error: parsed.error || `Host returned ${res.statusCode}` });
+          }
+        } catch (e) {
+          resolve({ error: `Host returned invalid JSON: ${e.message}` });
+        }
+      });
+    });
+    req.on('error', (err) => {
+      resolve({ error: `Could not reach host: ${err.message}` });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({ error: 'Host control server timed out' });
+    });
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+ipcMain.handle('start-native-recording', async (_event, options = {}) => {
+  const result = await hostControlRequest('POST', '/v1/recording/start', {
+    car: options.car || null,
+    track: options.track || null,
+    outputDirectory: options.outputDirectory || null,
+  });
+  if (!result.error) {
+    logToFile(`[K10] Native recording started via host → ${result.path || '(no path)'}`);
+  } else {
+    logToFile(`[K10] Native recording start failed: ${result.error}`);
+  }
+  return result;
+});
+
+ipcMain.handle('stop-native-recording', async () => {
+  const result = await hostControlRequest('POST', '/v1/recording/stop', null);
+  if (!result.error) {
+    logToFile(`[K10] Native recording stopped via host → ${result.path || '(no path)'} (${result.fileSize || 0} bytes)`);
+  } else {
+    logToFile(`[K10] Native recording stop failed: ${result.error}`);
+  }
+  return result;
+});
+
+ipcMain.handle('get-native-recording-state', async () => {
+  return hostControlRequest('GET', '/v1/recording/state', null);
 });
 
 // ── IPC: Telemetry sidecar (.telemetry.jsonl alongside video) ──
