@@ -233,15 +233,17 @@
     // in connections.js (deleted with the in-overlay UI). Inline the
     // tiny dispatch here so 'off'/'auto'/anything-else flips the ambient
     // light render loop on/off via the API in ambient-light.js.
+    // Ambient runs only when the setting is on AND we're in a car (_isIdle
+    // false). At boot / at the menus the overlay stays dormant; poll-engine's
+    // in-car enter handler starts ambient once there's live car data.
     const ambMode = _settings.ambientMode || 'auto';
-    if (ambMode === 'off') {
-      if (typeof window.stopAmbientLight === 'function') window.stopAmbientLight();
-    } else {
+    if (ambMode !== 'off' && !_isIdle) {
       if (typeof window.startAmbientLight === 'function') window.startAmbientLight();
+    } else {
+      if (typeof window.stopAmbientLight === 'function') window.stopAmbientLight();
     }
-    // Restore saved capture region — only send to main process if ambient is ON
-    // (Sending the rect when ambient is off used to auto-start capture via IPC race condition)
-    if (ambMode !== 'off' && typeof window.restoreAmbientCapture === 'function') window.restoreAmbientCapture();
+    // Restore saved capture region — only when ambient is on AND active.
+    if (ambMode !== 'off' && !_isIdle && typeof window.restoreAmbientCapture === 'function') window.restoreAmbientCapture();
 
     // Bonkers pit limiter toggle
     document.body.classList.toggle('bonkers-off', _settings.showBonkers === false);
@@ -269,18 +271,6 @@
     // Datastream field toggles
     applyDsFieldToggles();
 
-    // Logo-only startup: boot the HUD with everything except the K10
-    // and car logos hidden, then revealFromLogoOnly() (called by
-    // poll-engine when isInRace flips true) cross-fades the rest in.
-    // The reveal hook needs the class to exist on body when the
-    // session goes active — the previous "always-show" experiment
-    // (1b36c1a) broke that hand-off because the class was never added,
-    // so users saw nothing to reveal. Only add on first apply, before
-    // anything has been revealed.
-    if (_settings.logoOnlyStart !== false && !_logoOnlyRevealed) {
-      document.body.classList.add('logo-only');
-    }
-
     // Theme — sync body attribute for CSS variable theming
     const theme = _settings.theme || 'dark';
     document.body.setAttribute('data-theme', theme);
@@ -296,18 +286,6 @@
     } else if (preset === 'minimal+' || preset === 'minimal-plus') {
       document.body.classList.add('mode-minimal-plus');
     }
-  }
-
-  // Called by poll-engine when session goes active (game running + session state > 0).
-  // Removes logo-only mode with a reveal transition.
-  let _logoOnlyRevealed = false;
-  function revealFromLogoOnly() {
-    if (_logoOnlyRevealed) return;
-    _logoOnlyRevealed = true;
-    document.body.classList.add('logo-only-reveal');
-    document.body.classList.remove('logo-only');
-    // Clean up the reveal class after transition completes
-    setTimeout(() => document.body.classList.remove('logo-only-reveal'), 1200);
   }
 
   function _collapseParentColumns() {

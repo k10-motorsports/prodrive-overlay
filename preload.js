@@ -72,10 +72,8 @@ contextBridge.exposeInMainWorld('k10', {
   onPresetQualifying: (callback) => { ipcRenderer.on('preset-qualifying', () => callback()); },
   // Stream Deck plugin install
   installStreamDeckPlugin: () => ipcRenderer.invoke('install-streamdeck-plugin'),
-  // Idle state — notify main process so it can switch window mode
-  notifyIdleState: (isIdle) => ipcRenderer.invoke('notify-idle-state', isIdle),
-  // In-race state — drives overlay-window visibility in the inverted shell.
-  // Renderer → main: called on every in-race flip by poll-engine.
+  // In-car state — drives overlay-window show/hide. Renderer → main:
+  // called by poll-engine on every debounced in-car flip.
   notifyInRaceState: (isInRace) => ipcRenderer.invoke('notify-in-race-state', isInRace),
   // Main → renderer: subscribe to in-race flips (used by the web-app window
   // to render live session status without duplicating the polling logic).

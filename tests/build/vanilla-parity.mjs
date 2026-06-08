@@ -790,7 +790,6 @@ test.describe('DOM Structure Parity', () => {
       'settingsOverlay',
       'secContainer',
       'connBanner', 'connStatus',
-      'idleLogo',
       'irBarFill', 'srPieFill',
       'ratingPage', 'positionPage',
     ];

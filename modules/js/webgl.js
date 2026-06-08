@@ -2749,11 +2749,17 @@
 
     /* ── Master FX animation loop ── */
     let _lastFXTime = 0;
+    // Paused until there is live car data on screen. poll-engine flips this
+    // via window.setGLFXActive() on the debounced in-car edges, so the GPU
+    // FX loop does zero work at the menus (the GL context stays warm for an
+    // instant resume). Starts false — boot is dormant.
+    let _fxActive = false;
     function fxLoop(now) {
       const dt = Math.min((now - _lastFXTime) / 1000, 0.05); // cap at 50ms
       _lastFXTime = now;
-      // Skip rendering when WebGL effects are disabled
-      if (typeof _settings !== 'undefined' && _settings.showWebGL === false) {
+      // Skip the FX work while dormant (not in a car) or when WebGL effects
+      // are disabled. Keep rescheduling so we resume instantly on reactivate.
+      if (!_fxActive || (typeof _settings !== 'undefined' && _settings.showWebGL === false)) {
         requestAnimationFrame(fxLoop);
         return;
       }
@@ -2772,6 +2778,9 @@
       requestAnimationFrame(fxLoop);
     }
     requestAnimationFrame((now) => { _lastFXTime = now; requestAnimationFrame(fxLoop); });
+
+    // Active/dormant switch — driven by poll-engine setOverlayActive().
+    window.setGLFXActive = function(on) { _fxActive = !!on; };
 
     /* ── Public API for main update loop ── */
     window.updateGLFX = function(rpmRatio, thr, brk, clt) {

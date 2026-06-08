@@ -7,7 +7,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 const SIMHUB_URL = 'http://localhost:8889/racecor-io-pro-drive/';
-const POLL_MS = 33; // ~30fps
+const POLL_MS = 33; // ~30fps when in a car
+const IDLE_POLL_MS = 1000; // slow poll when not in a car — just enough to detect entry
 
 // All properties we need, batched into a single request
 const PROP_KEYS = [
@@ -334,6 +335,7 @@ const PROP_KEYS = [
 // Polling & connection
 let _pollFrame = 0;
 let _pollActive = false;
+let _pollIntervalId = null;    // current poll setInterval handle; rate varies with active state
 let _latestSnapshot = null;
 let _snapshotDirty = false;
 let _connFails = 0;
@@ -346,11 +348,11 @@ let _currentGameId = '';
 let _isIRacing = true;
 let _isRally = false;
 let _rallyModeEnabled = false;
-let _isIdle = true;
-// isInRace signal — owned by poll-engine, consumed by main via IPC.
-// Drives overlay-window visibility in the inverted shell architecture.
-// Distinct from _isIdle: _isIdle is renderer-local UI state (logo-only mode);
-// _prevInRace is the debounced edge-trigger source for window visibility.
+let _isIdle = true;            // true when not in a car — gates the heavy render path
+// isInRace signal — owned by poll-engine, consumed by main via IPC to show/
+// hide the overlay window. _isIdle is the immediate (undebounced) in-car gate
+// for the renderer's own skip-render; _prevInRace is the debounced edge-trigger
+// that drives window visibility AND the active/dormant workload switch.
 let _prevInRace = false;
 let _inRaceLeaveTimer = null;
 let _cycleFrameCount = 0;
@@ -596,7 +598,6 @@ function getCarAdjustability(model) {
 // ═══════════════════════════════════════════════════════════════
 
 const _defaultSettings = {
-  logoOnlyStart: true, // Start in logo-only mode; HUD reveals when session goes active
   showFuel: true, showTyres: true, showControls: true, showPedals: true,
   showPosition: true, showTacho: true, showCommentary: true,
   showK10Logo: true, showCarLogo: true, showGameLogo: true, simhubUrl: 'http://localhost:8889/racecor-io-pro-drive/',

@@ -309,6 +309,30 @@
     }
   }
 
+  // ─── Poll-rate control + active/dormant switch ───
+  // The overlay is "active" only while there is live car data on screen.
+  // When dormant we slow the SimHub poll and pause the FX + ambient loops so
+  // the renderer stops competing with the sim for CPU/GPU/network. This is
+  // required, not just nice-to-have: the anti-throttling switches in main.js
+  // keep timers + rAF running at full speed even when the window is hidden,
+  // so the renderer has to self-regulate. Driven by the debounced in-car
+  // edges (not the immediate _isIdle) so brief session-state dips don't flap.
+  function setPollRate(ms) {
+    if (_pollIntervalId) clearInterval(_pollIntervalId);
+    _pollIntervalId = setInterval(pollUpdate, ms);
+  }
+
+  function setOverlayActive(active) {
+    setPollRate(active ? POLL_MS : IDLE_POLL_MS);
+    if (typeof window.setGLFXActive === 'function') window.setGLFXActive(active);
+    var ambMode = (_settings && _settings.ambientMode) || 'auto';
+    if (active && ambMode !== 'off') {
+      if (typeof window.startAmbientLight === 'function') window.startAmbientLight();
+    } else {
+      if (typeof window.stopAmbientLight === 'function') window.stopAmbientLight();
+    }
+  }
+
   // ─── rAF render loop — DOM writes synchronized to display refresh rate ───
   function _rafLoop() {
     requestAnimationFrame(_rafLoop);
@@ -355,10 +379,10 @@
     const d = (gameKey, demoKey) => _demo ? v('RaceCorProDrive.Plugin.' + demoKey) : v(gameKey);
     const ds = (gameKey, demoKey) => _demo ? vs('RaceCorProDrive.Plugin.' + demoKey) : vs(gameKey);
 
-    // ─── Idle State Detection ───
-    // Always use REAL game state for idle detection (never demo-swapped).
-    // This ensures logo-only mode when no game is actually running,
-    // even if the SimHub plugin has demo mode enabled.
+    // ─── In-car detection ───
+    // Always use REAL game state here (never demo-swapped), so the overlay
+    // stays dormant/hidden when no game is actually running even if the
+    // SimHub plugin has demo mode enabled.
     const gameRunning = +v('DataCorePlugin.GameRunning') || 0;
     const realSessNum = parseInt(vs('RaceCorProDrive.Plugin.Grid.SessionState')) || 0;
     const sessionPre = _demo ? 'RaceCorProDrive.Plugin.Demo.Grid.' : 'RaceCorProDrive.Plugin.Grid.';
@@ -414,55 +438,49 @@
     // Expose rolling/formation start state for leaderboard sparklines
     window._isRollingStart = (sessNum === 2 || sessNum === 3); // Warmup or ParadeLaps
 
-    // Idle detection: show logo-only when no game is running AND not in demo mode.
-    // Demo mode should always show the full HUD so the overlay can be previewed.
-    // Pre-race states (1=GetInCar, 2=Warmup, 3=ParadeLaps) keep the HUD active.
+    // In-car detection: idle when no game is running OR no active session,
+    // and not in demo mode (demo always shows the full HUD for preview).
+    // SessionState 0 = menus/results; 1=GetInCar, 2=Warmup, 3=ParadeLaps,
+    // 4=Racing all mean you're in the car. _isIdle gates the heavy render
+    // below; body.idle-state is kept as a state flag other modules read
+    // (e.g. replay-buffer). There is no idle logo — when not in a car the
+    // window is hidden entirely (see the in-car visibility signal below).
     const nowIdle = !_demo && (!gameRunning || realSessNum === 0);
-    const idleLogo = document.getElementById('idleLogo');
     if (nowIdle !== _isIdle) {
       _isIdle = nowIdle;
-      if (nowIdle) {
-        document.body.classList.add('idle-state');
-        if (idleLogo) idleLogo.classList.add('idle-visible');
-      } else {
-        document.body.classList.remove('idle-state');
-        if (idleLogo) idleLogo.classList.remove('idle-visible');
-        // Session going active — reveal HUD from logo-only startup
-        if (typeof revealFromLogoOnly === 'function') revealFromLogoOnly();
-      }
-      // Notify main process so it can switch window mode (taskbar, always-on-top)
-      if (window.k10 && window.k10.notifyIdleState) {
-        window.k10.notifyIdleState(nowIdle);
-      }
+      document.body.classList.toggle('idle-state', nowIdle);
     }
 
-    // isInRace signal — drives overlay-window visibility in the inverted shell.
-    // Semantically the inverse of idle, but demo mode is ALSO in-race so the
-    // overlay shows during demo preview. Short debounce on "out of race" only —
-    // session-state briefly hits 0 between sessions and we don't want the
-    // overlay to flicker out and back. Transitions into race are immediate.
+    // In-car visibility signal — drives the overlay window's show/hide (main
+    // process) and the renderer's active/dormant workload. Demo mode is ALSO
+    // in-car so the overlay shows during preview. Short debounce on "leave"
+    // only — session-state briefly hits 0 between sessions and we don't want
+    // the window to flicker out and back. Entering a car is immediate.
     const nowInRace = !!_demo || (gameRunning && realSessNum > 0);
     if (nowInRace !== _prevInRace) {
       if (nowInRace) {
-        // Enter race: immediate, cancel any pending leave-race.
+        // Enter car: immediate, cancel any pending leave.
         if (_inRaceLeaveTimer) { clearTimeout(_inRaceLeaveTimer); _inRaceLeaveTimer = null; }
         _prevInRace = true;
+        setOverlayActive(true);
         if (window.k10 && window.k10.notifyInRaceState) {
           window.k10.notifyInRaceState(true);
         }
       } else {
-        // Leave race: debounce 2s to ride through session transitions.
+        // Leave car: debounce 2s to ride through session transitions before
+        // going dormant + hiding the window.
         if (_inRaceLeaveTimer) clearTimeout(_inRaceLeaveTimer);
         _inRaceLeaveTimer = setTimeout(function() {
           _inRaceLeaveTimer = null;
           _prevInRace = false;
+          setOverlayActive(false);
           if (window.k10 && window.k10.notifyInRaceState) {
             window.k10.notifyInRaceState(false);
           }
         }, 2000);
       }
     } else if (nowInRace && _inRaceLeaveTimer) {
-      // Flapped back to in-race during the debounce window — cancel the leave.
+      // Flapped back to in-car during the debounce window — cancel the leave.
       clearTimeout(_inRaceLeaveTimer);
       _inRaceLeaveTimer = null;
     }
@@ -1509,10 +1527,14 @@
 
     // Settings and Discord state are loaded by connections.js on script load
 
-    // Start polling
-    const _pollIntervalId = setInterval(pollUpdate, POLL_MS);
+    // Start polling. Do one immediate read so launch gets data without
+    // waiting a full interval, then settle into the dormant (slow) rate.
+    // The first poll that detects live car data flips us to the fast rate
+    // and reveals the window via setOverlayActive(true) in the in-car block.
+    pollUpdate();
+    setPollRate(IDLE_POLL_MS);
     window.addEventListener('beforeunload', function() {
-      clearInterval(_pollIntervalId);
+      if (_pollIntervalId) clearInterval(_pollIntervalId);
     });
   });
 

@@ -108,26 +108,17 @@ function saveRatingData(data) {
 // apply via modules/js/settings.js, render. No popout windows, no
 // settings mode, no in-overlay editors.
 let overlayWindow = null;
-let isIdleMode = false;          // true when driver is not in car (overlay → normal app)
-let isInRace = false;            // true when poll-engine reports an active session (drives overlay visibility)
+let isInRace = false;            // true when poll-engine reports live car data (drives overlay visibility)
 let rendererCrashCount = 0;
 
-// ── Inverted-shell flag ──────────────────────────────────────
-// When true, the web-app window opens at startup as the primary surface
-// and the overlay window is created hidden, revealed only when isInRace
-// flips true. That rule made sense when the overlay was its own shell;
-// the WinUI host is the shell now and only launches the overlay when
-// the HUD should be visible, so we default to false (always-on overlay)
-// and only enable the inverted shell if a settings file explicitly
-// opts in via `invertShell: true`.
-function shouldInvertShell() {
-  try {
-    const s = loadSettingsSync();
-    return s.invertShell === true;
-  } catch {
-    return false;
-  }
-}
+// ── Session-gated visibility ─────────────────────────────────
+// The overlay window is created hidden and only shown while there is
+// live car data to display. poll-engine (in the renderer) flips isInRace
+// via IPC when the driver is in the car (gameRunning && session active,
+// or demo mode). When not in a car the window stays hidden AND the
+// renderer goes dormant (slow poll, paused FX) so the overlay never
+// competes with the sim for CPU/GPU/network — notably while iRacing
+// loads its anti-cheat at the menus. There is no "logo-only" idle screen.
 // Single dashboard: vanilla TypeScript build (Vite-bundled, single-file HTML)
 const DASHBOARD_FILE = 'dashboard.html';
 
@@ -138,10 +129,6 @@ function getDashboardFile() {
 async function createOverlay() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenW, height: screenH } = primaryDisplay.bounds;
-
-  // In the inverted shell, the overlay starts hidden and is only revealed
-  // when poll-engine reports isInRace=true.
-  const startHidden = shouldInvertShell();
 
   logToFile(`[K10] Dashboard: ${getDashboardFile()}`);
   logToFile(`[K10] Primary display: ${screenW}x${screenH} at (${primaryDisplay.bounds.x}, ${primaryDisplay.bounds.y})`);
@@ -164,13 +151,12 @@ async function createOverlay() {
     x:      overlayBounds.x,
     y:      overlayBounds.y,
     icon: path.join(__dirname, 'images', 'branding', 'icon.png'),
-    // Start hidden in the inverted shell; shown when isInRace flips true.
-    show: !startHidden,
+    // Created hidden — shown only while there is live car data (isInRace).
+    show: false,
     frame: false,
     alwaysOnTop: true,
-    // In the inverted shell the overlay is session-only — hide from taskbar
-    // so the only persistent app tile is the web dashboard.
-    skipTaskbar: startHidden,
+    // Session-only window — never a persistent taskbar tile.
+    skipTaskbar: true,
     resizable: false,
     hasShadow: false,
     focusable: false,
@@ -190,9 +176,7 @@ async function createOverlay() {
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   loadDashboard();
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-  if (startHidden) {
-    logToFile('[K10] Inverted shell: overlay created hidden (awaiting isInRace)');
-  }
+  logToFile('[K10] Overlay created hidden — awaiting live car data (isInRace)');
 
   overlayWindow.webContents.on('did-finish-load', () => {
     rendererCrashCount = 0;
@@ -221,10 +205,12 @@ async function createOverlay() {
 
   // ── Windows: periodically re-assert always-on-top ──────────
   // DirectX fullscreen exclusive mode can steal z-order even from
-  // screen-saver level windows. Re-assert every 5 seconds.
+  // screen-saver level windows. Re-assert every 5 seconds — but only
+  // while the overlay is actually shown (in-car). When hidden there is
+  // nothing to keep on top, and skipping the churn keeps us dormant.
   if (process.platform === 'win32') {
     setInterval(() => {
-      if (overlayWindow && !overlayWindow.isDestroyed() && !isIdleMode) {
+      if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isVisible()) {
         overlayWindow.setAlwaysOnTop(false);
         overlayWindow.setAlwaysOnTop(true, 'screen-saver');
       }
@@ -364,23 +350,6 @@ app.whenReady().then(() => {
 
     // ── Auto-install Stream Deck plugin on first run ──
     autoInstallStreamDeckPlugin();
-
-    // ── Inverted shell: open the web-app window as the primary surface ──
-    // The overlay starts hidden and is revealed when poll-engine reports
-    // isInRace=true. Users boot into the web dashboard by default; the
-    // overlay is only on-screen while they are actually in a sim session.
-    if (shouldInvertShell()) {
-      // Small deferral so the overlay renderer finishes its initial load
-      // before we open a second window (avoids any IPC races during boot).
-      setTimeout(() => {
-        try {
-          openDashboardWindow();
-          logToFile('[K10] Inverted shell: web-app window opened as primary surface');
-        } catch (err) {
-          logToFile(`[K10] Failed to open web-app window: ${err.message}`);
-        }
-      }, 250);
-    }
   } catch (err) {
     logToFile(`[K10] FATAL: createOverlay() threw: ${err.stack || err.message}`);
     app.quit();
@@ -632,49 +601,14 @@ ipcMain.handle('install-streamdeck-plugin', async () => {
   }
 });
 
-// ── IPC: Idle/race window mode switching ──
-// When idle (not in car): normal app behavior — visible in taskbar, not always-on-top,
-// focusable via alt-tab. When racing: overlay mode — always-on-top, skip taskbar,
-// click-through. The nav bar buttons use pointer-events:auto on individual elements,
-// so the window itself stays click-through in both modes.
-ipcMain.handle('notify-idle-state', async (_event, idle) => {
-  if (!overlayWindow) return;
-  if (idle === isIdleMode) return;   // no change
-  isIdleMode = idle;
-
-  if (idle) {
-    // Idle mode: behave like a normal app window — fully interactive
-    // so the idle logo and nav bar buttons can be clicked.
-    overlayWindow.setAlwaysOnTop(false);
-    overlayWindow.setIgnoreMouseEvents(false);
-    overlayWindow.setFocusable(true);
-    console.log('[K10] Idle mode — taskbar visible, interactive, not always-on-top');
-  } else {
-    // Race mode: overlay on top of the game
-    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-    overlayWindow.setFocusable(false);
-    console.log('[K10] Race mode — always-on-top, taskbar hidden');
-  }
-});
-
-// ── IPC: In-race state (drives overlay visibility in inverted shell) ──
-// The poll-engine (in the overlay renderer) emits this on every
-// debounced flip. When the inverted-shell flag is on, the overlay window
-// is revealed only while in a sim session. Broadcasts to the web-app
-// window so it can render live session status.
+// ── IPC: In-car state (drives overlay window visibility) ──
+// poll-engine (in the renderer) emits this on every debounced flip
+// between "live car data" and "not in a car". The window is shown only
+// while in a car and hidden otherwise, so the overlay is never on-screen
+// — or competing with the sim for resources — at the menus.
 ipcMain.handle('notify-in-race-state', async (_event, inRace) => {
   if (inRace === isInRace) return;   // no change
   isInRace = !!inRace;
-
-  // Broadcast to the web-app window so its UI can reflect live session state.
-  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-    dashboardWindow.webContents.send('in-race-state', isInRace);
-  }
-
-  // Only gate overlay visibility when the inverted shell is enabled.
-  // Legacy mode: overlay is always visible.
-  if (!shouldInvertShell()) return;
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
 
   if (isInRace) {
@@ -683,10 +617,10 @@ ipcMain.handle('notify-in-race-state', async (_event, inRace) => {
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     overlayWindow.setIgnoreMouseEvents(true, { forward: true });
     overlayWindow.setFocusable(false);
-    logToFile('[K10] In-race → overlay revealed');
+    logToFile('[K10] In-car → overlay revealed');
   } else {
     overlayWindow.hide();
-    logToFile('[K10] Out of race → overlay hidden');
+    logToFile('[K10] Out of car → overlay hidden');
   }
 });
 
@@ -1510,7 +1444,7 @@ ipcMain.handle('discord-connect', async () => {
     const result = await callbackPromise;
 
     // Restore z-level (respect idle mode — don't go always-on-top when not racing)
-    if (overlayWindow && !overlayWindow.isDestroyed() && !isIdleMode) {
+    if (overlayWindow && !overlayWindow.isDestroyed() && isInRace) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
 
@@ -1552,7 +1486,7 @@ ipcMain.handle('discord-connect', async () => {
   } catch (err) {
     console.error('[K10] Discord connect error:', err);
     // Restore z-level if it was lowered (respect idle mode)
-    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop() && !isIdleMode) {
+    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop() && isInRace) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
     return { success: false, error: err.message };
@@ -1682,7 +1616,7 @@ ipcMain.handle('k10-connect', async () => {
     const result = await callbackPromise;
 
     // Restore z-level (respect idle mode — don't go always-on-top when not racing)
-    if (overlayWindow && !overlayWindow.isDestroyed() && !isIdleMode) {
+    if (overlayWindow && !overlayWindow.isDestroyed() && isInRace) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
 
@@ -1732,7 +1666,7 @@ ipcMain.handle('k10-connect', async () => {
     };
   } catch (err) {
     console.error('[K10] K10 Pro connect error:', err);
-    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop() && !isIdleMode) {
+    if (overlayWindow && !overlayWindow.isDestroyed() && !overlayWindow.isAlwaysOnTop() && isInRace) {
       overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     }
     return { success: false, error: err.message };

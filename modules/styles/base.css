@@ -115,7 +115,6 @@
   body.drive-mode-active .commentary-col,
   body.drive-mode-active .timer-row,
   body.drive-mode-active #connBanner,
-  body.drive-mode-active #idleLogo,
   body.drive-mode-active .rc-banner,
   body.drive-mode-active #secContainer {
     display: none !important;
