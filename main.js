@@ -1213,6 +1213,47 @@ ipcMain.handle('get-dashboard-mode', async () => {
   return 'build';
 });
 
+// ── IPC: Layout v2 — module registry + metrics sidecar ──
+// The registry ships two ways: outside the asar via extraResources
+// (resources/layout-registry.json — also what the WinUI host reads)
+// and inside the app files for dev runs. Prefer the extraResources
+// copy when packaged so all three readers see the same bytes.
+function getLayoutRegistryPath() {
+  if (app.isPackaged) {
+    const packaged = path.join(process.resourcesPath, 'layout-registry.json');
+    if (fs.existsSync(packaged)) return packaged;
+  }
+  return path.join(__dirname, 'layout-registry.json');
+}
+
+ipcMain.handle('get-layout-registry', async () => {
+  try {
+    return JSON.parse(fs.readFileSync(getLayoutRegistryPath(), 'utf8'));
+  } catch (e) {
+    logToFile('[K10] layout registry read failed: ' + e.message);
+    return null; // renderer stays on the legacy layout path
+  }
+});
+
+// Observed module/group geometry from the renderer → sidecar file the
+// host's editor watches for pixel-exact proxies. Separate file from
+// overlay-settings.json on purpose: each file has exactly one writer
+// (host writes settings, overlay writes metrics), so neither can
+// clobber the other's whole-file atomic saves.
+ipcMain.handle('report-layout-metrics', async (event, metrics) => {
+  if (!metrics || typeof metrics !== 'object') return false;
+  try {
+    const metricsPath = path.join(path.dirname(getSettingsPath()), 'overlay-metrics.json');
+    const tmp = metricsPath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(metrics, null, 2));
+    fs.renameSync(tmp, metricsPath); // atomic swap — watcher never sees a partial file
+    return true;
+  } catch (e) {
+    logToFile('[K10] layout metrics write failed: ' + e.message);
+    return false;
+  }
+});
+
 // ── IPC: Quit app ──
 ipcMain.handle('quit-app', () => {
   app.quit();

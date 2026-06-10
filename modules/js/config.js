@@ -600,6 +600,7 @@ function getCarAdjustability(model) {
 const _defaultSettings = {
   showFuel: true, showTyres: true, showControls: true, showPedals: true,
   showPosition: true, showTacho: true, showCommentary: true,
+  showMaps: true, showTimer: true,
   showK10Logo: true, showCarLogo: true, showGameLogo: true, simhubUrl: 'http://localhost:8889/racecor-io-pro-drive/',
   layoutPosition: 'top-right',
   greenScreen: false, showWebGL: true, showBonkers: true, ambientMode: 'reflective',
