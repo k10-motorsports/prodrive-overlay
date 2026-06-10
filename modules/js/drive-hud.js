@@ -296,8 +296,14 @@
         dhSvg.style.transformOrigin = '';
       }
 
-      // Opponents
+      // Opponents. When the API outline is in use, reproject the plugin's
+      // raw coords into its space (same remap the player dot gets above) so
+      // cars sit on the track instead of floating off it.
       var opponentStr = p['RaceCorProDrive.Plugin.TrackMap.Opponents'] || '';
+      if (_apiSvg && apiPts && apiPts.length >= 2 && _pluginSvg
+          && typeof window._reprojectOpponentsToApi === 'function') {
+        opponentStr = window._reprojectOpponentsToApi(opponentStr, _pluginSvg, apiPts);
+      }
       var dhOppG = document.getElementById('dhMapOpponents');
       if (dhOppG) {
         var parts = opponentStr ? opponentStr.split(';').filter(function(s) { return s.length > 0; }) : [];

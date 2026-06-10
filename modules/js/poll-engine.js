@@ -185,6 +185,54 @@
     return { x: first.x, y: first.y };
   };
 
+  // Reproject opponent dots from the plugin's coordinate space into the API
+  // path's space. The plugin reports each car as an (x,y) normalized against
+  // its LOCAL recording; when we render the curated API outline instead (see
+  // the mapPath selection in the render loop), those raw coords land cars off
+  // the drawn track — the "driving around in the wilderness" symptom. We
+  // recover each car's lap fraction by snapping it to the plugin path (which
+  // shares the cars' local normalization), then map that fraction onto the API
+  // points — exactly how the player dot is remapped via _lapDistToApiXY. Cars
+  // therefore land on the same outline the player does.
+  //
+  //   oppStr     "x,y,pit;x,y,pit;..." in plugin space
+  //   pluginPath the plugin's own SVG path (same space as oppStr)
+  //   apiPts     API points [{x,y,p}] — the rendered outline's space
+  //
+  // Returns a reprojected "x,y,pit;..." string, or the input unchanged when
+  // reprojection isn't possible (missing data / unparseable plugin path).
+  var _reprojOppCache = { path: '', pts: null };
+  window._reprojectOpponentsToApi = function(oppStr, pluginPath, apiPts) {
+    if (!oppStr || !pluginPath || !apiPts || apiPts.length < 2) return oppStr;
+    // Parse + cache the plugin endpoints across frames — re-parse on track change only.
+    if (_reprojOppCache.path !== pluginPath) {
+      _reprojOppCache.path = pluginPath;
+      _reprojOppCache.pts = _pointsFromSvgPath(pluginPath);
+    }
+    var pp = _reprojOppCache.pts;
+    if (!pp || pp.length < 10) return oppStr;
+    var segs = oppStr.split(';');
+    var out = '';
+    for (var i = 0; i < segs.length; i++) {
+      if (!segs[i]) continue;
+      var f = segs[i].split(',');
+      if (f.length < 2) continue;
+      var ox = +f[0], oy = +f[1];
+      if (!isFinite(ox) || !isFinite(oy)) continue;
+      // Nearest plugin-path endpoint → its lap fraction.
+      var bd = Infinity, bp = 0;
+      for (var j = 0; j < pp.length; j++) {
+        var dx = ox - pp[j].x, dy = oy - pp[j].y;
+        var d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; bp = pp[j].p; }
+      }
+      var pos = window._lapDistToApiXY(apiPts, bp);
+      var nx = pos ? pos.x : ox, ny = pos ? pos.y : oy;
+      out += (out ? ';' : '') + nx.toFixed(2) + ',' + ny.toFixed(2) + ',' + (f[2] || '0');
+    }
+    return out;
+  };
+
   // Write the track name into the full-map label and, if it doesn't fit on
   // one line, kick off a slow horizontal marquee (pause → slide → pause → return).
   let _lastFullMapLabelText = '';
@@ -1373,7 +1421,7 @@
     // ─── Track map ───
     const mapReady = +v('RaceCorProDrive.Plugin.TrackMap.Ready') || 0;
     const pluginPath = mapReady ? (vs('RaceCorProDrive.Plugin.TrackMap.SvgPath') || '') : '';
-    const mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
+    let mapOpp  = vs('RaceCorProDrive.Plugin.TrackMap.Opponents') || '';
     const mapHeading = +v('RaceCorProDrive.Plugin.TrackMap.PlayerHeading') || 0;
     // Prefer web API track maps when available — they're curated and
     // override stale/corrupt SimHub .shtl recordings (e.g. Nordschleife
@@ -1399,6 +1447,12 @@
     if (mapPX === undefined) {
       mapPX = +v('RaceCorProDrive.Plugin.TrackMap.PlayerX') || 50;
       mapPY = +v('RaceCorProDrive.Plugin.TrackMap.PlayerY') || 50;
+    }
+    // Opponents come from the plugin in its local normalization. When the API
+    // outline is what we draw, reproject them into its space (same lap-distance
+    // remap the player gets above) so they sit on the track, not beside it.
+    if (_apiMapPath && _apiPts && _apiPts.length >= 2) {
+      mapOpp = window._reprojectOpponentsToApi(mapOpp, pluginPath, _apiPts);
     }
     try { updateTrackMap(mapPath, mapPX, mapPY, mapOpp, speed, mapHeading); } catch(e) { console.error('[K10] Track map error:', e); }
     // Full map label: show display name (from K10 API) or fall back to game name
