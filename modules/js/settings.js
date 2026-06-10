@@ -109,6 +109,14 @@
   window.applyLayout = applyLayout;
 
   function applyZoom(val) {
+    // Zoom hotkeys / visual presets call this directly. When the v2
+    // engine owns the layout, route through it instead — it re-derives
+    // every group position from the new scale; zooming the legacy
+    // element list underneath it would double-zoom adopted panels.
+    if (window.K10LayoutV2 && window.K10LayoutV2.isActive()) {
+      window.K10LayoutV2.setZoom(val);
+      return;
+    }
     var scale = (val || 100) / 100;
     document.documentElement.style.setProperty('--dash-zoom', scale);
 
@@ -167,6 +175,8 @@
     showPedals:      '.pedals-area',
     showPosition:    '.pos-gaps-col, .rating-pos-block, .gaps-block',
     showTacho:       '.tacho-block',
+    showMaps:        '.maps-col',
+    showTimer:       '.race-timer-block',
     showCommentary:  '#commentaryCol',
     showLeaderboard: '#leaderboardPanel',
     showDatastream:  '#datastreamPanel',
@@ -248,12 +258,25 @@
     // Bonkers pit limiter toggle
     document.body.classList.toggle('bonkers-off', _settings.showBonkers === false);
 
-    // Layout — all behavior is deterministic from position choice
-    applyLayout();
-
-    // Zoom
+    // Layout — v2 (data-driven groups written by the host's preview
+    // editor) when the settings carry a v2 block and the engine has its
+    // registry; legacy corner derivation otherwise. The v2 engine owns
+    // zoom for everything it reparents (per-group style.zoom), so the
+    // legacy zoom pass must not run alongside it — that would
+    // double-zoom the moved panels. apply() returning false (registry
+    // still loading) falls through to legacy for this tick; the engine
+    // re-applies on its own once the registry lands.
     const zoomVal = _settings.zoom || 100;
-    applyZoom(zoomVal);
+    var _lv2 = window.K10LayoutV2;
+    var _v2Active = !!(_lv2
+      && _settings.layout
+      && _settings.layout.version === 2
+      && _lv2.apply(_settings.layout, { zoom: zoomVal }));
+    if (!_v2Active) {
+      if (_lv2) _lv2.restore();
+      applyLayout();
+      applyZoom(zoomVal);
+    }
 
     // Logo Subtitle
     if (typeof applyLogoSubtitle === 'function') applyLogoSubtitle();
