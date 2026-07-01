@@ -49,13 +49,32 @@ test.describe('Issue #13 — Ambient CSS: inset-only box-shadows on plastic pane
     expect(css).toMatch(/ambient-plastic.*\.panel|\.panel.*ambient-plastic/);
   });
 
+  // Split a box-shadow value into layers on TOP-LEVEL commas only — a
+  // naive split(',') would break rgba(r, g, b, a) on its inner commas
+  // and mistake "var(--ambient-g)" for a separate (non-inset) layer.
+  function splitShadowLayers(decl) {
+    const layers = [];
+    let depth = 0, start = 0;
+    for (let i = 0; i < decl.length; i++) {
+      const ch = decl[i];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth--;
+      else if (ch === ',' && depth === 0) {
+        layers.push(decl.slice(start, i).trim());
+        start = i + 1;
+      }
+    }
+    layers.push(decl.slice(start).trim());
+    return layers;
+  }
+
   test('no outer (non-inset) box-shadow on ambient-plastic panel rules', () => {
     // Find all box-shadow declarations in blocks containing 'ambient-plastic'
     const plasticBlocks = css.match(/body\.ambient-plastic[^{]*\{[^}]*box-shadow[^}]*\}/g) || [];
     for (const block of plasticBlocks) {
       const shadowDecl = block.match(/box-shadow\s*:\s*([^;]+)/)?.[1] ?? '';
-      // Split into individual shadow layers (comma-separated)
-      const layers = shadowDecl.split(',').map(s => s.trim());
+      // Split into individual shadow layers (comma-separated, paren-aware)
+      const layers = splitShadowLayers(shadowDecl);
       for (const layer of layers) {
         if (!layer) continue;
         // An outer shadow does NOT start with 'inset'

@@ -50,10 +50,11 @@ test.describe('Issue #4 — Drive-HUD heading LERP', () => {
   });
 
   test('takes the short way around 0°/360° boundary going forward', () => {
-    // Current=350°, target=10° — short path is +20°, not -340°
-    // After one step at alpha=0.5: 350 + 10*0.5 = 355
+    // Current=350°, target=10° — short path is +20° (through north), not −340°.
+    // After one step at alpha=0.5: 350 + 20*0.5 = 360 → 0° (the short-path
+    // midpoint sits exactly on the boundary), not the long-way-around value.
     const h1 = lerpHeading(350, 10, 0.5);
-    expect(h1).toBeCloseTo(355, 1);
+    expect(h1).toBeCloseTo(0, 1);
   });
 
   test('takes the short way around 0°/360° boundary going backward', () => {

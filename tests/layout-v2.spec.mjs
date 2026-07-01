@@ -134,6 +134,44 @@ test.describe('Layout v2 engine', () => {
     expect(Math.abs(main.y - edge)).toBeLessThan(2.5);
   });
 
+  test('per-group scale resizes one group about its anchor, others unchanged', async ({ page }) => {
+    await load(page);
+    const vp = await viewport(page);
+    const edge = await pageEdge(page);
+
+    // Baseline: measure the free commentary group at scale 1.
+    await applyV2(page);
+    const base = await groupRect(page, 'commentary');
+
+    // Scale just the commentary group to 2× (global zoom stays 100).
+    const scaled = JSON.parse(JSON.stringify(fixture.layout));
+    scaled.groups.find((g) => g.id === 'commentary').scale = 2;
+    await applyV2(page, { layout: scaled });
+
+    const cmt = await groupRect(page, 'commentary');
+    const main = await groupRect(page, 'mainHud');
+
+    // Container zoom reflects global × group scale = 1 × 2.
+    const zoomStyle = await page.evaluate(() =>
+      document.querySelector('#layoutV2Root [data-group-id="commentary"]').style.zoom);
+    expect(parseFloat(zoomStyle)).toBeCloseTo(2, 5);
+
+    // It grew (roughly doubled) but stayed pinned to its anchor point:
+    // bottom-left at (0.012·vw, 0.7·vh), independent of size.
+    expect(cmt.w).toBeGreaterThan(base.w * 1.5);
+    expect(Math.abs(cmt.x - 0.012 * vp.w)).toBeLessThan(1.5);
+    expect(Math.abs(cmt.bottom - 0.7 * vp.h)).toBeLessThan(1.5);
+
+    // A different group (locked mainHud) is untouched by the resize.
+    expect(Math.abs(main.right - (vp.w - edge))).toBeLessThan(1.5);
+    expect(Math.abs(main.y - edge)).toBeLessThan(1.5);
+
+    // measure() surfaces the effective scale for the host editor.
+    const metrics = await page.evaluate(() => window.K10LayoutV2.measure());
+    expect(metrics.groups.commentary.scale).toBeCloseTo(2, 5);
+    expect(metrics.groups.mainHud.scale).toBeCloseTo(1, 5);
+  });
+
   test('hidden modules are skipped by the flow (display:none)', async ({ page }) => {
     await load(page);
     await page.evaluate(() =>

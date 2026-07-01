@@ -38,12 +38,21 @@ function lerpHeading(current, target, alpha) {
 //  Load real Bathurst track map and derive heading sequence
 // ─────────────────────────────────────────────────────────────
 
-function loadTrackHeadings(csvRelPath, stride = 30) {
-  const csvPath = path.resolve(
+// The source CSV lives in the sibling racecor-plugin repo, so it is only
+// present in a multi-repo dev checkout — never in this repo's own CI.
+// The CSV-backed tests below skip when it is absent; the LERP behaviour
+// they guard is still covered via the embedded BATHURST_HEADING_SNAPSHOT.
+function trackCsvPath(csvRelPath) {
+  return path.resolve(
     fileURLToPath(import.meta.url),
     '../../../../racecor-plugin/simhub-plugin/racecorprodrive-data/trackmaps',
     csvRelPath
   );
+}
+const BATHURST_CSV_AVAILABLE = fs.existsSync(trackCsvPath('bathurst.csv'));
+
+function loadTrackHeadings(csvRelPath, stride = 30) {
+  const csvPath = trackCsvPath(csvRelPath);
   const lines = fs.readFileSync(csvPath, 'utf8').trim().split('\n');
   const pts = lines
     .map(l => l.split(',').map(Number))
@@ -101,6 +110,7 @@ function shortAngularDiff(a, b) {
 test.describe('Issue #4 — Drive-HUD LERP: Bathurst real-track data', () => {
 
   test('loads Bathurst CSV and derives heading sequence', () => {
+    test.skip(!BATHURST_CSV_AVAILABLE, 'bathurst.csv lives in the racecor-plugin repo; absent in single-repo CI');
     const headings = loadTrackHeadings('bathurst.csv', 30);
     expect(headings.length).toBeGreaterThan(50);
     // Sanity: full compass range represented
@@ -109,6 +119,7 @@ test.describe('Issue #4 — Drive-HUD LERP: Bathurst real-track data', () => {
   });
 
   test('live CSV matches pre-computed snapshot (CSV unchanged)', () => {
+    test.skip(!BATHURST_CSV_AVAILABLE, 'bathurst.csv lives in the racecor-plugin repo; absent in single-repo CI');
     const live = loadTrackHeadings('bathurst.csv', 30);
     expect(live.length).toBe(BATHURST_HEADING_SNAPSHOT.length);
     for (let i = 0; i < live.length; i++) {
@@ -160,22 +171,27 @@ test.describe('Issue #4 — Drive-HUD LERP: Bathurst real-track data', () => {
     }
   });
 
-  test('LERP smooth output tracks raw within 45° throughout the lap', () => {
-    // The smoothed heading should follow the raw within one sharp corner's worth
+  test('LERP smooth output tracks raw within one sharp corner throughout the lap', () => {
+    // Heavy smoothing (alpha=0.18) means that on the frame of the sharpest
+    // raw jump the smoothed heading lags by up to one full corner's worth —
+    // the worst case on this lap is ~89° at the ~88° Griffins Bend jump.
+    // The bound stays well under 180°, which is what a broken wrap-around
+    // (long-way rotation) would produce.
     const raw = BATHURST_HEADING_SNAPSHOT;
     const smooth = simulateLerp(raw);
     // Give 5 frames of lag budget at the start (LERP needs time to catch up)
     for (let i = 5; i < raw.length; i++) {
-      expect(shortAngularDiff(smooth[i], raw[i])).toBeLessThan(45);
+      expect(shortAngularDiff(smooth[i], raw[i])).toBeLessThan(95);
     }
   });
 
-  test('LERP with alpha=0.18 converges after sharp corners within 10 frames', () => {
-    // After Griffins Bend (largest jump at idx ~24, raw 88°) LERP must
-    // be within 5° of the target within 10 subsequent frames.
+  test('LERP with alpha=0.18 converges after sharp corners within 15 frames', () => {
+    // After Griffins Bend (largest jump at idx ~24, raw 88°) LERP closes the
+    // ~56° short-path gap by exp decay: 0.82^n·56° < 5° needs n≈13 frames, so
+    // 15 frames gives a small margin.
     let h = 342.3;   // heading just before the bend
     const target = 38.6;  // heading immediately after
-    for (let i = 0; i < 10; i++) h = lerpHeading(h, target, 0.18);
+    for (let i = 0; i < 15; i++) h = lerpHeading(h, target, 0.18);
     expect(shortAngularDiff(h, target)).toBeLessThan(5);
   });
 
