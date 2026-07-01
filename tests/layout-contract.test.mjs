@@ -83,6 +83,15 @@ test('defaultLayout: groups are valid and cover every placeable module exactly o
     assert.ok(g.x >= 0 && g.x <= 1 && g.y >= 0 && g.y <= 1, `group ${g.id}: x/y must be normalized 0..1`);
     assert.ok(['row', 'column'].includes(g.flow), `group ${g.id}: bad flow ${g.flow}`);
     assert.equal(typeof g.locked, 'boolean', `group ${g.id}: locked must be boolean`);
+    if ('scale' in g) {
+      // Optional per-group resize multiplier. Both repos treat a missing
+      // scale as 1; when present it must be a positive, finite number
+      // within the range the host editor clamps to (0.25×–4×).
+      assert.ok(
+        typeof g.scale === 'number' && Number.isFinite(g.scale) && g.scale >= 0.25 && g.scale <= 4,
+        `group ${g.id}: scale must be a number in [0.25, 4], got ${g.scale}`,
+      );
+    }
 
     for (const id of flattenMembers(g)) {
       assert.ok(placeable.has(id), `group ${g.id}: member ${id} is not a placeable module`);

@@ -13,8 +13,12 @@
 //   pivot (px,py)  = anchor's unit corner (top-right → 1,0)
 //   target (tx,ty) = locked ? anchor's natural corner inset by --edge
 //                  : (x·vw, y·vh)            (normalized, visual px)
-//   left/top       = target / zoomScale       (zoomed units)
+//   effScale       = global zoom × group.scale   (per-group resize)
+//   left/top       = target / effScale        (zoomed units)
 //   transform      = translate(-px·100%, -py·100%)
+// The optional per-group `scale` (default 1) multiplies the global zoom
+// so a single group can be sized independently; it scales about the
+// anchor pivot, so the group's anchored position is preserved.
 // translate-% resolves against the zoomed border box, so the pivot
 // lands on the target without measuring; dividing left/top by the
 // scale mirrors the legacy --edge-z compensation (a zoomed element
@@ -137,6 +141,12 @@
     container.replaceChildren.apply(container, desired);
   }
 
+  /** Per-group scale multiplier on top of the global zoom (default 1). */
+  function _groupScale(group) {
+    var s = group.scale;
+    return (typeof s === 'number' && s > 0) ? s : 1;
+  }
+
   function _position(container, group, scale, edgePx) {
     var anchor = PIVOTS.hasOwnProperty(group.anchor) ? group.anchor : 'top-left';
     var pivot = PIVOTS[anchor];
@@ -154,9 +164,17 @@
       ty = (typeof group.y === 'number' ? group.y : 0) * vh;
     }
 
-    container.style.zoom = scale;
-    container.style.left = (tx / scale) + 'px';
-    container.style.top = (ty / scale) + 'px';
+    // Effective zoom = global zoom × per-group scale, so a group can be
+    // resized independently while everything else stays at the base
+    // zoom. left/top are divided by the SAME effective zoom (a zoomed
+    // element reads its own left/top in zoomed units); the target point
+    // — where the pivot lands — is untouched, so the group grows/shrinks
+    // about its anchor corner and its anchored position holds.
+    var effScale = scale * _groupScale(group);
+    container.style.zoom = effScale;
+    container.style.left = (tx / effScale) + 'px';
+    container.style.top = (ty / effScale) + 'px';
+    container.setAttribute('data-scale', effScale);
     container.style.transform =
       'translate(' + (-pivot[0] * 100) + '%, ' + (-pivot[1] * 100) + '%)';
   }
@@ -330,7 +348,15 @@
       Array.prototype.slice.call(root.children).forEach(function (container) {
         var id = container.getAttribute('data-group-id');
         var r = container.getBoundingClientRect();
-        if (id) out.groups[id] = { x: r.x, y: r.y, w: r.width, h: r.height };
+        if (!id) return;
+        // Effective zoom (global × per-group scale) lets the host editor
+        // convert visual-px rects back into group-scale units for its
+        // resize proxies without re-deriving the multiplication.
+        var s = parseFloat(container.getAttribute('data-scale'));
+        out.groups[id] = {
+          x: r.x, y: r.y, w: r.width, h: r.height,
+          scale: (s > 0 ? s : 1),
+        };
       });
     }
     return out;
